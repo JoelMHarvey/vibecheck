@@ -12,6 +12,8 @@ failed / timed out).
 
 from __future__ import annotations
 
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional
 from urllib.parse import urljoin, urlparse
@@ -126,6 +128,83 @@ SECURITY_HEADERS = {
 }
 
 
+# URL findings that aren't driven by the two tables above. Keeping their
+# prose here (rather than inline at the call site) means iter_url_rules()
+# can hand every URL rule to the client-side manifest that share links
+# rehydrate from.
+INLINE_URL_RULES = {
+    "exposed-source-map": (
+        "Source maps are published",
+        "medium",
+        "Your JavaScript source maps are publicly served. They let anyone "
+        "reconstruct your original, unminified source code — including "
+        "comments and any secrets or logic you assumed were hidden in the "
+        "bundle.",
+        "My deployed site publishes JavaScript source maps (.map files are "
+        "publicly readable). Turn off source map generation for production "
+        "builds, or stop the server from serving .map files. Check the "
+        "reconstructed source didn't expose any secrets.",
+    ),
+    "cors-wildcard-live": (
+        "Live site sends CORS: allow all origins",
+        "medium",
+        "Your site responds with Access-Control-Allow-Origin: *, letting any "
+        "website read responses from it. Combined with cookie auth this can "
+        "expose logged-in users' data to malicious sites.",
+        "My deployed site returns 'Access-Control-Allow-Origin: *'. Restrict it "
+        "to only the origins that actually need cross-origin access, and never "
+        "combine a wildcard with credentialed (cookie) requests.",
+    ),
+    "robots-leaks-paths": (
+        "robots.txt advertises sensitive paths",
+        "low",
+        "Your robots.txt lists a sensitive-looking path in a Disallow rule. "
+        "robots.txt is public, so this is a signpost pointing attackers "
+        "straight at the pages you most want hidden — it does not protect "
+        "them.",
+        "My robots.txt lists sensitive paths in Disallow rules (shown in this "
+        "report), which just advertises them to anyone who looks. Protect those "
+        "routes with real authentication instead of relying on robots.txt, and "
+        "remove the revealing entries.",
+    ),
+    "no-https": (
+        "Site served over plain HTTP",
+        "high",
+        "Your site is served over HTTP, not HTTPS. Everything between your "
+        "users and the site — including passwords and session cookies — "
+        "travels unencrypted and can be read or altered in transit.",
+        "My deployed site is served over plain HTTP. Enable HTTPS (most hosts "
+        "like Vercel/Netlify do this automatically once a domain is added) and "
+        "redirect all HTTP traffic to HTTPS.",
+    ),
+    "site-unreachable": (
+        "Site could not be reached",
+        "info",
+        "vibecheck couldn't connect to this URL, so no deployed-site checks "
+        "ran. Check the address is correct and the site is up.",
+        "",
+    ),
+}
+
+
+def iter_url_rules():
+    """Yield (rule_id, title, description, fix_prompt) for every rule the
+    deployed-site scanner can emit."""
+    seen = set()
+    for _path, (rule_id, title, _sev, desc, fix) in SENSITIVE_PATHS.items():
+        if rule_id not in seen:
+            seen.add(rule_id)
+            yield rule_id, title, desc, fix
+    for _h, (rule_id, title, _sev, desc, fix) in SECURITY_HEADERS.items():
+        if rule_id not in seen:
+            seen.add(rule_id)
+            yield rule_id, title, desc, fix
+    for rule_id, (title, _sev, desc, fix) in INLINE_URL_RULES.items():
+        if rule_id not in seen:
+            seen.add(rule_id)
+            yield rule_id, title, desc, fix
+
+
 @dataclass
 class Response:
     status: int
@@ -135,6 +214,14 @@ class Response:
 
 
 Fetcher = Callable[[str], Optional[Response]]
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Turns redirects into HTTPError so the caller can re-validate the
+    target before following it."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 
 def _norm_base(url: str) -> str:
@@ -155,6 +242,11 @@ def _finding(rule_id, title, severity, path, description, fix_prompt, excerpt) -
         description=description,
         fix_prompt=fix_prompt,
     )
+
+
+def _inline_finding(rule_id: str, path: str, excerpt: str) -> Finding:
+    title, severity, description, fix_prompt = INLINE_URL_RULES[rule_id]
+    return _finding(rule_id, title, severity, path, description, fix_prompt, excerpt)
 
 
 def _looks_like_real_file(resp: Response) -> bool:
@@ -197,19 +289,9 @@ def _check_source_maps(base: str, home: Response, fetch: Fetcher) -> List[Findin
         checked.add(map_url)
         resp = fetch(map_url)
         if resp and resp.status == 200 and '"sources"' in resp.text[:2000]:
-            findings.append(_finding(
+            findings.append(_inline_finding(
                 "exposed-source-map",
-                "Source maps are published",
-                "medium",
                 urlparse(map_url).path,
-                "Your JavaScript source maps are publicly served. They let "
-                "anyone reconstruct your original, unminified source code — "
-                "including comments and any secrets or logic you assumed were "
-                "hidden in the bundle.",
-                "My deployed site publishes JavaScript source maps (.map files are "
-                "publicly readable). Turn off source map generation for production "
-                "builds, or stop the server from serving .map files. Check the "
-                "reconstructed source didn't expose any secrets.",
                 f"GET {urlparse(map_url).path} returned a valid source map",
             ))
             break  # one is enough to make the point
@@ -226,18 +308,8 @@ def _check_headers(base: str, home: Response) -> List[Finding]:
     # CORS wide open
     acao = present.get("access-control-allow-origin")
     if acao == "*":
-        findings.append(_finding(
-            "cors-wildcard-live",
-            "Live site sends CORS: allow all origins",
-            "medium",
-            "(response headers)",
-            "Your site responds with Access-Control-Allow-Origin: *, letting "
-            "any website read responses from it. Combined with cookie auth "
-            "this can expose logged-in users' data to malicious sites.",
-            "My deployed site returns 'Access-Control-Allow-Origin: *'. Restrict it "
-            "to only the origins that actually need cross-origin access, and never "
-            "combine a wildcard with credentialed (cookie) requests.",
-            "Access-Control-Allow-Origin: *",
+        findings.append(_inline_finding(
+            "cors-wildcard-live", "(response headers)", "Access-Control-Allow-Origin: *"
         ))
     return findings
 
@@ -254,21 +326,7 @@ def _check_robots(base: str, fetch: Fetcher) -> List[Finding]:
             continue
         path = line.split(":", 1)[1].strip()
         if path and path != "/" and any(word in path.lower() for word in suspicious):
-            findings.append(_finding(
-                "robots-leaks-paths",
-                "robots.txt advertises sensitive paths",
-                "low",
-                "/robots.txt",
-                "Your robots.txt lists a sensitive-looking path in a Disallow "
-                "rule. robots.txt is public, so this is a signpost pointing "
-                "attackers straight at the pages you most want hidden — it "
-                "does not protect them.",
-                "My robots.txt lists sensitive paths (like {p}) in Disallow rules, "
-                "which just advertises them. Protect those routes with real "
-                "authentication instead of relying on robots.txt, and remove the "
-                "revealing entries.".format(p=path),
-                f"Disallow: {path}",
-            ))
+            findings.append(_inline_finding("robots-leaks-paths", "/robots.txt", f"Disallow: {path}"))
     return findings
 
 
@@ -279,33 +337,12 @@ def scan_url(url: str, fetch: Fetcher, root_label: Optional[str] = None) -> Scan
 
     home = fetch(base + "/")
     if home is None:
-        result.findings.append(_finding(
-            "site-unreachable",
-            "Site could not be reached",
-            "info",
-            base,
-            "vibecheck couldn't connect to this URL, so no deployed-site "
-            "checks ran. Check the address is correct and the site is up.",
-            "",
-            "connection failed",
-        ))
+        result.findings.append(_inline_finding("site-unreachable", base, "connection failed"))
         return _finalize(result)
 
     result.files_scanned = 1
     if home.url.startswith("http://"):
-        result.findings.append(_finding(
-            "no-https",
-            "Site served over plain HTTP",
-            "high",
-            base,
-            "Your site is served over HTTP, not HTTPS. Everything between your "
-            "users and the site — including passwords and session cookies — "
-            "travels unencrypted and can be read or altered in transit.",
-            "My deployed site is served over plain HTTP. Enable HTTPS (most hosts "
-            "like Vercel/Netlify do this automatically once a domain is added) and "
-            "redirect all HTTP traffic to HTTPS.",
-            home.url,
-        ))
+        result.findings.append(_inline_finding("no-https", base, home.url))
 
     result.findings.extend(_check_sensitive_paths(base, fetch))
     result.findings.extend(_check_source_maps(base, home, fetch))
@@ -314,10 +351,57 @@ def scan_url(url: str, fetch: Fetcher, root_label: Optional[str] = None) -> Scan
     return _finalize(result)
 
 
+def build_guarded_fetcher(timeout: float = 6.0, max_redirects: int = 3) -> Fetcher:
+    """Fetcher for the HOSTED scanner: every URL — and every redirect hop —
+    is checked against the SSRF guard before a request is made. Redirects are
+    followed manually so an open redirect can't walk us into a private
+    network."""
+    from .netguard import check_url
+
+    def fetch(target: str) -> Optional[Response]:
+        current = target
+        for _ in range(max_redirects + 1):
+            ok, _reason = check_url(current)
+            if not ok:
+                return None
+            req = urllib.request.Request(
+                current,
+                headers={"User-Agent": "vibecheck/0.1 (+https://psychosecurity.io)"},
+            )
+            opener = urllib.request.build_opener(_NoRedirect)
+            try:
+                with opener.open(req, timeout=timeout) as r:
+                    raw = r.read(600_000)
+                    return Response(
+                        status=r.status,
+                        headers={k.lower(): v for k, v in r.headers.items()},
+                        text=raw.decode("utf-8", errors="replace"),
+                        url=r.geturl(),
+                    )
+            except urllib.error.HTTPError as e:
+                if e.code in (301, 302, 303, 307, 308):
+                    location = (e.headers or {}).get("location")
+                    if not location:
+                        return None
+                    current = urljoin(current, location)
+                    continue
+                return Response(
+                    status=e.code,
+                    headers={k.lower(): v for k, v in (e.headers or {}).items()},
+                    text="",
+                    url=current,
+                )
+            except Exception:
+                return None
+        return None
+
+    return fetch
+
+
 def build_default_fetcher(timeout: float = 8.0) -> Fetcher:
-    """A urllib-based fetcher for the CLI. Kept out of scan_url so tests
-    never touch the network."""
-    import urllib.request
+    """A urllib-based fetcher for the CLI (no SSRF guard — running it
+    locally against your own machine is a legitimate thing to do). The
+    hosted scanner must use build_guarded_fetcher instead."""
 
     def fetch(target: str) -> Optional[Response]:
         req = urllib.request.Request(target, headers={"User-Agent": "vibecheck/0.1 (+https://psychosecurity.io)"})

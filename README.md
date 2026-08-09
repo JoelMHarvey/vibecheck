@@ -115,11 +115,37 @@ Every project starts at 100. Findings subtract points by severity
 2. **Deleting a leaked key does not un-leak it.** Every fix prompt for an
    exposed credential ends with a reminder to *rotate* it at the provider.
 
+## The hosted version
+
+`index.html` plus the `api/` functions are the psychosecurity.io site:
+drag in a folder or paste a live URL, get the same report in the browser.
+
+**Share links carry the report inside the URL.** Clicking "Copy share
+link" compresses the findings into the URL fragment — which browsers
+never send to a server — so a shared report is readable by anyone with
+the link and stored by nobody. The long prose is rehydrated client-side
+from `rules.json`, keeping a typical link around 700 characters.
+
+There's also a score badge for READMEs:
+
+```markdown
+[![Vibe Score](https://psychosecurity.io/api/badge?score=94)](https://psychosecurity.io)
+```
+
 ## Development
 
 ```bash
-python3 -m unittest discover -s tests -v
+python3 -m unittest discover -s tests -v   # 66 tests
+
+python3 scripts/devserver.py               # run the hosted site locally
+python3 scripts/generate_rules_manifest.py # after editing rules.py
 ```
+
+The browser tests need Playwright (`pip install playwright`); they use
+the Chromium already on the image and skip themselves if none is found.
+
+**If you change `rules.py`, regenerate `rules.json`** — a test fails if
+the two drift, because shared links read their descriptions from it.
 
 ## Roadmap
 

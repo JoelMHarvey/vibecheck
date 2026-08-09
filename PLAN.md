@@ -53,6 +53,14 @@ of funnel ("free website security check"). Next: expose it in the hosted UI
 as a URL box alongside the folder drop (server-side fetch via the existing
 Python function).
 
+**v0.45 — share links + badge (done).** "Copy share link" compresses the
+report into the URL fragment, so a shared report costs no storage, needs no
+account, and never reaches a server — the privacy story ("we literally
+cannot read your report") is itself a selling point against future
+competitors. `/api/badge?score=N` renders the Vibe Score badge for READMEs.
+Both halves of the viral loop are live; what's missing is a reason to click
+through, which is the next item.
+
 **v0.5 — GitHub Action + PR bot.** `vibecheck` as a check on every push;
 Pro-gated auto-fix PRs.
 

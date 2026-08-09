@@ -47,6 +47,7 @@ class handler(BaseHTTPRequestHandler):
 
         result = scan_files(pairs, root_label="uploaded project")
         payload = to_json_dict(result)
+        payload["kind"] = "code"
         payload["truncated"] = len(raw_files) > MAX_FILES
         return self._json(200, payload)
 
