@@ -141,6 +141,18 @@ class ScannerTest(unittest.TestCase):
         paths = sorted(f.path for f in result.findings if f.rule_id == "sql-string-building")
         self.assertEqual(paths, ["db.js", "db.py"])
 
+    def test_innerhtml_static_string_not_flagged(self):
+        self.write(
+            "src/ui.js",
+            "box.innerHTML = '<div class=\"none\">No matches</div>';\n"
+            'list.innerHTML = "";\n'
+            "out.innerHTML = results;\n"
+            "el.innerHTML = `<p>${message}</p>`;\n",
+        )
+        result = scan(str(self.root))
+        lines = sorted(f.line for f in result.findings if f.rule_id == "innerhtml-assignment")
+        self.assertEqual(lines, [3, 4])
+
     def test_flask_debug(self):
         self.write("app.py", "app.run(host='0.0.0.0', debug=True)\n")
         result = scan(str(self.root))

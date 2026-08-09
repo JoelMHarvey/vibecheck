@@ -564,7 +564,12 @@ RULES = [
         id="innerhtml-assignment",
         title="HTML built from strings (XSS risk)",
         severity="medium",
-        pattern=re.compile(r"\.innerHTML\s*=|dangerouslySetInnerHTML"),
+        # A pure string literal with no interpolation can't carry user input,
+        # so `el.innerHTML = '<p>Loading…</p>'` is not worth flagging.
+        pattern=re.compile(
+            r"\.innerHTML\s*\+?=(?!\s*(?:\"[^\"$]*\"|'[^'$]*'|`[^`$]*`)\s*;?\s*$)"
+            r"|dangerouslySetInnerHTML"
+        ),
         description=(
             "Setting innerHTML (or dangerouslySetInnerHTML) with anything derived "
             "from user input lets attackers inject scripts into your page — stealing "
