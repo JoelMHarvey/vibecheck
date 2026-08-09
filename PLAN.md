@@ -45,10 +45,13 @@ buckets, missing rate limiting on API routes, webhook signature verification.
 behind an API. GitHub OAuth → pick a repo → report card at a shareable URL.
 This is the SEO/distribution engine.
 
-**v0.4 — deployed-URL scanner.** Point it at a live site: checks for exposed
-`/.env`, source maps, security headers, open CORS, `robots.txt` leaking admin
-paths. No repo access needed — zero-friction top of funnel ("free website
-security check").
+**v0.4 — deployed-URL scanner (done, CLI).** `vibecheck --url https://site`
+checks for exposed `/.env` `/.git` and AWS-credentials files, published
+source maps, missing security headers, open CORS, plain-HTTP serving, and
+`robots.txt` leaking admin paths. No repo access needed — zero-friction top
+of funnel ("free website security check"). Next: expose it in the hosted UI
+as a URL box alongside the folder drop (server-side fetch via the existing
+Python function).
 
 **v0.5 — GitHub Action + PR bot.** `vibecheck` as a check on every push;
 Pro-gated auto-fix PRs.

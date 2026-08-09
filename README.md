@@ -70,10 +70,27 @@ to every origin, debug mode left on, TLS verification disabled.
 fine (that's where they belong); `node_modules`, lockfiles, minified bundles
 and binary files are skipped.
 
+## Scan a deployed site (no source code needed)
+
+Point vibecheck at a live URL and it checks the things that leak from a
+running app regardless of how it was built:
+
+```bash
+vibecheck --url https://myapp.com
+```
+
+It looks for a publicly readable `.env` / `.git` / AWS credentials file,
+published JavaScript **source maps** (which reconstruct your original
+code), missing security headers (HSTS, CSP, `X-Content-Type-Options`,
+`X-Frame-Options`), `Access-Control-Allow-Origin: *`, plain-HTTP serving,
+and sensitive paths advertised in `robots.txt`. Same scoring, same
+copy-paste fix prompts.
+
 ## Usage
 
 ```bash
 vibecheck .                          # scan current directory
+vibecheck --url https://myapp.com    # scan a deployed site instead
 vibecheck . --markdown report.md     # also write a shareable Markdown report
 vibecheck . --json report.json       # machine-readable output
 vibecheck . --min-severity medium    # hide low/info noise

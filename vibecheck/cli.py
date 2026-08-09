@@ -22,6 +22,11 @@ def main(argv=None) -> int:
         ),
     )
     parser.add_argument("path", nargs="?", default=".", help="project directory to scan (default: current directory)")
+    parser.add_argument(
+        "--url",
+        metavar="URL",
+        help="scan a DEPLOYED site instead of a directory (checks for exposed .env, source maps, missing security headers, open CORS, robots.txt leaks)",
+    )
     parser.add_argument("--markdown", metavar="FILE", help="also write a Markdown report to FILE")
     parser.add_argument("--json", metavar="FILE", help="also write a JSON report to FILE")
     parser.add_argument(
@@ -40,11 +45,15 @@ def main(argv=None) -> int:
     parser.add_argument("--version", action="version", version=f"vibecheck {__version__}")
     args = parser.parse_args(argv)
 
-    target = Path(args.path)
-    if not target.exists():
-        parser.error(f"path does not exist: {args.path}")
+    if args.url:
+        from .urlscan import build_default_fetcher, scan_url
 
-    result = scan(str(target))
+        result = scan_url(args.url, build_default_fetcher())
+    else:
+        target = Path(args.path)
+        if not target.exists():
+            parser.error(f"path does not exist: {args.path}")
+        result = scan(str(target))
 
     threshold = SEVERITY_ORDER[args.min_severity]
     result.findings = [f for f in result.findings if SEVERITY_ORDER[f.severity] <= threshold]

@@ -41,6 +41,14 @@ def _wrap(text: str, indent: str = "     ") -> str:
     return textwrap.fill(text, width=96, initial_indent=indent, subsequent_indent=indent)
 
 
+def _loc(finding) -> str:
+    """Location label: 'path:line' for code findings, just 'path' for
+    deployed-site findings (which have no line number)."""
+    if finding.line and finding.line > 0:
+        return f"{finding.path}:{finding.line}"
+    return finding.path
+
+
 def render_terminal(result: ScanResult, use_color: bool = True) -> str:
     def c(code: str, s: str) -> str:
         if not use_color:
@@ -76,11 +84,12 @@ def render_terminal(result: ScanResult, use_color: bool = True) -> str:
             current_severity = f.severity
             lines.append(c(f.severity, f"  {SEVERITY_LABELS[f.severity]} " + "─" * (60 - len(f.severity))))
             lines.append("")
-        lines.append("  " + c(f.severity, "✗ ") + c("bold", f.title) + c("dim", f"   {f.path}:{f.line}"))
+        lines.append("  " + c(f.severity, "✗ ") + c("bold", f.title) + c("dim", f"   {_loc(f)}"))
         lines.append(c("dim", f"     {f.excerpt}"))
         lines.append(_wrap(f.description))
-        lines.append(c("dim", "     Fix prompt (paste into your AI coding tool):"))
-        lines.append(_wrap(f'"{f.fix_prompt}"', indent="       "))
+        if f.fix_prompt:
+            lines.append(c("dim", "     Fix prompt (paste into your AI coding tool):"))
+            lines.append(_wrap(f'"{f.fix_prompt}"', indent="       "))
         lines.append("")
 
     lines.append(c("dim", "  Tip: re-run vibecheck after applying fixes. Rotate any exposed key — deleting"))
@@ -118,18 +127,19 @@ def render_markdown(result: ScanResult) -> str:
             lines.append("")
         lines.append(f"### {f.title}")
         lines.append("")
-        lines.append(f"`{f.path}:{f.line}`")
+        lines.append(f"`{_loc(f)}`")
         lines.append("")
         lines.append(f"> {f.excerpt}")
         lines.append("")
         lines.append(f.description)
         lines.append("")
-        lines.append("**Fix prompt** — paste this into Cursor / Claude Code / Lovable / Bolt:")
-        lines.append("")
-        lines.append("```text")
-        lines.append(f.fix_prompt)
-        lines.append("```")
-        lines.append("")
+        if f.fix_prompt:
+            lines.append("**Fix prompt** — paste this into Cursor / Claude Code / Lovable / Bolt:")
+            lines.append("")
+            lines.append("```text")
+            lines.append(f.fix_prompt)
+            lines.append("```")
+            lines.append("")
 
     lines.append("---")
     lines.append("")
