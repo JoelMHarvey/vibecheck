@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vibecheck-scanner"
+version = "0.1.0"
+description = "Security scanner for AI-built apps — plain-English findings with copy-paste fix prompts for your AI coding tool"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+keywords = ["security", "scanner", "secrets", "vibe-coding", "ai", "lovable", "bolt", "cursor"]
+
+[project.scripts]
+vibecheck = "vibecheck.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["vibecheck*"]
