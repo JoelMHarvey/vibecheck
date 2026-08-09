@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from vibecheck.scanner import scan
+from vibecheck.scanner import scan, scan_files
 
 
 def fake_anthropic_key():
@@ -185,6 +185,44 @@ class ScannerTest(unittest.TestCase):
         self.write("src/lib.ts", "const key = import.meta.env.VITE_STRIPE_SECRET_KEY;\n")
         result = scan(str(self.root))
         self.assertIn("public-env-var-holds-secret", self.rule_ids(result))
+
+
+class ScanFilesTest(unittest.TestCase):
+    """The in-memory API used by the hosted scanner."""
+
+    def test_matches_disk_scanner_behaviour(self):
+        result = scan_files([
+            ("app.py", f'client = Anthropic(api_key="{fake_anthropic_key()}")\n'),
+            ("public/chat.js", f'const key = "{fake_anthropic_key()}";\n'),
+        ])
+        by_path = {f.path: f for f in result.findings if f.rule_id == "anthropic-api-key"}
+        self.assertEqual(by_path["app.py"].severity, "high")
+        self.assertEqual(by_path["public/chat.js"].severity, "critical")
+        self.assertEqual(result.files_scanned, 2)
+
+    def test_skip_dirs_and_lockfiles_respected(self):
+        result = scan_files([
+            ("node_modules/lib/index.js", f'const k = "{fake_stripe_live_key()}";\n'),
+            ("package-lock.json", "{}\n"),
+            ("src/ok.js", "const x = 1;\n"),
+        ])
+        self.assertEqual(result.findings, [])
+        self.assertEqual(result.files_scanned, 1)
+
+    def test_env_gitignore_check_in_memory(self):
+        with_ignore = scan_files([
+            (".env", f"KEY={fake_anthropic_key()}\n"),
+            (".gitignore", ".env\n"),
+        ])
+        self.assertNotIn("env-file-not-gitignored", {f.rule_id for f in with_ignore.findings})
+
+        without_ignore = scan_files([(".env", f"KEY={fake_anthropic_key()}\n")])
+        self.assertIn("env-file-not-gitignored", {f.rule_id for f in without_ignore.findings})
+
+    def test_windows_paths_normalized(self):
+        result = scan_files([("src\\db.py", 'cur.execute(f"SELECT {x}")\n')])
+        finding = next(f for f in result.findings if f.rule_id == "sql-string-building")
+        self.assertEqual(finding.path, "src/db.py")
 
 
 if __name__ == "__main__":

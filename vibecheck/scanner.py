@@ -1,4 +1,10 @@
-"""Walks a project directory and applies the detection rules."""
+"""Applies the detection rules to a project directory or in-memory files.
+
+Two entry points:
+- scan(path)        — walk a directory on disk (used by the CLI)
+- scan_files(pairs) — scan (relative_path, text) pairs already in memory
+                      (used by the hosted API, where nothing touches disk)
+"""
 
 from __future__ import annotations
 
@@ -7,8 +13,8 @@ import fnmatch
 import json
 import re
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import List, Optional
+from pathlib import Path, PurePosixPath
+from typing import Iterable, List, Optional, Tuple
 
 from .rules import (
     ENV_NOT_IGNORED,
@@ -129,7 +135,7 @@ class ScanResult:
         return "F"
 
 
-def is_frontend_path(rel_path: Path) -> bool:
+def is_frontend_path(rel_path: PurePosixPath) -> bool:
     if rel_path.suffix.lower() in FRONTEND_EXTS:
         return True
     return any(part.lower() in FRONTEND_DIR_HINTS for part in rel_path.parts[:-1])
@@ -142,13 +148,12 @@ def _is_env_file(name: str) -> bool:
     return not any(hint in lowered for hint in ("example", "sample", "template", "test"))
 
 
-def _should_skip_file(path: Path) -> bool:
-    name = path.name
+def _should_skip_name(name: str, ext: str) -> bool:
     if name in SKIP_FILE_NAMES:
         return True
     if name.endswith(SKIP_FILE_SUFFIXES):
         return True
-    if path.suffix.lower() in BINARY_EXTS:
+    if ext in BINARY_EXTS:
         return True
     return False
 
@@ -197,19 +202,17 @@ def _make_finding(rule: Rule, rel_path: str, line_no: int, excerpt: str, severit
     )
 
 
-def scan_file(path: Path, root: Path) -> List[Finding]:
-    rel = path.relative_to(root)
-    rel_str = rel.as_posix()
-    ext = path.suffix.lower()
-    frontend = is_frontend_path(rel)
-    in_env_file = _is_env_file(path.name)
+def scan_text(rel_path: str, text: str) -> List[Finding]:
+    """Run every applicable rule over one file's content.
 
-    try:
-        if path.stat().st_size > MAX_FILE_BYTES:
-            return []
-        text = path.read_text(encoding="utf-8", errors="ignore")
-    except OSError:
-        return []
+    ``rel_path`` is a posix-style path relative to the project root; it
+    drives extension gating, frontend detection, and .env handling.
+    """
+    rel = PurePosixPath(rel_path)
+    ext = rel.suffix.lower()
+    frontend = is_frontend_path(rel)
+    in_env_file = _is_env_file(rel.name)
+
     if "\x00" in text[:1024]:
         return []
 
@@ -256,20 +259,24 @@ def scan_file(path: Path, root: Path) -> List[Finding]:
                     severity = _SEVERITY_BUMP[severity]
 
                 excerpt = _redact(line, match) if effective_rule.is_secret else _sanitize_excerpt(line)[:200]
-                findings.append(_make_finding(effective_rule, rel_str, line_no, excerpt, severity))
+                findings.append(_make_finding(effective_rule, rel_path, line_no, excerpt, severity))
                 per_rule_counts[rule.id] = per_rule_counts.get(rule.id, 0) + 1
 
     return findings
 
 
-def _gitignore_covers(root: Path, filename: str) -> bool:
-    gitignore = root / ".gitignore"
-    if not gitignore.exists():
-        return False
+def scan_file(path: Path, root: Path) -> List[Finding]:
+    rel_str = path.relative_to(root).as_posix()
     try:
-        lines = gitignore.read_text(encoding="utf-8", errors="ignore").splitlines()
+        if path.stat().st_size > MAX_FILE_BYTES:
+            return []
+        text = path.read_text(encoding="utf-8", errors="ignore")
     except OSError:
-        return False
+        return []
+    return scan_text(rel_str, text)
+
+
+def _gitignore_lines_cover(lines: List[str], filename: str) -> bool:
     for raw in lines:
         pattern = raw.strip().rstrip("/")
         if not pattern or pattern.startswith("#"):
@@ -280,17 +287,53 @@ def _gitignore_covers(root: Path, filename: str) -> bool:
     return False
 
 
+def _gitignore_covers(root: Path, filename: str) -> bool:
+    gitignore = root / ".gitignore"
+    if not gitignore.exists():
+        return False
+    try:
+        lines = gitignore.read_text(encoding="utf-8", errors="ignore").splitlines()
+    except OSError:
+        return False
+    return _gitignore_lines_cover(lines, filename)
+
+
+def _env_finding(rel: str) -> Finding:
+    return Finding(
+        rule_id=ENV_NOT_IGNORED.id,
+        title=ENV_NOT_IGNORED.title,
+        severity=ENV_NOT_IGNORED.severity,
+        path=rel,
+        line=1,
+        excerpt="(file-level finding)",
+        description=ENV_NOT_IGNORED.description,
+        fix_prompt=ENV_NOT_IGNORED.fix_prompt.format(path=rel, line=1),
+    )
+
+
+def _finalize(result: ScanResult) -> ScanResult:
+    # Deduplicate (same rule, same location can be hit via overlapping patterns).
+    seen = set()
+    unique: List[Finding] = []
+    for f in result.findings:
+        key = (f.rule_id, f.path, f.line)
+        if key not in seen:
+            seen.add(key)
+            unique.append(f)
+    result.findings = sorted(unique, key=Finding.sort_key)
+    return result
+
+
 def scan(root_path: str) -> ScanResult:
     root = Path(root_path).resolve()
     result = ScanResult(root=str(root))
-    env_files: List[Path] = []
 
     if root.is_file():
         result.findings.extend(scan_file(root, root.parent))
         result.files_scanned = 1
-        result.findings.sort(key=Finding.sort_key)
-        return result
+        return _finalize(result)
 
+    env_files: List[Path] = []
     stack = [root]
     while stack:
         current = stack.pop()
@@ -309,34 +352,55 @@ def scan(root_path: str) -> ScanResult:
                 continue
             if _is_env_file(entry.name):
                 env_files.append(entry)
-            if _should_skip_file(entry):
+            if _should_skip_name(entry.name, entry.suffix.lower()):
                 continue
             result.files_scanned += 1
             result.findings.extend(scan_file(entry, root))
 
     for env_file in env_files:
         if not _gitignore_covers(root, env_file.name):
-            rel = env_file.relative_to(root).as_posix()
-            result.findings.append(
-                Finding(
-                    rule_id=ENV_NOT_IGNORED.id,
-                    title=ENV_NOT_IGNORED.title,
-                    severity=ENV_NOT_IGNORED.severity,
-                    path=rel,
-                    line=1,
-                    excerpt="(file-level finding)",
-                    description=ENV_NOT_IGNORED.description,
-                    fix_prompt=ENV_NOT_IGNORED.fix_prompt.format(path=rel, line=1),
-                )
-            )
+            result.findings.append(_env_finding(env_file.relative_to(root).as_posix()))
 
-    # Deduplicate (same rule, same location can be hit via overlapping patterns).
-    seen = set()
-    unique: List[Finding] = []
-    for f in result.findings:
-        key = (f.rule_id, f.path, f.line)
-        if key not in seen:
-            seen.add(key)
-            unique.append(f)
-    result.findings = sorted(unique, key=Finding.sort_key)
-    return result
+    return _finalize(result)
+
+
+def scan_files(files: Iterable[Tuple[str, str]], root_label: str = "(uploaded files)") -> ScanResult:
+    """Scan (relative_path, text) pairs without touching the filesystem.
+
+    Applies the same directory/file skip rules as the disk walker, so a
+    caller can pass a whole project verbatim. The .env/.gitignore check
+    uses the root .gitignore from the supplied files, if present.
+    """
+    result = ScanResult(root=root_label)
+    gitignore_lines: List[str] = []
+    env_names: List[str] = []
+    pending: List[Tuple[str, str]] = []
+
+    for raw_path, content in files:
+        norm = raw_path.replace("\\", "/").strip("/")
+        if not norm:
+            continue
+        parts = norm.split("/")
+        if any(part in SKIP_DIRS for part in parts[:-1]):
+            continue
+        name = parts[-1]
+        if norm == ".gitignore":
+            gitignore_lines = content.splitlines()
+        if _is_env_file(name) and len(parts) == 1:
+            env_names.append(name)
+        ext = PurePosixPath(name).suffix.lower()
+        if _should_skip_name(name, ext):
+            continue
+        if len(content.encode("utf-8", errors="ignore")) > MAX_FILE_BYTES:
+            continue
+        pending.append((norm, content))
+
+    for norm, content in pending:
+        result.files_scanned += 1
+        result.findings.extend(scan_text(norm, content))
+
+    for name in env_names:
+        if not _gitignore_lines_cover(gitignore_lines, name):
+            result.findings.append(_env_finding(name))
+
+    return _finalize(result)

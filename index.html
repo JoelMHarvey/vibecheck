@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>vibecheck — security scanner for AI-built apps</title>
+<meta name="description" content="You vibe-coded it. Now vibecheck it. Free security scan for apps built with Lovable, Bolt, Cursor, v0 or Claude Code — plain-English findings with fix prompts you paste back into your AI tool.">
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #12161f; --panel2: #171c27; --border: #232a38;
+    --text: #e6e9f0; --muted: #8b94a7; --accent: #5eead4; --accent2: #a78bfa;
+    --critical: #f87171; --high: #fb923c; --medium: #facc15; --low: #60a5fa; --info: #64748b;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color: var(--accent); }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 20px; }
+  header { padding: 18px 0; border-bottom: 1px solid var(--border); }
+  header .wrap { display: flex; align-items: center; justify-content: space-between; }
+  .logo { font-family: var(--mono); font-weight: 700; font-size: 18px; }
+  .logo span { color: var(--accent); }
+  .byline { color: var(--muted); font-size: 13px; }
+  .hero { padding: 64px 0 40px; text-align: center; }
+  .hero h1 { font-size: clamp(28px, 5vw, 44px); line-height: 1.15; letter-spacing: -0.02em; }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p.sub { color: var(--muted); max-width: 620px; margin: 18px auto 0; font-size: 18px; }
+  .drop { margin: 36px auto 8px; border: 2px dashed var(--border); border-radius: 14px; background: var(--panel);
+          padding: 44px 24px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
+  .drop.hover { border-color: var(--accent); background: var(--panel2); }
+  .drop .big { font-size: 18px; font-weight: 600; }
+  .drop .hint { color: var(--muted); font-size: 14px; margin-top: 6px; }
+  .actions { display: flex; gap: 10px; justify-content: center; margin-top: 14px; flex-wrap: wrap; }
+  button, .btn { font: 600 14px/1 inherit; color: var(--bg); background: var(--accent); border: 0; border-radius: 8px;
+          padding: 12px 18px; cursor: pointer; }
+  button.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  button:disabled { opacity: .5; cursor: default; }
+  .privacy { text-align: center; color: var(--muted); font-size: 13px; margin: 14px 0 0; }
+  .status { text-align: center; color: var(--accent); font-family: var(--mono); font-size: 14px; min-height: 22px; margin-top: 16px; }
+  #report { display: none; margin-top: 36px; }
+  .scorecard { display: flex; gap: 24px; align-items: center; background: var(--panel); border: 1px solid var(--border);
+               border-radius: 14px; padding: 24px; flex-wrap: wrap; }
+  .dial { width: 110px; height: 110px; border-radius: 50%; display: grid; place-items: center; flex: 0 0 auto;
+          background: conic-gradient(var(--dialcolor, var(--accent)) calc(var(--pct, 0) * 1%), var(--border) 0); }
+  .dial .inner { width: 86px; height: 86px; border-radius: 50%; background: var(--panel); display: grid; place-items: center; text-align: center; }
+  .dial .num { font: 700 26px/1 var(--mono); }
+  .dial .gr { color: var(--muted); font-size: 12px; }
+  .scoremeta h2 { font-size: 22px; }
+  .scoremeta p { color: var(--muted); }
+  .countrow { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .pill { font: 600 12px/1 var(--mono); padding: 6px 10px; border-radius: 99px; border: 1px solid var(--border); }
+  .pill.critical { color: var(--critical); border-color: var(--critical); }
+  .pill.high { color: var(--high); border-color: var(--high); }
+  .pill.medium { color: var(--medium); border-color: var(--medium); }
+  .pill.low { color: var(--low); border-color: var(--low); }
+  .pill.info { color: var(--info); border-color: var(--info); }
+  .findings { margin-top: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .finding { background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--border); border-radius: 10px; padding: 18px; }
+  .finding.critical { border-left-color: var(--critical); }
+  .finding.high { border-left-color: var(--high); }
+  .finding.medium { border-left-color: var(--medium); }
+  .finding.low { border-left-color: var(--low); }
+  .finding.info { border-left-color: var(--info); }
+  .frow { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .frow h3 { font-size: 16px; }
+  .sev { font: 700 11px/1 var(--mono); letter-spacing: .08em; }
+  .sev.critical { color: var(--critical); } .sev.high { color: var(--high); } .sev.medium { color: var(--medium); }
+  .sev.low { color: var(--low); } .sev.info { color: var(--info); }
+  .loc { font-family: var(--mono); font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .excerpt { font-family: var(--mono); font-size: 13px; background: var(--bg); border-radius: 6px; padding: 10px 12px;
+             margin: 10px 0; overflow-x: auto; white-space: pre; color: #c9d1e0; }
+  .finding p.desc { color: var(--muted); font-size: 14.5px; }
+  .fixwrap { margin-top: 12px; background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .fixwrap .label { font: 600 11px/1 var(--mono); letter-spacing: .08em; color: var(--accent2); }
+  .fixwrap p { font-size: 14px; margin-top: 6px; color: var(--text); }
+  .copy { margin-top: 10px; background: var(--accent2); font-size: 13px; padding: 8px 14px; }
+  .copy.done { background: var(--accent); }
+  .reportactions { margin: 20px 0 0; display: flex; gap: 10px; flex-wrap: wrap; }
+  section.info { padding: 56px 0 8px; }
+  section.info h2 { font-size: 24px; margin-bottom: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  .card h3 { font-size: 15px; margin-bottom: 6px; }
+  .card p { color: var(--muted); font-size: 14px; }
+  pre.cli { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px;
+            font-family: var(--mono); font-size: 14px; overflow-x: auto; }
+  footer { margin-top: 64px; padding: 28px 0 40px; border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; }
+  .ok { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="logo">vibe<span>check</span> 🔒</div>
+    <div class="byline">a psychosecurity.io tool</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>You vibe-coded it.<br>Now <em>vibecheck</em> it.</h1>
+    <p class="sub">Free security scan for apps built with Lovable, Bolt, Cursor, v0 or Claude Code.
+    Every finding comes in plain English with a <strong>fix prompt you paste straight back into your AI tool</strong>.</p>
+
+    <div class="drop" id="drop">
+      <div class="big">Drop your project folder here</div>
+      <div class="hint">or click to choose a folder — node_modules, images and lockfiles are skipped automatically</div>
+    </div>
+    <div class="actions">
+      <button class="ghost" id="demoBtn">…or scan a sample vulnerable app</button>
+    </div>
+    <p class="privacy">Files are read in your browser, scanned in memory, and never stored. Prefer fully offline? <a href="#cli">Use the CLI.</a></p>
+    <div class="status" id="status"></div>
+    <input type="file" id="picker" webkitdirectory multiple hidden>
+  </div>
+
+  <div id="report">
+    <div class="scorecard">
+      <div class="dial" id="dial"><div class="inner"><div><div class="num" id="scoreNum">–</div><div class="gr" id="scoreGrade"></div></div></div></div>
+      <div class="scoremeta">
+        <h2 id="verdict"></h2>
+        <p id="scanmeta"></p>
+        <div class="countrow" id="countrow"></div>
+      </div>
+    </div>
+    <div class="reportactions">
+      <button class="ghost" id="downloadBtn">Download report (Markdown)</button>
+      <button class="ghost" id="rescanBtn">Scan another project</button>
+    </div>
+    <div class="findings" id="findings"></div>
+  </div>
+
+  <section class="info">
+    <h2>What it checks</h2>
+    <div class="grid">
+      <div class="card"><h3>Leaked keys &amp; secrets</h3><p>Anthropic, OpenAI, Stripe (live vs test), AWS, Google, GitHub, Slack, Telegram, private keys, database URLs with passwords. Secrets in browser code are escalated — every visitor has them.</p></div>
+      <div class="card"><h3>Supabase-aware</h3><p>Hardcoded JWTs are decoded: a service_role key (bypasses all Row Level Security) is critical; an anon key becomes a reminder to verify RLS.</p></div>
+      <div class="card"><h3>Vibe-coding mistakes</h3><p>dangerouslyAllowBrowser, LLM APIs called from the frontend, secrets in VITE_/NEXT_PUBLIC_ variables, .env not gitignored.</p></div>
+      <div class="card"><h3>Classic vulnerabilities</h3><p>SQL built by string interpolation, shell injection, XSS via innerHTML, eval, CORS open to every origin, debug mode left on.</p></div>
+    </div>
+  </section>
+
+  <section class="info" id="cli">
+    <h2>Prefer the command line?</h2>
+    <p style="color:var(--muted); margin-bottom:12px">The same scanner, fully offline, zero dependencies (Python 3.9+). Drop it into CI — it exits 1 on high/critical findings.</p>
+    <pre class="cli">python3 -m vibecheck /path/to/your/app --markdown report.md</pre>
+  </section>
+
+  <footer>
+    <div class="wrap" style="padding:0">
+      <p><strong>Two rules of thumb:</strong> browser code cannot keep a secret, and deleting a leaked key does not un-leak it — <em>rotate it</em>.</p>
+      <p style="margin-top:8px">vibecheck · a <strong>psychosecurity.io</strong> tool · your code never leaves this scan</p>
+    </div>
+  </footer>
+</div>
+
+<script>
+const SKIP_DIRS = new Set([".git",".hg",".svn","node_modules",".venv","venv","env","__pycache__",".pytest_cache",".mypy_cache",".ruff_cache","dist","build",".next",".nuxt",".svelte-kit","out","coverage",".turbo",".cache","vendor","site-packages",".idea",".vscode"]);
+const SKIP_FILES = new Set(["package-lock.json","yarn.lock","pnpm-lock.yaml","poetry.lock","uv.lock","Cargo.lock","composer.lock","Gemfile.lock"]);
+const BINARY_EXT = new Set(["png","jpg","jpeg","gif","webp","ico","svg","pdf","zip","gz","tar","bz2","7z","woff","woff2","ttf","otf","eot","mp3","mp4","mov","avi","wav","ogg","pyc","so","dylib","dll","exe","bin","sqlite","db","pkl","npy","parquet","doc","docx","xls","xlsx","ppt","pptx"]);
+const MAX_FILE = 500 * 1024;       // per-file cap
+const MAX_TOTAL = 3.5 * 1024 * 1024; // payload cap (Vercel limit is 4.5MB)
+const SEV_ORDER = ["critical","high","medium","low","info"];
+const VERDICTS = {A:"Looking good. Fix anything below and ship it.",B:"Nearly there — a few things need attention before launch.",C:"Some real risks here. Work through the list before sharing your app.",D:"Serious problems. Fix the critical/high items before anything else.",F:"Stop — do not launch this yet. Fix the critical items first."};
+
+const drop = document.getElementById("drop"), picker = document.getElementById("picker"), statusEl = document.getElementById("status");
+let lastResult = null;
+
+drop.addEventListener("click", () => picker.click());
+drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("hover"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("hover"));
+drop.addEventListener("drop", async e => {
+  e.preventDefault(); drop.classList.remove("hover");
+  const files = await collectFromDataTransfer(e.dataTransfer);
+  scanFiles(files);
+});
+picker.addEventListener("change", async () => {
+  const files = [];
+  for (const f of picker.files) files.push({ path: f.webkitRelativePath || f.name, file: f });
+  scanFiles(await readAll(files));
+  picker.value = "";
+});
+document.getElementById("rescanBtn").addEventListener("click", () => {
+  document.getElementById("report").style.display = "none";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+document.getElementById("demoBtn").addEventListener("click", () => scanDemo());
+document.getElementById("downloadBtn").addEventListener("click", downloadMarkdown);
+
+function shouldSkip(path, size) {
+  const parts = path.split("/");
+  if (parts.slice(0, -1).some(p => SKIP_DIRS.has(p))) return true;
+  const name = parts[parts.length - 1];
+  if (SKIP_FILES.has(name)) return true;
+  if (/\.(min\.js|min\.css|map|lock)$/.test(name)) return true;
+  const ext = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
+  if (BINARY_EXT.has(ext)) return true;
+  if (size > MAX_FILE) return true;
+  return false;
+}
+
+async function collectFromDataTransfer(dt) {
+  const out = [];
+  const entries = [];
+  for (const item of dt.items) {
+    const entry = item.webkitGetAsEntry && item.webkitGetAsEntry();
+    if (entry) entries.push({ entry, prefix: "" });
+  }
+  while (entries.length) {
+    const { entry, prefix } = entries.shift();
+    if (entry.isFile) {
+      const file = await new Promise((res, rej) => entry.file(res, rej)).catch(() => null);
+      if (file) out.push({ path: prefix + entry.name, file });
+    } else if (entry.isDirectory && !SKIP_DIRS.has(entry.name)) {
+      const reader = entry.createReader();
+      let batch;
+      do {
+        batch = await new Promise((res, rej) => reader.readEntries(res, rej)).catch(() => []);
+        for (const child of batch) entries.push({ entry: child, prefix: prefix + entry.name + "/" });
+      } while (batch.length);
+    }
+  }
+  return readAll(out);
+}
+
+async function readAll(items) {
+  const files = []; let total = 0; let skipped = 0;
+  for (const { path, file } of items) {
+    const clean = path.replace(/^\.\//, "");
+    if (shouldSkip(clean, file.size)) { skipped++; continue; }
+    if (total + file.size > MAX_TOTAL) { skipped++; continue; }
+    const content = await file.text().catch(() => null);
+    if (content === null || content.includes("\u0000")) { skipped++; continue; }
+    total += file.size;
+    files.push({ path: clean, content });
+  }
+  files.skippedCount = skipped;
+  return files;
+}
+
+async function scanFiles(files) {
+  if (!files.length) { statusEl.textContent = "No scannable text files found in that drop."; return; }
+  statusEl.textContent = `Scanning ${files.length} files…`;
+  try {
+    const res = await fetch("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ files }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Scan failed.");
+    statusEl.textContent = "";
+    render(data);
+  } catch (err) {
+    statusEl.textContent = "⚠ " + err.message;
+  }
+}
+
+function render(data) {
+  lastResult = data;
+  const report = document.getElementById("report");
+  report.style.display = "block";
+  const dial = document.getElementById("dial");
+  dial.style.setProperty("--pct", data.score);
+  dial.style.setProperty("--dialcolor", data.score >= 90 ? "var(--accent)" : data.score >= 60 ? "var(--medium)" : "var(--critical)");
+  document.getElementById("scoreNum").textContent = data.score;
+  document.getElementById("scoreGrade").textContent = "grade " + data.grade;
+  document.getElementById("verdict").textContent = VERDICTS[data.grade];
+  document.getElementById("scanmeta").textContent = `${data.files_scanned} files scanned · ${data.findings.length} finding${data.findings.length === 1 ? "" : "s"}`;
+  const row = document.getElementById("countrow");
+  row.innerHTML = "";
+  for (const sev of SEV_ORDER) {
+    if (!data.counts[sev]) continue;
+    const pill = document.createElement("span");
+    pill.className = "pill " + sev;
+    pill.textContent = `${data.counts[sev]} ${sev}`;
+    row.appendChild(pill);
+  }
+  const list = document.getElementById("findings");
+  list.innerHTML = "";
+  if (!data.findings.length) {
+    const div = document.createElement("div");
+    div.className = "finding";
+    div.innerHTML = '<h3 class="ok">✓ Nothing found. Nice.</h3><p class="desc">Remember this scan covers common patterns, not everything — keep secrets in environment variables and rotate anything you ever pasted somewhere public.</p>';
+    list.appendChild(div);
+  }
+  for (const f of data.findings) {
+    const div = document.createElement("div");
+    div.className = "finding " + f.severity;
+    const frow = document.createElement("div"); frow.className = "frow";
+    const h3 = document.createElement("h3"); h3.textContent = f.title;
+    const sev = document.createElement("span"); sev.className = "sev " + f.severity; sev.textContent = f.severity.toUpperCase();
+    frow.append(h3, sev);
+    const loc = document.createElement("div"); loc.className = "loc"; loc.textContent = f.path + ":" + f.line;
+    const ex = document.createElement("div"); ex.className = "excerpt"; ex.textContent = f.excerpt;
+    const desc = document.createElement("p"); desc.className = "desc"; desc.textContent = f.description;
+    const fix = document.createElement("div"); fix.className = "fixwrap";
+    const label = document.createElement("div"); label.className = "label"; label.textContent = "FIX PROMPT — PASTE INTO CURSOR / CLAUDE CODE / LOVABLE / BOLT";
+    const fp = document.createElement("p"); fp.textContent = f.fix_prompt;
+    const btn = document.createElement("button"); btn.className = "copy"; btn.textContent = "Copy fix prompt";
+    btn.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(f.fix_prompt);
+      btn.textContent = "Copied ✓"; btn.classList.add("done");
+      setTimeout(() => { btn.textContent = "Copy fix prompt"; btn.classList.remove("done"); }, 1600);
+    });
+    fix.append(label, fp, btn);
+    div.append(frow, loc, ex, desc, fix);
+    list.appendChild(div);
+  }
+  report.scrollIntoView({ behavior: "smooth" });
+}
+
+function downloadMarkdown() {
+  if (!lastResult) return;
+  const d = lastResult;
+  let md = `# vibecheck security report\n\n**Vibe Score: ${d.score}/100 (grade ${d.grade})** — ${d.files_scanned} files scanned\n\n`;
+  let sev = null;
+  for (const f of d.findings) {
+    if (f.severity !== sev) { sev = f.severity; md += `## ${sev.toUpperCase()}\n\n`; }
+    md += `### ${f.title}\n\n\`${f.path}:${f.line}\`\n\n> ${f.excerpt}\n\n${f.description}\n\n**Fix prompt:**\n\n\`\`\`text\n${f.fix_prompt}\n\`\`\`\n\n`;
+  }
+  md += "---\n_Generated by vibecheck · psychosecurity.io — rotate every exposed credential; deleting it from code does not un-leak it._\n";
+  const blob = new Blob([md], { type: "text/markdown" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "vibecheck-report.md";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function scanDemo() {
+  const jwtHeader = btoa(JSON.stringify({alg:"HS256",typ:"JWT"})).replace(/=+$/,"");
+  const jwtPayload = btoa(JSON.stringify({role:"service_role",iss:"supabase"})).replace(/=+$/,"");
+  const svcKey = jwtHeader + "." + jwtPayload + ".s1GnAtUrEs1GnAtUrE";
+  const antKey = "sk-" + "ant-api03-" + "a1b2c3d4".repeat(5);
+  const stripeKey = "sk_" + "live_" + "a1b2c3d4e5f6".repeat(2);
+  scanFiles([
+    { path: "public/chat.js", content: `const client = new Anthropic({ apiKey: "${antKey}", dangerouslyAllowBrowser: true });\ndocument.getElementById("out").innerHTML = userMessage;\n` },
+    { path: "server/index.js", content: `const stripe = require("stripe")("${stripeKey}");\napp.use(cors());\nconst db = createClient(url, "${svcKey}");\npool.query(\`SELECT * FROM users WHERE id = \${req.params.id}\`);\n` },
+    { path: "app.py", content: "app.run(debug=True)\n" },
+    { path: ".env", content: "JWT_SECRET=demo\n" }
+  ]);
+}
+</script>
+</body>
+</html>
