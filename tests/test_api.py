@@ -49,6 +49,62 @@ class BadgeTest(unittest.TestCase):
         self.assertIn("1/100 F", svg)
 
 
+class RateLimitWireTest(unittest.TestCase):
+    """The 429 must be a real HTTP response with a Retry-After header and a
+    human-readable body, not a bare status code."""
+
+    def setUp(self):
+        import json as _json
+        import threading
+        from http.server import ThreadingHTTPServer
+
+        self.scan_mod = load("scan_api_rl", "scan.py")
+        # Deterministic, tiny limit, and independent of the ambient env.
+        from vibecheck.ratelimit import MemoryBackend, RateLimiter
+        self.scan_mod.LIMITER = RateLimiter(
+            "test-scan", [(2, 60)], backend=MemoryBackend(), disabled=False)
+
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), self.scan_mod.handler)
+        self.port = self.server.server_address[1]
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.addCleanup(self.server.server_close)
+        self.addCleanup(self.server.shutdown)
+        self._json = _json
+
+    def post(self, ip="203.0.113.5"):
+        import urllib.error
+        import urllib.request
+
+        body = self._json.dumps({"files": [{"path": "a.py", "content": "x = 1\n"}]}).encode()
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{self.port}/api/scan", data=body,
+            headers={"Content-Type": "application/json", "X-Real-IP": ip}, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=5) as r:
+                return r.status, dict(r.headers), self._json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            return e.code, dict(e.headers), self._json.loads(e.read())
+
+    def test_returns_429_with_retry_after_and_message(self):
+        self.assertEqual(self.post()[0], 200)
+        self.assertEqual(self.post()[0], 200)
+
+        status, headers, body = self.post()
+        self.assertEqual(status, 429)
+        retry_after = {k.lower(): v for k, v in headers.items()}.get("retry-after")
+        self.assertIsNotNone(retry_after, "429 must carry Retry-After")
+        self.assertTrue(1 <= int(retry_after) <= 60)
+        self.assertIn("Rate limit reached", body["error"])
+        self.assertIn("CLI", body["error"], "should point at the unlimited local option")
+
+    def test_limit_is_per_ip(self):
+        self.post(ip="203.0.113.5")
+        self.post(ip="203.0.113.5")
+        self.assertEqual(self.post(ip="203.0.113.5")[0], 429)
+        self.assertEqual(self.post(ip="198.51.100.1")[0], 200,
+                         "a different visitor must not inherit the block")
+
+
 class UrlScanEndpointTest(unittest.TestCase):
     """The endpoint must refuse SSRF targets before fetching anything."""
 

@@ -126,6 +126,22 @@ never send to a server — so a shared report is readable by anyone with
 the link and stored by nobody. The long prose is rehydrated client-side
 from `rules.json`, keeping a typical link around 700 characters.
 
+### Rate limiting
+
+Both endpoints cost money per call, and `/api/scan-url` makes outbound
+requests from your servers to a URL a stranger chose — so both are rate
+limited per IP (`/api/scan`: 10/min, 60/hour; `/api/scan-url`: 3/min,
+15/hour, plus a 300/hour global ceiling on outbound scanning).
+
+By default counters live in memory, per serverless instance — best-effort,
+but it stops one client hammering one endpoint with zero setup. For exact
+limits across instances, add Vercel KV to the project; the limiter detects
+`KV_REST_API_URL` / `KV_REST_API_TOKEN` and switches to it automatically,
+with no code change and no dependency to install. If the store ever fails,
+the limiter fails **open** — a broken limiter must not break the product.
+
+Set `VIBECHECK_RATE_LIMIT_OFF=1` for local development. Never in production.
+
 There's also a score badge for READMEs:
 
 ```markdown

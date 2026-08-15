@@ -12,15 +12,25 @@ from http.server import BaseHTTPRequestHandler
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from vibecheck.ratelimit import RateLimiter, client_ip  # noqa: E402
 from vibecheck.report import to_json_dict  # noqa: E402
 from vibecheck.scanner import scan_files  # noqa: E402
 
 MAX_BODY_BYTES = 4_400_000  # Vercel's request limit is 4.5 MB
 MAX_FILES = 2_000
 
+# Scanning an upload is pure CPU on our side. Generous enough that a real
+# person iterating on fixes never notices; tight enough to cap the bill.
+LIMITER = RateLimiter("scan", [(10, 60), (60, 3600)])
+
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
+        decision = LIMITER.check(client_ip(self.headers))
+        if not decision.allowed:
+            return self._json(429, {"error": decision.message},
+                              extra_headers={"Retry-After": str(decision.retry_after)})
+
         try:
             length = int(self.headers.get("content-length") or 0)
         except ValueError:
@@ -51,12 +61,14 @@ class handler(BaseHTTPRequestHandler):
         payload["truncated"] = len(raw_files) > MAX_FILES
         return self._json(200, payload)
 
-    def _json(self, code, payload):
+    def _json(self, code, payload, extra_headers=None):
         data = json.dumps(payload).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(data)))
+        for name, value in (extra_headers or {}).items():
+            self.send_header(name, value)
         self.end_headers()
         self.wfile.write(data)
 

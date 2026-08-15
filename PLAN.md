@@ -61,6 +61,13 @@ competitors. `/api/badge?score=N` renders the Vibe Score badge for READMEs.
 Both halves of the viral loop are live; what's missing is a reason to click
 through, which is the next item.
 
+**v0.46 — rate limiting (done).** Shipped before promoting the site, because
+both endpoints are unauthenticated compute and `/api/scan-url` fans out ~8
+outbound requests to a caller-chosen host from our IPs. Per-IP windows plus a
+global outbound ceiling; in-memory by default, auto-upgrading to Vercel KV if
+present. Also removes an obvious line of attack on the product's credibility:
+vibecheck's own fix prompts tell users to rate limit their API routes.
+
 **v0.5 — GitHub Action + PR bot.** `vibecheck` as a check on every push;
 Pro-gated auto-fix PRs.
 

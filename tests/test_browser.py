@@ -12,9 +12,9 @@ Skipped automatically if Playwright isn't installed:
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
-import threading
 import time
 import unittest
 import urllib.error
@@ -59,9 +59,13 @@ class BrowserTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        # Every browser request comes from the same address, so they'd all
+        # share one rate-limit bucket and the suite would fail as it grows.
+        # The 429 path is covered by tests/test_api.py instead.
+        env = dict(os.environ, VIBECHECK_RATE_LIMIT_OFF="1")
         cls.server = subprocess.Popen(
             [sys.executable, str(ROOT / "scripts" / "devserver.py"), str(PORT)],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env,
         )
         if not wait_for_server():
             cls.server.kill()
