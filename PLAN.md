@@ -76,9 +76,15 @@ the first two SEO guides (the head-term checklist and the Lovable page),
 link or a search result lands on; without them the viral loop had nowhere
 to point.
 
-Bolt and v0 followed. Remaining content, in rough priority: Cursor/Claude
-Code, then "my API key leaked, what now" — the highest-intent search of the
-lot, because it's what people type at the exact moment they need the tool.
+Bolt, v0, and the leaked-key emergency page followed. The last one is the
+highest-intent page on the site — people search it mid-incident, so it's
+built as triage rather than an essay: the three actions sit above the
+explanation, because a panicking reader may only read one screen.
+
+Remaining: a Cursor/Claude Code guide, and eventually per-provider landing
+pages ("Stripe key exposed", "Supabase service_role leaked") if the
+leaked-key page pulls traffic — the table on it is the obvious thing to
+split out.
 
 Each platform guide should lead with what's genuinely specific to that tool
 rather than restating the checklist. Lovable's is Supabase RLS; Bolt's is

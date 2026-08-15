@@ -43,6 +43,23 @@ blockquote { border-left: 3px solid var(--accent2); margin: 18px 0; padding: 4px
 .related h2 { margin-top: 0; font-size: 18px; }
 footer { margin-top: 56px; padding: 28px 0 40px; border-top: 1px solid var(--border);
          color: var(--muted); font-size: 14px; }
+/* Emergency page: the fix goes above the explanation, because the reader
+   is mid-panic and may only read the first screen. */
+.emergency { background: #1d1216; border: 1px solid var(--critical); border-radius: 12px;
+             padding: 22px 24px; margin: 28px 0; }
+.emergency h2 { margin-top: 0; font-size: 21px; color: var(--critical); }
+.emergency ol { margin-bottom: 0; }
+.emergency li { margin: 10px 0; }
+.steps { counter-reset: step; list-style: none; padding-left: 0; }
+.steps > li { counter-increment: step; position: relative; padding-left: 42px; margin: 26px 0; }
+.steps > li::before { content: counter(step); position: absolute; left: 0; top: 0;
+  width: 28px; height: 28px; border-radius: 50%; background: var(--panel2);
+  border: 1px solid var(--accent); color: var(--accent); display: grid; place-items: center;
+  font: 700 14px/1 var(--mono); }
+.steps > li > strong:first-child { display: block; font-size: 17px; margin-bottom: 4px; }
+table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 15px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; }
 .checklist { list-style: none; padding-left: 0; }
 .checklist li { padding-left: 28px; position: relative; }
 .checklist li::before { content: "☐"; position: absolute; left: 4px; color: var(--accent); }

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My API key leaked — what to do right now — vibecheck</title>
+<meta name="description" content="You committed an API key, or got a secret-scanning alert. What to do first, in order: rotate the key, check for abuse, then clean up. Provider-by-provider rotation steps.">
+<link rel="canonical" href="https://psychosecurity.io/guides/api-key-leaked">
+<meta name="theme-color" content="#0b0e14">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="vibecheck">
+<meta property="og:url" content="https://psychosecurity.io/guides/api-key-leaked">
+<meta property="og:title" content="My API key leaked — what to do right now">
+<meta property="og:description" content="Rotate first, investigate second. The steps in order, provider by provider.">
+<meta property="og:image" content="https://psychosecurity.io/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://psychosecurity.io/og.png">
+<link rel="stylesheet" href="/guide.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="logo" href="/">vibe<span>check</span> 🔒</a>
+    <div class="byline">a psychosecurity.io tool</div>
+  </div>
+</header>
+
+<div class="wrap">
+<article>
+  <h1>My API key leaked. What now?</h1>
+  <p class="standfirst">You pushed a key to a public repo, or got a
+  secret-scanning email, or found one sitting in your frontend bundle. This is
+  a normal thing that happens to careful people. Here's what to do, in order.</p>
+
+  <div class="emergency">
+    <h2>Do this first</h2>
+    <ol>
+      <li><strong>Rotate the key.</strong> Not delete — rotate. Generate a new
+      one at the provider and revoke the old one.</li>
+      <li><strong>Then</strong> update wherever the app reads it from.</li>
+      <li><strong>Then</strong> check your usage and billing for anything you
+      didn't do.</li>
+    </ol>
+    <p style="margin-top:14px">Everything else — cleaning git history, working
+    out how it happened, feeling bad about it — comes after those three. A
+    revoked key is a harmless string.</p>
+  </div>
+
+  <h2>Why rotating is the only fix</h2>
+
+  <p>The instinct is to delete the line, commit, and hope. That doesn't work,
+  for three reasons:</p>
+
+  <ul>
+    <li><strong>It's still in your git history.</strong> Anyone who clones the
+    repo gets every previous version of that file.</li>
+    <li><strong>It may already have been copied.</strong> Public repositories
+    are continuously scraped for credentials by automated tools. The window
+    between pushing a key and it being harvested is frequently measured in
+    minutes.</li>
+    <li><strong>Forks, caches and mirrors persist.</strong> Even a deleted repo
+    can survive in a fork or someone's cache.</li>
+  </ul>
+
+  <p>So the honest assumption is: <strong>if it was exposed, treat it as
+  known.</strong> Rotating makes that irrelevant. Nothing else does.</p>
+
+  <h2>Where to rotate, by provider</h2>
+
+  <table>
+    <thead><tr><th>Provider</th><th>Where</th><th>Also do this</th></tr></thead>
+    <tbody>
+      <tr><td>OpenAI</td><td>platform.openai.com → API keys → revoke, create new</td><td>Check Usage for spend you don't recognise</td></tr>
+      <tr><td>Anthropic</td><td>console.anthropic.com → API keys</td><td>Check Usage</td></tr>
+      <tr><td>Stripe</td><td>Developers → API keys → roll the secret key</td><td>Check Payments and Refunds for anything unfamiliar. Contact Stripe support if you find any.</td></tr>
+      <tr><td>AWS</td><td>IAM → Users → Security credentials → deactivate, then delete</td><td>See the AWS note below — this is the expensive one</td></tr>
+      <tr><td>Supabase</td><td>Settings → API → rotate <code>service_role</code></td><td>Assume every row was readable; see below</td></tr>
+      <tr><td>GitHub</td><td>Settings → Developer settings → Personal access tokens</td><td>Check recent activity on your repos</td></tr>
+      <tr><td>Google Cloud</td><td>APIs &amp; Services → Credentials</td><td>Add referrer/API restrictions to the replacement</td></tr>
+      <tr><td>Telegram</td><td>Message @BotFather → <code>/revoke</code></td><td>—</td></tr>
+    </tbody>
+  </table>
+
+  <p>Rotating usually breaks your deployed app for a minute, because it's still
+  using the old value. That's fine, and it's the correct order — a briefly
+  broken app is better than a live key in the wild.</p>
+
+  <h2>Three cases that need more than a rotation</h2>
+
+  <h3>AWS keys</h3>
+  <p>This is the one that generates the horror-story bills. Attackers use stolen
+  AWS credentials to run compute — usually crypto mining — and they do it in
+  regions you've never opened, because that's where you won't look.</p>
+  <p>After deactivating the key: check the Billing dashboard, then check EC2
+  <em>in every region</em>, not just yours. Also look at IAM for users or access
+  keys you didn't create — a common move is to create a second set of
+  credentials so revoking the first one changes nothing. If you find charges,
+  contact AWS support; they routinely waive fraudulent usage when you report it
+  promptly.</p>
+
+  <h3>Supabase <code>service_role</code> keys</h3>
+  <p>That key bypasses Row Level Security completely, so while it was exposed,
+  every row in your database was readable and writable by anyone holding it.
+  Rotate it, then assume the data was read. If it included other people's
+  personal information, you may have a legal obligation to tell them — that's
+  a data breach, not just a leak.</p>
+
+  <h3>Live Stripe secret keys</h3>
+  <p>Roll it immediately, then review Payments, Refunds and Customers for
+  activity you didn't initiate. Stripe's support team deals with this often and
+  are worth contacting early rather than late.</p>
+
+  <h2>Then: clean up and prevent the repeat</h2>
+
+  <ol class="steps">
+    <li><strong>Get it out of the codebase.</strong>
+    Move the value to an environment variable, and make sure the file that held
+    it is gone from the working tree. Set the real value in your host's
+    dashboard — Vercel, Netlify, Supabase and the rest all have an environment
+    variables screen. A <code>.env</code> file on your laptop is not read by
+    your host.</li>
+
+    <li><strong>Make sure <code>.env</code> is ignored.</strong>
+    Add <code>.env</code> and <code>.env.*</code> to <code>.gitignore</code>.
+    If <code>.env</code> was already committed, git keeps tracking it until you
+    run <code>git rm --cached .env</code>.</li>
+
+    <li><strong>Consider rewriting history — but don't rely on it.</strong>
+    Tools like <code>git filter-repo</code> or BFG can strip a secret from past
+    commits. Worth doing for tidiness and for anyone cloning fresh. It does
+    <em>not</em> undo the exposure: forks and caches keep their copies. The
+    rotation is what saved you; this is housekeeping.</li>
+
+    <li><strong>Turn on push protection.</strong>
+    GitHub can block pushes containing recognised secret formats, and it's free
+    on public repositories. It catches this class of mistake before it becomes
+    a public one.</li>
+
+    <li><strong>Check whether anything else is exposed.</strong>
+    Keys rarely leak alone. The habit that put one in the code — pasting a value
+    in to get something working — usually put several. Worth a look before you
+    close the laptop.</li>
+  </ol>
+
+  <div class="callout good">
+    <p><strong>On feeling stupid:</strong> don't. Every provider has a
+    one-click rotation flow, GitHub built a scanner, and Stripe auto-detects
+    leaked keys, because this happens constantly to experienced engineers. You
+    caught it. That's the part that matters.</p>
+  </div>
+
+  <div class="cta">
+    <h2>Check whether anything else leaked</h2>
+    <p>vibecheck scans your project or your live URL for exposed keys and the
+    mistakes that cause them, in plain English — with a fix prompt you can paste
+    straight into your AI tool. Free, and your code doesn't leave the scan.</p>
+    <a class="btn" href="/">Scan my app</a>
+  </div>
+
+  <div class="related">
+    <h2>Related</h2>
+    <ul>
+      <li><a href="/guides/ai-app-security-checklist">The AI app security checklist</a> — what to check before it happens again</li>
+      <li><a href="/guides/lovable-app-security">Lovable</a> · <a href="/guides/bolt-app-security">Bolt</a> · <a href="/guides/v0-app-security">v0</a> — how keys leak in each, specifically</li>
+    </ul>
+  </div>
+</article>
+
+<footer>
+  <p><strong>Two rules of thumb:</strong> browser code cannot keep a secret, and
+  deleting a leaked key does not un-leak it — rotate it.</p>
+  <p style="margin-top:8px">vibecheck · a <strong>psychosecurity.io</strong> tool</p>
+</footer>
+</div>
+
+</body>
+</html>
