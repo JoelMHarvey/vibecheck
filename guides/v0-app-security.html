@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Is my v0 app secure? The Next.js traps to check — vibecheck</title>
+<meta name="description" content="The security mistakes v0 apps ship with most often — secrets crossing the client boundary, Server Actions with no auth check, NEXT_PUBLIC_ variables — and how to fix each one.">
+<link rel="canonical" href="https://psychosecurity.io/guides/v0-app-security">
+<meta name="theme-color" content="#0b0e14">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="vibecheck">
+<meta property="og:url" content="https://psychosecurity.io/guides/v0-app-security">
+<meta property="og:title" content="Is my v0 app secure? The Next.js traps to check">
+<meta property="og:description" content="The security mistakes v0 apps ship with most often, and how to fix each one.">
+<meta property="og:image" content="https://psychosecurity.io/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://psychosecurity.io/og.png">
+<link rel="stylesheet" href="/guide.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="logo" href="/">vibe<span>check</span> 🔒</a>
+    <div class="byline">a psychosecurity.io tool</div>
+  </div>
+</header>
+
+<div class="wrap">
+<article>
+  <h1>Is my v0 app secure?</h1>
+  <p class="standfirst">v0 writes Next.js, and Next.js has a property that
+  makes security mistakes unusually easy to make and unusually hard to see:
+  the line between code that runs on your server and code that runs in your
+  visitor's browser is invisible. Two files can look identical and behave
+  completely differently.</p>
+
+  <p>Everything below follows from that one fact.</p>
+
+  <h2>1. The boundary you can't see</h2>
+
+  <p>In the Next.js App Router, a component runs on the server by default.
+  Add <code>"use client"</code> at the top and it ships to the browser
+  instead. Nothing else about the file changes — same imports, same
+  <code>process.env</code>, same syntax.</p>
+
+  <p>Which means this line is completely safe in one file and a published
+  credential in another:</p>
+
+  <pre><code>const apiKey = process.env.OPENAI_API_KEY</code></pre>
+
+  <p>It gets worse, because the boundary is contagious. A component you never
+  marked as client becomes one if it's imported by a component that is. So a
+  file can cross the boundary without you editing it.</p>
+
+  <div class="callout bad">
+    <p><strong>The trap in full.</strong> In a client component,
+    <code>process.env.OPENAI_API_KEY</code> is <code>undefined</code> — Next.js
+    deliberately doesn't send it. Your app breaks. The obvious fix is to rename
+    the variable <code>NEXT_PUBLIC_OPENAI_API_KEY</code>, because that's what
+    the error messages and Stack Overflow tell you to do for undefined env
+    vars. It works instantly — because you just published the key.</p>
+  </div>
+
+  <p>Whenever an environment variable comes back undefined, the question to ask
+  is not "how do I expose this?" but "<strong>why is this code running in the
+  browser?</strong>" Almost always, the code should have moved server-side
+  rather than the secret moving client-side.</p>
+
+  <h2>2. Server Actions are public endpoints</h2>
+
+  <p>This is the one that catches experienced developers, not just new ones.</p>
+
+  <p>An async function marked <code>"use server"</code> feels like a private
+  function — you import it and call it like any other. It isn't. Next.js
+  compiles it into an HTTP endpoint with a generated ID, and <strong>anyone who
+  finds that ID can call it directly</strong>, with whatever arguments they
+  like. The button in your UI that only admins can see is not a security
+  control; it's a suggestion.</p>
+
+  <p>Generated code frequently omits the authorisation check, and not out of
+  carelessness — v0 doesn't know what your auth looks like. So you get a
+  perfectly good function that trusts its caller:</p>
+
+  <pre><code>"use server"
+
+export async function deleteProject(id: string) {
+  await db.project.delete({ where: { id } })   // who is calling this?
+}</code></pre>
+
+  <p>Every Server Action needs to check the session itself, and check that the
+  session is allowed to touch <em>that specific record</em>:</p>
+
+  <pre><code>"use server"
+
+export async function deleteProject(id: string) {
+  const session = await auth()
+  if (!session) throw new Error("Not signed in")
+
+  const project = await db.project.findUnique({ where: { id } })
+  if (project?.ownerId !== session.user.id) throw new Error("Not yours")
+
+  await db.project.delete({ where: { id } })
+}</code></pre>
+
+  <p>Prompt to paste into v0:</p>
+  <blockquote>Review every Server Action in this project. Each one is a public
+  HTTP endpoint, so for each: confirm it checks the user is signed in, and
+  confirm it verifies that user is allowed to act on the specific record being
+  passed in. List the ones missing either check and show me the fix.</blockquote>
+
+  <p>The same applies to Route Handlers in <code>app/api/</code>. A file
+  existing under <code>/api</code> gives it no protection.</p>
+
+  <h2>3. <code>NEXT_PUBLIC_</code> means what it says</h2>
+
+  <p>Any variable with that prefix is substituted into the JavaScript bundle at
+  build time. It is not configuration on a server — it's a constant in a file
+  anyone can read, and it stays readable in every deployment built from it.</p>
+
+  <p>Fine: a Supabase anon key, a Stripe <em>publishable</em> key, a public
+  analytics ID. Not fine: anything with SECRET, PRIVATE, SERVICE_ROLE or
+  TOKEN in the name, or any key you'd be unhappy to see on a stranger's
+  screen.</p>
+
+  <p>Worth knowing: renaming it back doesn't undo anything. The value was
+  compiled into bundles that people already downloaded, and it needs rotating
+  at the provider.</p>
+
+  <h2>4. Generated components don't know your app's rules</h2>
+
+  <p>v0 is often used to produce a component you paste into an existing
+  codebase, and that component arrives without any knowledge of the
+  conventions already in your app — your auth helper, your data-access layer,
+  the wrapper everyone uses so that queries get scoped to the current user.</p>
+
+  <p>So a generated dashboard might query the database directly, and return
+  every row, because nothing told it that your app filters by organisation. It
+  will look right in review — the UI shows the correct data for you, since you
+  can see everything.</p>
+
+  <p>When you paste a component in, check what it does with data as carefully
+  as how it looks: does it go through the same access path as the rest of your
+  app, or has it invented its own?</p>
+
+  <h2>5. Where secrets actually belong</h2>
+
+  <ul>
+    <li><strong>Server Components, Route Handlers and Server Actions</strong> —
+    these run on the server, and can read secrets from <code>process.env</code>
+    safely.</li>
+    <li><strong>Environment variables set in the Vercel dashboard</strong>
+    (Project → Settings → Environment Variables), not in a committed file.
+    Without the <code>NEXT_PUBLIC_</code> prefix, they stay server-side.</li>
+    <li><strong>Never in a client component</strong>, and never in anything a
+    client component imports.</li>
+  </ul>
+
+  <h2>Before you ship</h2>
+
+  <ul class="checklist">
+    <li>No secret read anywhere under a <code>"use client"</code> boundary</li>
+    <li>Every Server Action checks the session <em>and</em> record ownership</li>
+    <li>Every Route Handler in <code>app/api/</code> does the same</li>
+    <li>Nothing secret carries the <code>NEXT_PUBLIC_</code> prefix</li>
+    <li>Pasted components use your existing auth and data-access paths</li>
+    <li>Env vars set in the Vercel dashboard, not committed</li>
+    <li>Every key that was ever exposed rotated, not just renamed</li>
+  </ul>
+
+  <div class="callout good">
+    <p>A quick way to catch the big one: build the app and search the output
+    for a distinctive fragment of one of your secrets. If it appears in
+    <code>.next/static</code>, it's in the browser bundle and it's public.</p>
+  </div>
+
+  <div class="cta">
+    <h2>Check it in about ten seconds</h2>
+    <p>vibecheck scans your project or your live URL for the leaks and
+    misconfigurations on this page, in plain English — with a fix prompt you
+    paste straight back into v0.</p>
+    <a class="btn" href="/">Scan my app — free</a>
+  </div>
+
+  <div class="related">
+    <h2>Related</h2>
+    <ul>
+      <li><a href="/guides/ai-app-security-checklist">The AI app security checklist</a> — the version that isn't tool-specific</li>
+      <li><a href="/guides/lovable-app-security">Is my Lovable app secure?</a> — goes deeper on Supabase Row Level Security</li>
+      <li><a href="/guides/bolt-app-security">Is my Bolt app secure?</a> — Vite prefixes and deploy-time secrets</li>
+    </ul>
+  </div>
+</article>
+
+<footer>
+  <p><strong>Two rules of thumb:</strong> browser code cannot keep a secret, and
+  deleting a leaked key does not un-leak it — rotate it.</p>
+  <p style="margin-top:8px">vibecheck · a <strong>psychosecurity.io</strong> tool</p>
+</footer>
+</div>
+
+</body>
+</html>

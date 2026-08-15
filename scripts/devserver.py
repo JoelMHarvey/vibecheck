@@ -27,6 +27,7 @@ STATIC = {
     # Vercel's cleanUrls resolves /guides/x to guides/x.html; mirror that.
     "/guides/lovable-app-security": ("guides/lovable-app-security.html", "text/html; charset=utf-8"),
     "/guides/bolt-app-security": ("guides/bolt-app-security.html", "text/html; charset=utf-8"),
+    "/guides/v0-app-security": ("guides/v0-app-security.html", "text/html; charset=utf-8"),
     "/guides/ai-app-security-checklist": ("guides/ai-app-security-checklist.html", "text/html; charset=utf-8"),
 }
 
