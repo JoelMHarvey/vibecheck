@@ -11,7 +11,9 @@ Order of operations:
   1. build a target list of public AI-built repos
   2. python3 scripts/research_scan.py targets.txt --out research/
   3. fill the placeholders from research/aggregate.json
-  4. contact everyone in research/disclosure.jsonl, give them time to rotate
+  4. contact everyone in research/disclosure.jsonl — templates and the
+     process notes are in content/disclosure-templates.md — and leave at
+     least 14 days for people to rotate
   5. publish
 -->
 
