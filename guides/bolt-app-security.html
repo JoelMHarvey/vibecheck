@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Is my Bolt app secure? What to check before you deploy — vibecheck</title>
+<meta name="description" content="The security mistakes Bolt.new apps ship with most often — secrets in VITE_ variables, API keys called straight from the browser, .env files in the deploy — and how to fix each one.">
+<link rel="canonical" href="https://psychosecurity.io/guides/bolt-app-security">
+<meta name="theme-color" content="#0b0e14">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="vibecheck">
+<meta property="og:url" content="https://psychosecurity.io/guides/bolt-app-security">
+<meta property="og:title" content="Is my Bolt app secure? What to check before you deploy">
+<meta property="og:description" content="The security mistakes Bolt.new apps ship with most often, and how to fix each one.">
+<meta property="og:image" content="https://psychosecurity.io/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://psychosecurity.io/og.png">
+<link rel="stylesheet" href="/guide.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="logo" href="/">vibe<span>check</span> 🔒</a>
+    <div class="byline">a psychosecurity.io tool</div>
+  </div>
+</header>
+
+<div class="wrap">
+<article>
+  <h1>Is my Bolt app secure?</h1>
+  <p class="standfirst">Bolt is very good at getting you from an idea to a
+  deployed app without stopping. The problem is that the thing it's best at —
+  never making you think about the boundary between your machine and the
+  internet — is exactly the thing security depends on.</p>
+
+  <p>Most of what goes wrong in a Bolt app traces back to one misunderstanding,
+  and it's a misunderstanding Bolt's own preview quietly encourages.</p>
+
+  <h2>1. The preview lies to you about what's private</h2>
+
+  <p>While you're building, Bolt runs your whole project inside a WebContainer
+  — a Node environment running <em>in your browser tab</em>. It's a genuinely
+  clever trick, and it means your "server" code and your frontend code are
+  both executing in the same place, on your own machine, where nobody else can
+  see either of them.</p>
+
+  <p>So during development, putting an API key in a file feels fine. It works,
+  nothing warns you, and the key is genuinely private — because it's on your
+  computer.</p>
+
+  <div class="callout bad">
+    <p><strong>Then you deploy.</strong> The parts that were "server" code
+    during preview don't automatically become a server. If your app deploys as
+    a static site, there is no backend at all — every file that ends up in the
+    build is downloadable, and any key inside it is public.</p>
+  </div>
+
+  <p>The question worth asking about any secret in a Bolt project is not "is
+  this in a config file?" but "<strong>after the build, does this end up in
+  something a browser downloads?</strong>" If yes, it's published.</p>
+
+  <h2>2. <code>VITE_</code> is a publishing instruction</h2>
+
+  <p>Bolt projects are usually Vite-based, and Vite has a rule that catches
+  almost everyone: only variables prefixed <code>VITE_</code> are visible to
+  your app code. So when a variable seems to be missing at runtime, the
+  obvious fix is to add the prefix — and it works immediately.</p>
+
+  <p>What actually happened is that Vite substituted the value directly into
+  your JavaScript bundle at build time. The prefix isn't a visibility setting,
+  it's a decision to ship the value to every visitor.</p>
+
+  <ul>
+    <li><code>VITE_SUPABASE_ANON_KEY</code> — fine, that key is designed to be public.</li>
+    <li><code>VITE_OPENAI_API_KEY</code> — your OpenAI billing is now public.</li>
+    <li><code>VITE_STRIPE_SECRET_KEY</code> — anyone can charge and refund on your account.</li>
+    <li><code>VITE_SUPABASE_SERVICE_ROLE_KEY</code> — full read/write on your database, bypassing every rule you set.</li>
+  </ul>
+
+  <p>Grep your project for <code>VITE_</code> and read every result. If the
+  name contains SECRET, PRIVATE, SERVICE_ROLE, or the name of something you pay
+  for, that value needs to move server-side and then be rotated.</p>
+
+  <h2>3. Calling AI and payment APIs from the browser</h2>
+
+  <p>A Bolt app often has no backend at all, so when you ask for a chatbot the
+  straightforward thing is a <code>fetch</code> to OpenAI or Anthropic directly
+  from a component. It works in the preview. It works in production too — for
+  you and for whoever finds the key.</p>
+
+  <p>If you see <code>dangerouslyAllowBrowser: true</code>, that's the SDK
+  telling you it noticed. It's the one place the tooling actually warns you,
+  and it's phrased as a flag you can switch off rather than a mistake.</p>
+
+  <p>The fix is a small serverless function that holds the key and forwards the
+  request — a Netlify or Vercel function, or a Supabase edge function if you're
+  already using Supabase. Add a rate limit while you're there: an open AI proxy
+  is free credits with your name on the invoice.</p>
+
+  <blockquote>My app calls the OpenAI API directly from the browser. Create a
+  serverless function that makes the call using a key from a server-side
+  environment variable, change the frontend to call that function instead,
+  remove dangerouslyAllowBrowser, and add basic rate limiting to the function.</blockquote>
+
+  <h2>4. Where your environment variables actually live after deploy</h2>
+
+  <p>A <code>.env</code> file in your project is a local development
+  convenience. Your host does not read it — you set environment variables in
+  the host's own dashboard, and if you skip that step the app breaks in
+  production in a way that tempts people into hardcoding the value "just to
+  get it working".</p>
+
+  <p>Two things to check:</p>
+
+  <ul>
+    <li><strong>Is <code>.env</code> in <code>.gitignore</code>?</strong> If
+    you've pushed the project to GitHub, this is the difference between a
+    private file and a published one. Public repos are scraped for keys within
+    minutes of a push.</li>
+    <li><strong>Is <code>.env</code> reachable on the live site?</strong>
+    Open <code>yoursite.com/.env</code>. It should not return a file. If it
+    does, every credential in it is public right now and needs rotating, not
+    just deleting.</li>
+  </ul>
+
+  <h2>5. If you added a database</h2>
+
+  <p>Bolt apps commonly use Supabase. If yours does, your browser talks to the
+  database directly using a public key, and the only protection is Row Level
+  Security. Off, or set to allow everything, means anyone can read and write
+  every row — not just their own.</p>
+
+  <p>That deserves more space than a paragraph:
+  <a href="/guides/lovable-app-security">the RLS section of the Lovable guide</a>
+  covers it properly, and applies identically here.</p>
+
+  <h2>Before you ship</h2>
+
+  <ul class="checklist">
+    <li>Grep for <code>VITE_</code>; nothing secret carries the prefix</li>
+    <li>No API keys in any file that ends up in the build</li>
+    <li>AI and payment calls go through a serverless function, rate limited</li>
+    <li>Environment variables set in your host's dashboard, not hardcoded</li>
+    <li><code>.env</code> in <code>.gitignore</code>, and <code>yoursite.com/.env</code> returns nothing</li>
+    <li>Row Level Security on, if you're using Supabase</li>
+    <li>Every key that was ever exposed rotated at the provider</li>
+  </ul>
+
+  <div class="callout good">
+    <p>Bolt changes quickly, and the specifics of its deploy flow may have moved
+    since this was written. The check that doesn't go stale: build your app,
+    then search the build output for anything that looks like a key. Whatever is
+    in there is public.</p>
+  </div>
+
+  <div class="cta">
+    <h2>Check it in about ten seconds</h2>
+    <p>vibecheck scans your project folder or your live URL for everything on
+    this page and explains what it finds in plain English — with a fix prompt
+    you paste straight back into Bolt.</p>
+    <a class="btn" href="/">Scan my app — free</a>
+  </div>
+
+  <div class="related">
+    <h2>Related</h2>
+    <ul>
+      <li><a href="/guides/ai-app-security-checklist">The AI app security checklist</a> — the version that isn't tool-specific</li>
+      <li><a href="/guides/lovable-app-security">Is my Lovable app secure?</a> — goes deeper on Supabase Row Level Security</li>
+    </ul>
+  </div>
+</article>
+
+<footer>
+  <p><strong>Two rules of thumb:</strong> browser code cannot keep a secret, and
+  deleting a leaked key does not un-leak it — rotate it.</p>
+  <p style="margin-top:8px">vibecheck · a <strong>psychosecurity.io</strong> tool</p>
+</footer>
+</div>
+
+</body>
+</html>

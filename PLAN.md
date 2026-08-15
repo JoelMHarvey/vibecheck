@@ -76,8 +76,15 @@ the first two SEO guides (the head-term checklist and the Lovable page),
 link or a search result lands on; without them the viral loop had nowhere
 to point.
 
-Next content, in rough priority: Bolt, v0, Cursor/Claude Code, then
-"my API key leaked, what now" (high intent, and the moment people search).
+The Bolt guide followed. Remaining content, in rough priority: v0,
+Cursor/Claude Code, then "my API key leaked, what now" — the highest-intent
+search of the lot, because it's what people type at the exact moment they
+need the tool.
+
+Each platform guide should lead with what's genuinely specific to that tool
+rather than restating the checklist. Lovable's is Supabase RLS; Bolt's is
+that the WebContainer preview makes secrets feel private when they aren't.
+If a page has no such angle, it's a doorway page and shouldn't be written.
 
 **v0.5 — GitHub Action + PR bot.** `vibecheck` as a check on every push;
 Pro-gated auto-fix PRs.
