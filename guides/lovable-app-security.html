@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Is my Lovable app secure? A practical checklist — vibecheck</title>
+<meta name="description" content="The security mistakes Lovable apps ship with most often — exposed Supabase service_role keys, Row Level Security left off, secrets in public env variables — and how to fix each one.">
+<link rel="canonical" href="https://psychosecurity.io/guides/lovable-app-security">
+<meta name="theme-color" content="#0b0e14">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="vibecheck">
+<meta property="og:url" content="https://psychosecurity.io/guides/lovable-app-security">
+<meta property="og:title" content="Is my Lovable app secure? A practical checklist">
+<meta property="og:description" content="The security mistakes Lovable apps ship with most often, and how to fix each one.">
+<meta property="og:image" content="https://psychosecurity.io/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://psychosecurity.io/og.png">
+<link rel="stylesheet" href="/guide.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="logo" href="/">vibe<span>check</span> 🔒</a>
+    <div class="byline">a psychosecurity.io tool</div>
+  </div>
+</header>
+
+<div class="wrap">
+<article>
+  <h1>Is my Lovable app secure?</h1>
+  <p class="standfirst">Lovable gets you a working app fast. Working and safe
+  are different targets, and the gap between them is usually four or five
+  specific things. Here's what to check, in the order that matters.</p>
+
+  <p>None of this is a criticism of Lovable or of you. An AI builder optimises
+  for what you asked for — an app that works. Nobody prompts "and don't put the
+  service_role key in the client bundle", because if you knew to ask that,
+  you'd have known not to do it.</p>
+
+  <h2>1. Row Level Security, before anything else</h2>
+
+  <p>Lovable apps almost always use Supabase, and Supabase is safe by
+  <em>configuration</em>, not by default. Your app talks to the database from
+  the browser using the anon key. That key is meant to be public — it's in
+  everyone's page source and that's fine — which means the <strong>only</strong>
+  thing standing between a stranger and your data is Row Level Security.</p>
+
+  <p>If RLS is off on a table, anyone who opens DevTools can read, edit or
+  delete every row in it. Not just their own rows. Every row.</p>
+
+  <div class="callout bad">
+    <p><strong>Check this first.</strong> In Supabase, open Table Editor and
+    look at every table. Any table without RLS enabled is fully public right
+    now. Turning RLS on with no policies makes a table fully private — you
+    then add policies to let the right people back in.</p>
+  </div>
+
+  <p>Enabling RLS is not the finish line. A policy of <code>USING (true)</code>
+  is the same as no protection at all. What you want on a user-owned table is
+  a policy scoped to the logged-in user:</p>
+
+  <pre><code>alter table todos enable row level security;
+
+create policy "own rows only" on todos
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);</code></pre>
+
+  <p>The <code>with check</code> half matters as much as <code>using</code>.
+  Without it, someone can pass the read test and then write a row belonging to
+  somebody else.</p>
+
+  <p>Prompt to paste into Lovable:</p>
+  <blockquote>Review every table in my Supabase project. List which have Row
+  Level Security disabled, and which have policies that would let one user read
+  or modify another user's rows. For each problem, give me the SQL to fix it.</blockquote>
+
+  <h2>2. The service_role key must never reach the browser</h2>
+
+  <p>Supabase gives you two keys. The <strong>anon</strong> key is public by
+  design. The <strong>service_role</strong> key bypasses Row Level Security
+  entirely — every policy you just wrote stops applying.</p>
+
+  <p>It belongs in server-side code only: an edge function, or a backend route.
+  If it appears anywhere the browser can reach, every visitor has full read and
+  write access to your entire database, and no amount of RLS helps.</p>
+
+  <div class="callout bad">
+    <p>If the service_role key has ever been in frontend code, in a
+    <code>VITE_</code>-prefixed variable, or committed to a public repo, treat
+    it as compromised. Rotate it in the Supabase dashboard under Settings → API.
+    Deleting it from the code does not un-leak it.</p>
+  </div>
+
+  <h2>3. Anything with a public prefix is public</h2>
+
+  <p>Variables starting <code>VITE_</code>, <code>NEXT_PUBLIC_</code> or
+  <code>REACT_APP_</code> get compiled <em>into</em> the JavaScript bundle you
+  ship. They are not configuration hidden on a server — they're constants in a
+  file anyone can read.</p>
+
+  <p>So <code>VITE_SUPABASE_ANON_KEY</code> is fine. <code>VITE_OPENAI_API_KEY</code>
+  or <code>VITE_STRIPE_SECRET_KEY</code> means you've published a credential,
+  even though it looked like an environment variable and environment variables
+  feel private.</p>
+
+  <p>The rule that covers all of it: <strong>browser code cannot keep a
+  secret.</strong> If the frontend can read it, so can everyone.</p>
+
+  <h2>4. AI calls need to go through your own backend</h2>
+
+  <p>If your app calls OpenAI or Anthropic directly from the frontend, the key
+  authorising those calls is shipped to every visitor. The usual tell is
+  <code>dangerouslyAllowBrowser: true</code> — a flag people add because it
+  makes an error message disappear and the app start working. It's named
+  "dangerously" for exactly this reason.</p>
+
+  <p>The fix is a Supabase edge function that holds the key and forwards the
+  request. While you're there, add a rate limit: an unprotected AI proxy is
+  someone else's free API credits, and they will find it.</p>
+
+  <blockquote>Move my OpenAI calls out of the frontend into a Supabase edge
+  function that reads the key from an environment variable. Update the frontend
+  to call that function instead, remove dangerouslyAllowBrowser, and add basic
+  per-user rate limiting to the function.</blockquote>
+
+  <h2>5. Before you publish</h2>
+
+  <ul class="checklist">
+    <li>RLS enabled on every table, with policies scoped to the user</li>
+    <li>service_role key only in edge functions, never in client code</li>
+    <li>No secrets in <code>VITE_</code> variables</li>
+    <li>AI and payment calls proxied through a backend, rate limited</li>
+    <li><code>.env</code> in <code>.gitignore</code> if you've exported to GitHub</li>
+    <li>Every key that was ever exposed rotated, not just deleted</li>
+  </ul>
+
+  <div class="cta">
+    <h2>Check it in about ten seconds</h2>
+    <p>vibecheck scans your project or your live URL for all of the above and
+    tells you what's wrong in plain English — with a fix prompt you paste
+    straight back into Lovable.</p>
+    <a class="btn" href="/">Scan my app — free</a>
+  </div>
+
+  <div class="related">
+    <h2>Related</h2>
+    <ul>
+      <li><a href="/guides/ai-app-security-checklist">The AI app security checklist</a> — the version that isn't Lovable-specific</li>
+    </ul>
+  </div>
+</article>
+
+<footer>
+  <p><strong>Two rules of thumb:</strong> browser code cannot keep a secret, and
+  deleting a leaked key does not un-leak it — rotate it.</p>
+  <p style="margin-top:8px">vibecheck · a <strong>psychosecurity.io</strong> tool</p>
+</footer>
+</div>
+
+</body>
+</html>

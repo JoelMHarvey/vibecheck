@@ -68,6 +68,17 @@ global outbound ceiling; in-memory by default, auto-upgrading to Vercel KV if
 present. Also removes an obvious line of attack on the product's credibility:
 vibecheck's own fix prompts tell users to rate limit their API routes.
 
+**v0.47 — distribution basics (done).** Social preview card, so a shared
+report link renders as a card instead of a naked URL — it had to be generic,
+because reports live in the URL fragment and no unfurler can see one. Plus
+the first two SEO guides (the head-term checklist and the Lovable page),
+`sitemap.xml`, `robots.txt`, and internal linking. These are what a shared
+link or a search result lands on; without them the viral loop had nowhere
+to point.
+
+Next content, in rough priority: Bolt, v0, Cursor/Claude Code, then
+"my API key leaked, what now" (high intent, and the moment people search).
+
 **v0.5 — GitHub Action + PR bot.** `vibecheck` as a check on every push;
 Pro-gated auto-fix PRs.
 

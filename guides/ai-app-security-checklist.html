@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The AI app security checklist — vibecheck</title>
+<meta name="description" content="A practical security checklist for apps built with AI coding tools: leaked API keys, secrets in frontend code, missing database rules, exposed .env files, and what to fix first.">
+<link rel="canonical" href="https://psychosecurity.io/guides/ai-app-security-checklist">
+<meta name="theme-color" content="#0b0e14">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="vibecheck">
+<meta property="og:url" content="https://psychosecurity.io/guides/ai-app-security-checklist">
+<meta property="og:title" content="The AI app security checklist">
+<meta property="og:description" content="The security mistakes AI-built apps ship with most often, in the order worth fixing them.">
+<meta property="og:image" content="https://psychosecurity.io/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://psychosecurity.io/og.png">
+<link rel="stylesheet" href="/guide.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="logo" href="/">vibe<span>check</span> 🔒</a>
+    <div class="byline">a psychosecurity.io tool</div>
+  </div>
+</header>
+
+<div class="wrap">
+<article>
+  <h1>The AI app security checklist</h1>
+  <p class="standfirst">Whatever built it — Lovable, Bolt, v0, Cursor, Claude
+  Code — the same handful of problems come up again and again. Here they are in
+  the order worth fixing them.</p>
+
+  <p>These aren't obscure vulnerabilities. They're the consequences of two
+  facts that are obvious once you know them and invisible until you do.</p>
+
+  <div class="callout good">
+    <p><strong>One.</strong> Browser code cannot keep a secret. Anything in the
+    frontend — hardcoded, in a <code>NEXT_PUBLIC_</code> variable, inside an SDK
+    running client-side — is readable by every visitor. Not obscure. Public.</p>
+    <p><strong>Two.</strong> Deleting a leaked key doesn't un-leak it. It's in
+    your git history, someone's cache, a scraper's database. The only real fix
+    is rotating it at the provider.</p>
+  </div>
+
+  <h2>Critical — fix before anyone else sees the app</h2>
+
+  <h3>Secret keys in code that ships to the browser</h3>
+  <p>Stripe secret keys (<code>sk_live_…</code>), AI provider keys, database
+  connection strings with passwords in them. Anything in a frontend file, or in
+  a variable prefixed <code>VITE_</code> / <code>NEXT_PUBLIC_</code> /
+  <code>REACT_APP_</code>, is published. Move the call server-side, read the key
+  from a server-only environment variable, then rotate the exposed one.</p>
+
+  <h3>Database rules turned off</h3>
+  <p>If you're on Supabase or Firebase, your client talks to the database
+  directly using a public key, and the only thing protecting your data is Row
+  Level Security (or Firestore rules). Off, or set to allow-all, means anyone
+  can read and write everything. A Supabase <code>service_role</code> key in
+  client code has the same effect, since it bypasses those rules entirely.</p>
+
+  <h3>A live <code>.env</code> or <code>.git</code> on your deployed site</h3>
+  <p>If <code>yoursite.com/.env</code> returns a file, every credential in it is
+  public and being scanned for constantly. Same for a served <code>.git</code>
+  directory, which lets anyone clone your whole history — including secrets you
+  committed and later "removed".</p>
+
+  <h2>High — fix before you have real users</h2>
+
+  <h3>AI APIs called straight from the frontend</h3>
+  <p><code>dangerouslyAllowBrowser: true</code> is the usual marker. It makes
+  an error go away, the app starts working, and your API key is now in every
+  visitor's browser. Proxy the call through your own backend route and rate
+  limit it, or you're funding strangers' usage.</p>
+
+  <h3>SQL built by pasting values into strings</h3>
+  <p>A query assembled with an f-string or template literal will happily execute
+  whatever a user types. Use parameterised queries — placeholders with the values
+  passed separately — everywhere, not just where input "looks" untrusted.</p>
+
+  <h3>No rate limiting on anything that costs money</h3>
+  <p>Any endpoint that sends email, calls an AI model, or writes to your
+  database can be called in a loop by a stranger. This is the one people skip
+  because it isn't a "vulnerability" — it's just a bill.</p>
+
+  <h2>Medium — fix before you forget</h2>
+
+  <ul>
+    <li><strong>CORS set to <code>*</code></strong> — combined with cookie login,
+    other sites can make requests as your users.</li>
+    <li><strong>HTML built from user input</strong> — <code>innerHTML</code> or
+    <code>dangerouslySetInnerHTML</code> with anything a user typed is how XSS
+    gets in. Use <code>textContent</code>, or sanitise.</li>
+    <li><strong>Debug mode left on</strong> — shows your code and variables to
+    visitors on any error, and in Flask's case allows running code on your
+    server.</li>
+    <li><strong>Published source maps</strong> — let anyone rebuild your original
+    source from the deployed bundle.</li>
+  </ul>
+
+  <h2>The five-minute version</h2>
+
+  <ul class="checklist">
+    <li>No secret keys anywhere in frontend code or public-prefixed variables</li>
+    <li>Database rules on, and scoped to the logged-in user</li>
+    <li><code>yoursite.com/.env</code> returns nothing</li>
+    <li><code>.env</code> is in <code>.gitignore</code></li>
+    <li>AI and payment calls go through your backend, with a rate limit</li>
+    <li>Every key that was ever exposed has been rotated</li>
+  </ul>
+
+  <div class="cta">
+    <h2>Or have it checked for you</h2>
+    <p>vibecheck scans your code or your live URL for everything on this page,
+    explains what it finds in plain English, and gives you a fix prompt to paste
+    back into whatever AI tool you're using.</p>
+    <a class="btn" href="/">Scan my app — free</a>
+  </div>
+
+  <div class="related">
+    <h2>Related</h2>
+    <ul>
+      <li><a href="/guides/lovable-app-security">Is my Lovable app secure?</a> — the Supabase-specific version</li>
+    </ul>
+  </div>
+</article>
+
+<footer>
+  <p><strong>Two rules of thumb:</strong> browser code cannot keep a secret, and
+  deleting a leaked key does not un-leak it — rotate it.</p>
+  <p style="margin-top:8px">vibecheck · a <strong>psychosecurity.io</strong> tool</p>
+</footer>
+</div>
+
+</body>
+</html>

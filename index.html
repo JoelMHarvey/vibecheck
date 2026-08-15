@@ -5,6 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>vibecheck — security scanner for AI-built apps</title>
 <meta name="description" content="You vibe-coded it. Now vibecheck it. Free security scan for apps built with Lovable, Bolt, Cursor, v0 or Claude Code — plain-English findings with fix prompts you paste back into your AI tool.">
+<link rel="canonical" href="https://psychosecurity.io/">
+<meta name="theme-color" content="#0b0e14">
+
+<!-- Social preview. Absolute URLs: crawlers don't resolve relative paths.
+     The card is generic by necessity — shared reports live in the URL
+     fragment, which never reaches a server, so no unfurler can see one. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="vibecheck">
+<meta property="og:url" content="https://psychosecurity.io/">
+<meta property="og:title" content="You vibe-coded it. Now vibecheck it.">
+<meta property="og:description" content="Free security scan for apps built with Lovable, Bolt, Cursor or v0 — every finding comes with a fix prompt you paste back into your AI tool.">
+<meta property="og:image" content="https://psychosecurity.io/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="vibecheck — you vibe-coded it, now vibecheck it">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="You vibe-coded it. Now vibecheck it.">
+<meta name="twitter:description" content="Free security scan for apps built with Lovable, Bolt, Cursor or v0 — every finding comes with a fix prompt you paste back into your AI tool.">
+<meta name="twitter:image" content="https://psychosecurity.io/og.png">
 <style>
   :root {
     --bg: #0b0e14; --panel: #12161f; --panel2: #171c27; --border: #232a38;
@@ -96,6 +115,9 @@
   .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
   .card h3 { font-size: 15px; margin-bottom: 6px; }
   .card p { color: var(--muted); font-size: 14px; }
+  a.card { display: block; text-decoration: none; color: inherit; transition: border-color .15s; }
+  a.card:hover { border-color: var(--accent); }
+  a.card h3 { color: var(--accent); }
   pre.cli { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px;
             font-family: var(--mono); font-size: 14px; overflow-x: auto; }
   footer { margin-top: 64px; padding: 28px 0 40px; border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; }
@@ -182,6 +204,14 @@
       <div class="card"><h3>Classic vulnerabilities</h3><p>SQL built by string interpolation, shell injection, XSS via innerHTML, eval, CORS open to every origin, debug mode left on.</p></div>
       <div class="card"><h3>Your deployed site</h3><p>Publicly readable .env or .git, published source maps that rebuild your source, missing security headers, plain HTTP, and robots.txt that signposts your admin pages.</p></div>
       <div class="card"><h3>Fix prompts, not jargon</h3><p>Every finding ends with a prompt written for your AI tool — paste it into Cursor, Claude Code, Lovable or Bolt and let it do the fix.</p></div>
+    </div>
+  </section>
+
+  <section class="info" id="guides">
+    <h2>Guides</h2>
+    <div class="grid">
+      <a class="card" href="/guides/ai-app-security-checklist"><h3>The AI app security checklist →</h3><p>Everything worth checking before you launch, in the order worth fixing it. Works whatever built your app.</p></a>
+      <a class="card" href="/guides/lovable-app-security"><h3>Is my Lovable app secure? →</h3><p>Row Level Security, the service_role key, and the other four things Lovable apps most often get wrong.</p></a>
     </div>
   </section>
 
