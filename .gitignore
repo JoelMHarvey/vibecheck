@@ -5,3 +5,10 @@ dist/
 build/
 report.md
 report.json
+
+# Research corpus scans. disclosure.jsonl names repos with live exposed
+# credentials — committing it would publish exactly what we're trying to
+# get fixed quietly. The aggregate file is safe, but keep the whole
+# directory out by default and copy figures across by hand.
+research/
+targets.txt

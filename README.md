@@ -148,6 +148,27 @@ There's also a score badge for READMEs:
 [![Vibe Score](https://psychosecurity.io/api/badge?score=94)](https://psychosecurity.io)
 ```
 
+## Research harness
+
+`scripts/research_scan.py` scans a corpus of public repos and produces
+**anonymised** aggregate statistics — the data behind the writeup in
+`content/`.
+
+```bash
+python3 scripts/research_scan.py targets.txt --out research/
+```
+
+It writes two files. `aggregate.json` is safe to publish: counts,
+percentages and score distribution, with no repo names, paths, excerpts
+or secrets. `disclosure.jsonl` is **private** (mode 0600, gitignored) and
+exists so you can notify people whose credentials are exposed.
+
+The rules it's built around, which are worth following whether or not you
+use this script: never test a credential you find — reading public code
+is fine, using a key is unauthorised access. Disclose privately and leave
+time to rotate before publishing. Publish aggregates only; a specific
+enough anecdote identifies someone as surely as a name does.
+
 ## Development
 
 ```bash
