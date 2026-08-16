@@ -144,12 +144,37 @@ otherwise produces a prefix pointing nowhere, and annotations silently land
 on files that don't exist. Forks: their tokens are read-only, so a failed
 comment is a warning and never a failed build.
 
-Not done, and deliberately: the action can't be `uses: JoelMHarvey/…@v1` by
-anyone until `vibecheck/` is split into its own **public** repository. This
-one is private, and a private repo's action is only usable inside it. That
-split — plus a `v1` tag and a Marketplace listing — is the next distribution
-step, and it's the thing standing between this working and anyone being able
-to run it.
+**v0.51 — the public split (done).** None of the above reached anyone at
+first, because the project lived inside a private personal monorepo and a
+private repo's action is only usable inside it. So it got its own home: this
+repository, MIT, with the history filtered by `git subtree split` so the
+build stays legible commit by commit rather than starting from a squashed
+"initial commit". Tagged `v1.0.0` plus a moving `v1`, so
+`uses: JoelMHarvey/vibecheck@v1` resolves for a stranger.
+
+Publishing a git history is one-way, so it was audited before rather than
+after: all 125 distinct blobs from every commit, scanned both with vibecheck
+itself and with a raw credential-shape sweep deliberately independent of its
+placeholder filter. No real credentials, nothing belonging to the other
+projects in that monorepo, no `.env`, `research/`, `targets.txt` or
+`disclosure.jsonl`. The one credential-shaped string in the whole history is
+a fake mongodb URI in a test fixture. This `PLAN.md` went public along with
+it, pricing ladder and all — a deliberate build-in-public choice.
+
+Vercel now deploys psychosecurity.io from this repository, so there is one
+copy of everything and one place to change it.
+
+**v0.52 — corpus collection (done).** `scripts/collect_targets.py` builds
+the sample for the writeup. Eight searches, each a different fingerprint
+these tools leave behind — the dev dependency Lovable injects, the README
+lines Bolt and v0 write — because no single signal finds everything.
+
+The filtering is the part that decides whether the headline number means
+anything. Forks, archived repos, vendor repos and anything self-describing as
+a template, starter, boilerplate, demo or tutorial are excluded, and the
+exclusion counts are printed so the writeup can state what the sample
+actually is. Without that, one insecure starter copied a thousand times reads
+as a thousand insecure apps, and the whole post is worthless.
 
 **v0.6 — auto-fix PRs.** Pro-gated: the action opens a branch applying the
 mechanical fixes (`.gitignore` entries, moving a key to an env var reference)
