@@ -41,22 +41,30 @@ import subprocess
 import sys
 from collections import OrderedDict
 
-# Each entry is (label, GitHub search query, search kind). Code search finds
-# the strongest signals — an injected dependency is hard to fake — while repo
-# search catches projects that only say so in their description.
+# Each entry is (label, GitHub search query, search kind).
+#
+# These are all code searches, and that is the whole point. An earlier version
+# also searched descriptions for "lovable.dev", "bolt.new" and "vibe coded",
+# which conflated two completely different things: an app *built by* one of
+# these tools, and a repo that merely *mentions* one. The mention queries
+# dragged in prompt directories, Lovable downloaders, MCP servers and
+# conference slides — and because those repos are mostly markdown, they
+# scanned clean and inflated the "completely clean" figure, which is the one
+# statistic the writeup turns on.
+#
+# A generated app carries a fingerprint it did not choose: an injected dev
+# dependency, or the project URL the tool writes into the README. Talking
+# about Lovable does not give you a `lovable-tagger` entry in package.json.
 QUERIES = [
     # Lovable injects this dev dependency into every project it generates.
     ("lovable-tagger", '"lovable-tagger" filename:package.json', "code"),
+    # The generated README links back to the specific project that made it.
     ("lovable-readme", '"lovable.dev/projects" filename:README.md', "code"),
-    ("lovable-desc", "lovable.dev in:readme,description", "repo"),
     # Bolt's WebContainer projects and its README attribution.
     ("bolt-readme", '"bolt.new" filename:README.md', "code"),
-    ("bolt-desc", "bolt.new in:readme,description", "repo"),
     # v0 writes an attribution block into generated READMEs.
     ("v0-readme", '"Built with v0" filename:README.md', "code"),
     ("v0-vercel", '"v0.dev" filename:README.md', "code"),
-    # Generic self-description; noisier, so it sits last.
-    ("vibe-coded", '"vibe coded" in:readme,description', "repo"),
 ]
 
 # Repos that would distort the sample rather than describe it.
@@ -66,7 +74,11 @@ EXCLUDE_OWNERS = {
 }
 EXCLUDE_NAME_WORDS = re.compile(
     r"\b(template|starter|boilerplate|scaffold|example|examples|demo|demos|"
-    r"tutorial|course|workshop|clone|awesome|playground|sandbox|test|testing)\b",
+    r"tutorial|course|workshop|clone|awesome|playground|sandbox|test|testing"
+    # Written *about* these tools rather than *by* them: prompt collections,
+    # downloaders, MCP servers, themes, slide decks.
+    r"|prompt|prompts|cheatsheet|directory|downloader|mcp|theme|themes"
+    r"|docs|slides|talk|guide|guides|resources|collection|toolkit)\b",
     re.I,
 )
 
@@ -118,7 +130,10 @@ def reject(repo: dict) -> str:
         return "fork"
     if repo.get("isArchived"):
         return "archived"
-    haystack = f"{name} {repo.get('description') or ''}"
+    # Underscores are word characters, so \b never fires around them and
+    # "Ultimate_Prompts_Directory" would sail past a \bprompts\b. Repo names
+    # use _ and - interchangeably as separators; treat them that way.
+    haystack = f"{name} {repo.get('description') or ''}".replace("_", " ")
     if EXCLUDE_NAME_WORDS.search(haystack):
         return "template/demo"
     return ""

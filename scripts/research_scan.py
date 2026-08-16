@@ -53,7 +53,34 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from vibecheck.rules import SEVERITY_ORDER  # noqa: E402
-from vibecheck.scanner import scan  # noqa: E402
+from vibecheck.scanner import SKIP_DIRS, scan  # noqa: E402
+
+# A repository has to contain an application before it can be evidence about
+# applications. Prompt collections, link directories and slide decks are
+# almost pure markdown, so they scan perfectly clean — and a handful of them
+# in the sample quietly inflates the "completely clean" percentage, which is
+# the single number the writeup rests on. Excluding them is not tidying: it
+# is the difference between a statistic and an artefact.
+APP_EXTENSIONS = {
+    ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".vue", ".svelte", ".astro",
+    ".html", ".py", ".rb", ".php", ".go", ".java", ".cs", ".swift", ".kt",
+}
+
+def looks_like_an_app(root: Path) -> bool:
+    """True if the repo contains any application source at all.
+
+    One file is the bar, deliberately. The temptation is a threshold — "at
+    least three source files" — but that quietly excludes the two-file static
+    page, which is a real vibe-coded app and exactly the kind this research is
+    about. Zero source files is a definition, not a judgement call: a
+    repository of markdown cannot be evidence about how apps are built.
+    """
+    for current, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+        for name in filenames:
+            if Path(name).suffix.lower() in APP_EXTENSIONS:
+                return True
+    return False
 
 BANNER = """\
 vibecheck research scan
@@ -224,6 +251,9 @@ def main(argv=None) -> int:
                     if path is None:
                         record["error"] = "clone failed"
                         print("      could not clone — skipped")
+                    elif not looks_like_an_app(path):
+                        record["skipped"] = "no application code"
+                        print("      not an app (no application code) — excluded")
                     else:
                         result = scan(str(path))
                         record.update(
@@ -248,8 +278,12 @@ def main(argv=None) -> int:
             progress.write(json.dumps(record) + "\n")
             progress.flush()
 
-    scanned = [r for r in done.values() if "error" not in r]
+    # Three outcomes, kept apart on purpose. A repo we couldn't reach is a gap
+    # in the data; a repo we deliberately left out is a statement about what
+    # the sample is. Folding them together would hide the second.
+    scanned = [r for r in done.values() if "error" not in r and "skipped" not in r]
     failed = [r for r in done.values() if "error" in r]
+    excluded = [r for r in done.values() if "skipped" in r]
     disclosures = [
         {"repo": r["repo"], "score": r["score"],
          "findings": [f for f in r["findings"] if f["severity"] in ("critical", "high")]}
@@ -260,8 +294,10 @@ def main(argv=None) -> int:
     aggregate = anonymise(scanned)
     aggregate["targets_attempted"] = len(targets)
     aggregate["targets_failed"] = len(failed)
+    aggregate["targets_excluded"] = len(excluded)
     # Why each one dropped out, so the writeup can describe its own sample.
     aggregate["failure_reasons"] = dict(Counter(r["error"] for r in failed))
+    aggregate["exclusion_reasons"] = dict(Counter(r["skipped"] for r in excluded))
 
     agg_path = out_dir / "aggregate.json"
     agg_path.write_text(json.dumps(aggregate, indent=2) + "\n", encoding="utf-8")
@@ -276,10 +312,13 @@ def main(argv=None) -> int:
     gitignore = out_dir / ".gitignore"
     gitignore.write_text(f"disclosure.jsonl\n{PROGRESS_FILE}\n", encoding="utf-8")
 
-    print(f"\nScanned {aggregate['repos_scanned']} repos "
-          f"({aggregate['targets_failed']} could not be scanned)")
-    for reason, count in sorted(aggregate["failure_reasons"].items(), key=lambda kv: -kv[1]):
-        print(f"    {count:4}  {reason}")
+    print(f"\nScanned {aggregate['repos_scanned']} of {len(targets)} targets")
+    for label, reasons in (("could not scan", aggregate["failure_reasons"]),
+                           ("excluded from the sample", aggregate["exclusion_reasons"])):
+        if reasons:
+            print(f"  {label}:")
+            for reason, count in sorted(reasons.items(), key=lambda kv: -kv[1]):
+                print(f"    {count:4}  {reason}")
     print(f"  mean score {aggregate['score']['mean']}, "
           f"{aggregate['clean_pct']}% completely clean")
     for sev in ("critical", "high"):
