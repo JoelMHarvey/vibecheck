@@ -1,7 +1,13 @@
 # vibecheck 🔒✨
 
+[![ci](https://github.com/JoelMHarvey/vibecheck/actions/workflows/ci.yml/badge.svg)](https://github.com/JoelMHarvey/vibecheck/actions/workflows/ci.yml)
+[![vibe score](https://psychosecurity.io/api/badge?score=100)](https://psychosecurity.io)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **Security scanner for AI-built apps.** You vibe-coded it — now make sure it
 won't leak your keys, your database, or your users' data.
+
+Try it without installing anything at **[psychosecurity.io](https://psychosecurity.io)**.
 
 vibecheck scans a project folder for the security mistakes AI app builders
 make most often, then explains each one in plain English and gives you a
@@ -14,7 +20,8 @@ machine.
 ## Quick start
 
 ```bash
-# from this directory
+git clone https://github.com/JoelMHarvey/vibecheck
+cd vibecheck
 python3 -m vibecheck /path/to/your/app
 
 # or install it as a command
@@ -180,9 +187,8 @@ inline annotations work either way, which is why they aren't gated behind it.
   comment step is skipped with a warning rather than failing the build.
 - **Gating a monorepo.** Point `path` at one project; annotation and comment
   paths are rewritten to be repository-relative so they line up with the diff.
-- **Publishing.** The action lives beside the scanner, so `uses:` needs a
-  public repository at its root. Until `vibecheck/` is split out to one,
-  reference it in-repo with `uses: ./vibecheck`.
+- **Pinning.** `@v1` tracks the latest v1.x. Pin a full SHA if you'd rather
+  nothing move under you.
 
 ## Silencing false positives
 

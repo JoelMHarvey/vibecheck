@@ -11,6 +11,11 @@ requires-python = ">=3.9"
 license = { text = "MIT" }
 keywords = ["security", "scanner", "secrets", "vibe-coding", "ai", "lovable", "bolt", "cursor"]
 
+[project.urls]
+Homepage = "https://psychosecurity.io"
+Repository = "https://github.com/JoelMHarvey/vibecheck"
+Issues = "https://github.com/JoelMHarvey/vibecheck/issues"
+
 [project.scripts]
 vibecheck = "vibecheck.cli:main"
 

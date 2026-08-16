@@ -1,0 +1,46 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.9 is the floor the package declares; the action runs on whatever
+        # interpreter the runner already has, so all three OSes matter.
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ['3.9', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m unittest discover -s tests -v
+
+  # Dogfooding: the action runs against its own repository. It scores 100/100
+  # on itself, so a drop is a real regression and should fail the build.
+  self-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        with:
+          sarif-file: vibecheck.sarif
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: vibecheck.sarif
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
