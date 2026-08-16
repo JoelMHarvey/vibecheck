@@ -87,11 +87,21 @@ every file, run commands, commit — so the risks are secrets in context,
 prompt injection from anything the agent reads, and auto-accept removing the
 only human check.
 
-Six pages, fully interlinked. Remaining content ideas, in rough priority:
+The Firebase page covers the one major database story the others missed.
+Its angle is a myth-buster, because that's the search intent: the config in
+your HTML is public *by design*, and the reason that's fine is also the
+reason Security Rules carry the entire weight. From there it's the specific
+rules mistakes — test mode's expiry date and the `if true` fix people reach
+for during the resulting outage, `request.auth != null` mistaken for
+authorisation, Firestore not cascading into subcollections while Realtime
+Database cascades and can't be revoked deeper, Storage being a separate rule
+set, and rules not being filters (which is why unconstrained queries fail
+and people loosen the rule instead of the query).
+
+Seven pages, fully interlinked. Remaining content ideas, in rough priority:
 per-provider landing pages ("Stripe key exposed", "Supabase service_role
 leaked") if the leaked-key page pulls traffic — its table is the obvious
-thing to split out — and a Firebase/Firestore rules page, since Firebase is
-the main database story the guides don't cover.
+thing to split out.
 
 Each platform guide should lead with what's genuinely specific to that tool
 rather than restating the checklist. Lovable's is Supabase RLS; Bolt's is

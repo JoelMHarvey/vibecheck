@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Is my Firebase app secure? Rules, config, and the test-mode trap — vibecheck</title>
+<meta name="description" content="Why your Firebase config being public is fine, why that makes Security Rules the entire security model, and the specific rules mistakes that leave Firestore and Storage wide open.">
+<link rel="canonical" href="https://psychosecurity.io/guides/firebase-app-security">
+<meta name="theme-color" content="#0b0e14">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="vibecheck">
+<meta property="og:url" content="https://psychosecurity.io/guides/firebase-app-security">
+<meta property="og:title" content="Is my Firebase app secure? Rules, config, and the test-mode trap">
+<meta property="og:description" content="Your config isn't a leak. Your Security Rules are the entire security model — here's what goes wrong in them.">
+<meta property="og:image" content="https://psychosecurity.io/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://psychosecurity.io/og.png">
+<link rel="stylesheet" href="/guide.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="logo" href="/">vibe<span>check</span> 🔒</a>
+    <div class="byline">a psychosecurity.io tool</div>
+  </div>
+</header>
+
+<div class="wrap">
+<article>
+  <h1>Is my Firebase app secure?</h1>
+  <p class="standfirst">Firebase security comes down to one thing, and it isn't
+  the thing most people worry about. The config sitting in your HTML is fine.
+  Your Security Rules are carrying the entire weight — and the default ones
+  don't.</p>
+
+  <h2>1. Your Firebase config is not a leak</h2>
+
+  <p>Every Firebase app ships a block like this to the browser, and every few
+  weeks someone finds theirs and panics:</p>
+
+  <pre><code>const firebaseConfig = {
+  apiKey: "AIza…",
+  authDomain: "myapp.firebaseapp.com",
+  projectId: "myapp",
+  // …
+}</code></pre>
+
+  <p>That's supposed to be public. Despite the name, the Firebase
+  <code>apiKey</code> isn't a secret — it identifies your project to Google's
+  servers, it doesn't authorise anything. Google publishes it in their own
+  sample code. You cannot hide it, because the browser needs it to know which
+  project to talk to.</p>
+
+  <div class="callout good">
+    <p>So don't waste an afternoon moving it into an environment variable. It
+    will end up in the bundle anyway, and it was never the problem.</p>
+  </div>
+
+  <p>But here's the part that follows from it, and it's the whole point of this
+  page: <strong>if anyone can take your config, then anyone can talk to your
+  database.</strong> Not through your app — with their own script, from their
+  own machine, bypassing your UI entirely. The only thing deciding what they
+  get back is your Security Rules.</p>
+
+  <h2>2. Test mode is a time bomb, and locked mode is a cliff</h2>
+
+  <p>When you create a Firestore database, Firebase offers you two starting
+  points. Test mode gives you rules that look roughly like this:</p>
+
+  <pre><code>allow read, write: if request.time &lt; timestamp.date(2026, 3, 1);</code></pre>
+
+  <p>Read that carefully. Until that date, <em>anyone at all</em> can read and
+  write everything. There is no authentication check in there. It's meant for
+  the first week of a prototype, and Firebase makes it expire specifically so
+  you can't forget about it forever.</p>
+
+  <p>Then the date passes, your app breaks completely, and you're debugging a
+  production outage. The fastest thing that makes it work again is:</p>
+
+  <pre><code>allow read, write: if true;   // never ship this</code></pre>
+
+  <p>That's the single most common way a Firebase app ends up fully public —
+  not ignorance, but an outage fixed under pressure. If your rules contain
+  <code>if true</code> or a date comparison, treat it as an open database.</p>
+
+  <h2>3. <code>request.auth != null</code> is not authorisation</h2>
+
+  <p>The usual second attempt looks responsible and isn't:</p>
+
+  <pre><code>match /users/{userId} {
+  allow read, write: if request.auth != null;   // any signed-in user
+}</code></pre>
+
+  <p>That says "anyone logged in", not "the person this data belongs to".
+  Anyone who can sign up — which, if you have public registration, is
+  everyone — can then read and overwrite every other user's document.</p>
+
+  <p>What you want is a comparison against the record's owner:</p>
+
+  <pre><code>match /users/{userId} {
+  allow read, write: if request.auth != null
+                     &amp;&amp; request.auth.uid == userId;
+}</code></pre>
+
+  <p>And for documents that store the owner in a field rather than the path:</p>
+
+  <pre><code>match /projects/{projectId} {
+  allow read:   if request.auth.uid == resource.data.ownerId;
+  allow create: if request.auth.uid == request.resource.data.ownerId;
+  allow update, delete: if request.auth.uid == resource.data.ownerId;
+}</code></pre>
+
+  <p>Note the two different objects: <code>resource.data</code> is the document
+  as it exists now, <code>request.resource.data</code> is what's being written.
+  Checking only the first on a create is a common hole — there's no existing
+  document, so the condition passes vacuously.</p>
+
+  <h2>4. Rules don't cascade the way you expect (and the two databases differ)</h2>
+
+  <p>This one catches people who did everything else right.</p>
+
+  <p><strong>In Firestore, rules do not apply to subcollections</strong> unless
+  you match them. A rule on <code>/users/{userId}</code> says nothing about
+  <code>/users/{userId}/notes/{noteId}</code> — that path is unmatched, so
+  access is denied by default, which is safe. The danger is the fix people
+  reach for:</p>
+
+  <pre><code>match /users/{userId}/{document=**} {
+  allow read, write: if request.auth.uid == userId;
+}</code></pre>
+
+  <p>That recursive wildcard is correct here, but it grants everything beneath
+  that path — so if you later add a subcollection that shouldn't follow the
+  same rule, it silently inherits it.</p>
+
+  <p><strong>Realtime Database works the opposite way.</strong> Rules cascade
+  downward, and a grant at a parent path <em>cannot be revoked deeper</em>. If
+  you allow read at the root, adding a stricter rule on a child does nothing —
+  the read is already permitted. So a single permissive rule high up quietly
+  overrides everything below it.</p>
+
+  <h2>5. Storage rules are a separate file</h2>
+
+  <p>Locking down Firestore does nothing for Cloud Storage. They're different
+  rule sets, edited in different places, and it's easy to secure your database
+  carefully and leave every uploaded file world-readable — or worse,
+  world-writable, which turns your bucket into free hosting for whatever a
+  stranger uploads and puts it on your bill.</p>
+
+  <p>Check them separately, and scope them to the owner the same way:</p>
+
+  <pre><code>match /users/{userId}/{fileName} {
+  allow read, write: if request.auth != null
+                     &amp;&amp; request.auth.uid == userId;
+}</code></pre>
+
+  <h2>6. Rules aren't filters — and that's why people loosen them</h2>
+
+  <p>A subtlety worth knowing before it bites you: Firestore rules don't filter
+  results. If you query a collection and the rules can't guarantee that
+  <em>every</em> document the query could return is readable, the whole query
+  is rejected — you don't get a partial result.</p>
+
+  <p>So a perfectly correct owner-scoped rule makes
+  <code>getDocs(collection(db, "projects"))</code> fail outright. The right fix
+  is to constrain the query to match the rule:</p>
+
+  <pre><code>query(collection(db, "projects"), where("ownerId", "==", user.uid))</code></pre>
+
+  <p>The wrong fix — and the tempting one, because it makes the error go away
+  instantly — is loosening the rule until the unconstrained query works. That's
+  how a well-intentioned rule becomes an open collection.</p>
+
+  <h2>7. Then the things that aren't rules</h2>
+
+  <ul>
+    <li><strong>App Check</strong> is the actual answer to "anyone can use my
+    config". It attests that requests come from your real app rather than
+    someone's script. Rules decide <em>what</em> a user may do; App Check helps
+    with <em>who is even allowed to ask</em>.</li>
+    <li><strong>Restrict the API key</strong> in the Google Cloud console by
+    HTTP referrer. This isn't authentication, but it limits casual reuse of
+    your key against billable APIs.</li>
+    <li><strong>Cloud Functions need their own checks.</strong> A callable
+    function is a public endpoint; verify <code>context.auth</code> inside it,
+    and don't assume the caller is your UI.</li>
+    <li><strong>Test the rules, don't eyeball them.</strong> The Firebase
+    emulator runs rules locally, and the console has a rules playground. Rules
+    are code, and this is code where being nearly right is the same as being
+    wrong.</li>
+  </ul>
+
+  <p>Prompt to paste into your AI tool:</p>
+  <blockquote>Review my Firestore and Cloud Storage security rules. For each
+  match block, tell me who can read and who can write, in plain English.
+  Flag anything that allows access to any signed-in user rather than the owner
+  of the record, anything with a date comparison or an unconditional allow, and
+  any collection or subcollection with no matching rule. Then show me corrected
+  rules.</blockquote>
+
+  <h2>Before you ship</h2>
+
+  <ul class="checklist">
+    <li>No <code>if true</code> and no date comparisons anywhere in your rules</li>
+    <li>Ownership checked against <code>request.auth.uid</code>, not just "signed in"</li>
+    <li><code>request.resource.data</code> checked on creates, not only <code>resource.data</code></li>
+    <li>Subcollections explicitly matched (Firestore) / no over-permissive parent rule (Realtime Database)</li>
+    <li>Cloud Storage rules reviewed separately from Firestore</li>
+    <li>Queries constrained to match the rules, rather than rules loosened to match the queries</li>
+    <li>App Check enabled, callable functions checking auth themselves</li>
+  </ul>
+
+  <div class="cta">
+    <h2>Check the rest of the app</h2>
+    <p>vibecheck scans your project or your live URL for exposed keys and the
+    other mistakes AI-built apps ship with, in plain English — with a fix prompt
+    you paste straight back into your AI tool.</p>
+    <a class="btn" href="/">Scan my app — free</a>
+  </div>
+
+  <div class="related">
+    <h2>Related</h2>
+    <ul>
+      <li><a href="/guides/ai-app-security-checklist">The AI app security checklist</a> — everything else worth checking</li>
+      <li><a href="/guides/lovable-app-security">Is my Lovable app secure?</a> — the same shape of problem in Supabase</li>
+      <li><a href="/guides/api-key-leaked">My API key leaked — what now?</a> — for keys that <em>are</em> secret</li>
+      <li><a href="/guides/bolt-app-security">Bolt</a> · <a href="/guides/v0-app-security">v0</a> · <a href="/guides/cursor-claude-code-security">Cursor &amp; Claude Code</a></li>
+    </ul>
+  </div>
+</article>
+
+<footer>
+  <p><strong>Two rules of thumb:</strong> browser code cannot keep a secret, and
+  deleting a leaked key does not un-leak it — rotate it.</p>
+  <p style="margin-top:8px">vibecheck · a <strong>psychosecurity.io</strong> tool</p>
+</footer>
+</div>
+
+</body>
+</html>
