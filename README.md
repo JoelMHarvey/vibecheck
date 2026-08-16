@@ -308,6 +308,24 @@ either: a clone that fails, times out, or trips over a non-UTF-8 path is
 recorded as a failure and the scan moves on, with the reasons counted in
 `aggregate.json` so the writeup can describe its own sample honestly.
 
+### Disclosing what you find
+
+`prepare_disclosures.py` turns `research/disclosure.jsonl` into one draft per
+repository, then files them as GitHub private security advisories:
+
+```bash
+python3 scripts/prepare_disclosures.py                 # write drafts, read them
+python3 scripts/prepare_disclosures.py --submit --yes  # file them
+```
+
+Advisories rather than email, because an unsolicited message about a leaked
+key is indistinguishable from the scam that farms panic clicks — a report
+inside the repository is not, and it timestamps the disclosure. Repos with
+private reporting turned off come back as failures in `tracker.csv`, and
+template 3 in `content/disclosure-templates.md` covers those. Nothing is sent
+without `--yes`, a repo already marked reported is never contacted twice, and
+no draft ever contains a credential.
+
 The rules it's built around, which are worth following whether or not you
 use this script: never test a credential you find — reading public code
 is fine, using a key is unauthorised access. Disclose privately and leave
@@ -317,7 +335,7 @@ enough anecdote identifies someone as surely as a name does.
 ## Development
 
 ```bash
-python3 -m unittest discover -s tests -v   # 177 tests
+python3 -m unittest discover -s tests -v   # 201 tests
 
 python3 scripts/devserver.py               # run the hosted site locally
 python3 scripts/generate_rules_manifest.py # after editing rules.py
