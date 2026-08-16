@@ -271,13 +271,22 @@ There's also a score badge for READMEs:
 
 ## Research harness
 
-`scripts/research_scan.py` scans a corpus of public repos and produces
-**anonymised** aggregate statistics — the data behind the writeup in
-`content/`.
+Two scripts produce the data behind the writeup in `content/`: one builds
+the sample, the other scans it and emits **anonymised** aggregates.
 
 ```bash
+python3 scripts/collect_targets.py --limit 200 > targets.txt
 python3 scripts/research_scan.py targets.txt --out research/
 ```
+
+`collect_targets.py` searches GitHub (via your `gh` auth) for the
+fingerprints these tools leave behind — the dev dependency Lovable injects,
+the README lines Bolt and v0 write — because no single signal finds
+everything. It excludes forks, archived repos, vendor repos and anything
+self-describing as a template, starter, demo or tutorial, and prints what it
+excluded. That filtering is what makes the headline number mean anything: one
+insecure starter copied a thousand times would otherwise read as a thousand
+insecure apps.
 
 It writes two files. `aggregate.json` is safe to publish: counts,
 percentages and score distribution, with no repo names, paths, excerpts
