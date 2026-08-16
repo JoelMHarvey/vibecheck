@@ -281,12 +281,19 @@ python3 scripts/research_scan.py targets.txt --out research/
 
 `collect_targets.py` searches GitHub (via your `gh` auth) for the
 fingerprints these tools leave behind — the dev dependency Lovable injects,
-the README lines Bolt and v0 write — because no single signal finds
-everything. It excludes forks, archived repos, vendor repos and anything
-self-describing as a template, starter, demo or tutorial, and prints what it
-excluded. That filtering is what makes the headline number mean anything: one
-insecure starter copied a thousand times would otherwise read as a thousand
-insecure apps.
+the README lines Bolt and v0 write. All of them are code searches, on
+purpose: searching descriptions for "lovable.dev" finds repos that *mention*
+Lovable, which is a different set entirely, full of prompt directories and
+Lovable downloaders.
+
+Two filters keep the sample honest, because the number the writeup rests on
+is "how many were clean". By name: forks, archived repos, vendor repos and
+anything self-describing as a template, starter, demo, tutorial, prompt
+collection or MCP server. Structurally, at scan time: a repository with no
+application source at all is excluded, because a pile of markdown scans
+perfectly clean and a few of those quietly turn a real finding into a
+comfortable one. Both counts are reported so the writeup can describe its own
+sample.
 
 `research_scan.py` writes three files. `aggregate.json` is safe to publish: counts,
 percentages and score distribution, with no repo names, paths, excerpts
@@ -310,7 +317,7 @@ enough anecdote identifies someone as surely as a name does.
 ## Development
 
 ```bash
-python3 -m unittest discover -s tests -v   # 164 tests
+python3 -m unittest discover -s tests -v   # 177 tests
 
 python3 scripts/devserver.py               # run the hosted site locally
 python3 scripts/generate_rules_manifest.py # after editing rules.py
