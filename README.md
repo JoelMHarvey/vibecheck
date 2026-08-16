@@ -94,12 +94,127 @@ vibecheck --url https://myapp.com    # scan a deployed site instead
 vibecheck . --markdown report.md     # also write a shareable Markdown report
 vibecheck . --json report.json       # machine-readable output
 vibecheck . --min-severity medium    # hide low/info noise
+vibecheck . --exclude tests --exclude 'docs/*'   # skip paths (repeatable)
 vibecheck . --fail-on critical       # CI mode: exit 1 only on criticals
 vibecheck . --fail-on never          # always exit 0
 ```
 
 Default exit code is `1` if anything **high or critical** is found — drop it
 into CI or a pre-commit hook as-is.
+
+## GitHub Action
+
+Scan every pull request, comment the findings on it, and annotate the diff:
+
+```yaml
+# .github/workflows/vibecheck.yml
+name: vibecheck
+on: [pull_request]
+
+permissions:
+  contents: read
+  pull-requests: write   # only needed for the PR comment
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: JoelMHarvey/vibecheck@v1
+```
+
+That's the whole setup. There's no `setup-python` step and nothing to
+install — vibecheck is pure standard library, so it runs on the runner's own
+interpreter in about a second.
+
+Findings surface four ways, because each one reaches a different person:
+
+| Where | Needs |
+|---|---|
+| **Inline annotations** on the diff | nothing |
+| **Job summary** — the full report with fix prompts | nothing |
+| **PR comment**, updated in place on each push | `pull-requests: write` |
+| **Security tab / code scanning alerts** | `sarif-file` + upload step |
+
+### Inputs
+
+| Input | Default | What it does |
+|---|---|---|
+| `path` | `.` | Directory to scan, relative to the repository root |
+| `fail-on` | `high` | Fail the job at or above this severity; `never` to never fail |
+| `min-severity` | `info` | Hide findings below this severity |
+| `exclude` | — | Globs to skip, one per line or comma-separated |
+| `comment` | `true` | Post/update the pull request comment |
+| `summary` | `true` | Write the job summary |
+| `sarif-file` | — | Write SARIF here for code scanning upload |
+| `json-file` | — | Write a JSON report here |
+| `token` | `github.token` | Token used for the comment |
+
+Outputs: `score`, `grade`, `findings`, `critical`, `high`, `medium`, `low`,
+`info`, `sarif-file`.
+
+### Code scanning
+
+With SARIF uploaded, each finding becomes a tracked alert in the Security
+tab — and because the fix prompt travels in the SARIF `help` field, the alert
+page carries its own paste-ready prompt.
+
+```yaml
+      - uses: JoelMHarvey/vibecheck@v1
+        with:
+          sarif-file: vibecheck.sarif
+          fail-on: never          # let code scanning own the gate
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: vibecheck.sarif
+```
+
+That needs `security-events: write`. Code scanning is free on public
+repositories and requires GitHub Advanced Security on private ones — the
+inline annotations work either way, which is why they aren't gated behind it.
+
+### Notes
+
+- **Forks.** A pull request from a fork gets a read-only token, so the
+  comment step is skipped with a warning rather than failing the build.
+- **Gating a monorepo.** Point `path` at one project; annotation and comment
+  paths are rewritten to be repository-relative so they line up with the diff.
+- **Publishing.** The action lives beside the scanner, so `uses:` needs a
+  public repository at its root. Until `vibecheck/` is split out to one,
+  reference it in-repo with `uses: ./vibecheck`.
+
+## Silencing false positives
+
+A scanner you can't quiet is a scanner people turn off, and some code is
+insecure on purpose — worked examples in documentation, deliberately broken
+test fixtures, a rule table that describes the very thing it detects.
+
+**One line**, with a comment. The rule id is optional; without it the whole
+line goes quiet:
+
+```js
+const q = `SELECT * FROM t WHERE id = ${id}`;  // vibecheck-ignore: sql-string-building
+
+// vibecheck-ignore-next-line
+const client = new OpenAI({ dangerouslyAllowBrowser: true });
+```
+
+**Whole paths**, with `.vibecheckignore` at the project root — globs, one per
+line, `#` for comments:
+
+```
+guides/          # our own worked examples of bad code
+tests/           # fixtures are broken on purpose
+*.test.js
+```
+
+Or `--exclude GLOB` on the command line (repeatable), or the `exclude` input
+on the action. Both combine with the ignore file rather than replacing it.
+
+This repository has its own [`.vibecheckignore`](.vibecheckignore), and every
+entry in it says why. That's the standard worth holding: if a line is there
+to hide a real finding, fix the finding instead.
 
 ## The Vibe Score
 
@@ -172,7 +287,7 @@ enough anecdote identifies someone as surely as a name does.
 ## Development
 
 ```bash
-python3 -m unittest discover -s tests -v   # 66 tests
+python3 -m unittest discover -s tests -v   # 164 tests
 
 python3 scripts/devserver.py               # run the hosted site locally
 python3 scripts/generate_rules_manifest.py # after editing rules.py
@@ -186,5 +301,5 @@ the two drift, because shared links read their descriptions from it.
 
 ## Roadmap
 
-See [PLAN.md](PLAN.md) — hosted version, deployed-URL scanning, GitHub
-Action, and platform-specific guides (Lovable/Bolt/v0) are next.
+See [PLAN.md](PLAN.md). The hosted site, deployed-URL scanning, the guides
+and the GitHub Action have all shipped; auto-fix pull requests are next.

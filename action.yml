@@ -1,0 +1,115 @@
+name: vibecheck
+description: >-
+  Security scanner for AI-built apps. Finds exposed keys and common
+  vibe-coding mistakes, and comments on the PR with a fix prompt you can paste
+  straight back into your AI coding tool.
+author: psychosecurity.io
+
+branding:
+  icon: shield
+  color: purple
+
+inputs:
+  path:
+    description: 'Directory to scan, relative to the repository root.'
+    required: false
+    default: '.'
+  fail-on:
+    description: >-
+      Fail the job if any finding is at or above this severity:
+      critical, high, medium, low, info, or never.
+    required: false
+    default: 'high'
+  min-severity:
+    description: 'Hide findings below this severity. Default shows everything.'
+    required: false
+    default: 'info'
+  exclude:
+    description: >-
+      Paths to skip, as globs — one per line or comma-separated. Combined with
+      any patterns in a .vibecheckignore file at the scanned root. Single lines
+      can also be silenced in place with a `vibecheck-ignore` comment.
+    required: false
+    default: ''
+  comment:
+    description: >-
+      Post a report as a pull request comment, updated in place on each push.
+      Needs permissions.pull-requests: write. Skipped on non-PR events, and on
+      pull requests from forks, which get a read-only token.
+    required: false
+    default: 'true'
+  summary:
+    description: 'Write the report to the workflow job summary.'
+    required: false
+    default: 'true'
+  sarif-file:
+    description: >-
+      Write SARIF to this path for upload to GitHub code scanning. Empty means
+      do not produce one. Code scanning is free on public repositories and
+      needs GitHub Advanced Security on private ones — the inline annotations
+      this action emits work everywhere either way.
+    required: false
+    default: ''
+  json-file:
+    description: 'Write a JSON report to this path. Empty means do not produce one.'
+    required: false
+    default: ''
+  token:
+    description: 'Token used to post the pull request comment.'
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  score:
+    description: 'Vibe Score, 0-100.'
+    value: ${{ steps.vibecheck.outputs.score }}
+  grade:
+    description: 'Letter grade, A to F.'
+    value: ${{ steps.vibecheck.outputs.grade }}
+  findings:
+    description: 'Total number of findings.'
+    value: ${{ steps.vibecheck.outputs.findings }}
+  critical:
+    description: 'Number of critical findings.'
+    value: ${{ steps.vibecheck.outputs.critical }}
+  high:
+    description: 'Number of high findings.'
+    value: ${{ steps.vibecheck.outputs.high }}
+  medium:
+    description: 'Number of medium findings.'
+    value: ${{ steps.vibecheck.outputs.medium }}
+  low:
+    description: 'Number of low findings.'
+    value: ${{ steps.vibecheck.outputs.low }}
+  info:
+    description: 'Number of informational findings.'
+    value: ${{ steps.vibecheck.outputs.info }}
+  sarif-file:
+    description: 'Path to the SARIF file, if one was requested.'
+    value: ${{ steps.vibecheck.outputs.sarif-file }}
+
+runs:
+  using: composite
+  steps:
+    - id: vibecheck
+      shell: bash
+      # No setup-python and no install step: vibecheck is pure standard
+      # library, so the runner's own interpreter is enough.
+      run: |
+        python_bin="$(command -v python3 || command -v python || true)"
+        if [ -z "$python_bin" ]; then
+          echo "::error::vibecheck: no python3 on this runner. Add actions/setup-python before this step."
+          exit 1
+        fi
+        "$python_bin" "${GITHUB_ACTION_PATH}/action_entry.py"
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_MIN_SEVERITY: ${{ inputs.min-severity }}
+        INPUT_EXCLUDE: ${{ inputs.exclude }}
+        INPUT_COMMENT: ${{ inputs.comment }}
+        INPUT_SUMMARY: ${{ inputs.summary }}
+        INPUT_SARIF_FILE: ${{ inputs.sarif-file }}
+        INPUT_JSON_FILE: ${{ inputs.json-file }}
+        INPUT_TOKEN: ${{ inputs.token }}
+        PYTHONUNBUFFERED: '1'

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import textwrap
 
+from . import __version__
 from .rules import SEVERITY_ORDER
 from .scanner import ScanResult
 
@@ -57,7 +58,7 @@ def render_terminal(result: ScanResult, use_color: bool = True) -> str:
 
     lines = []
     lines.append("")
-    lines.append(c("bold", f"  vibecheck v0.1 — {result.root}"))
+    lines.append(c("bold", f"  vibecheck v{__version__} — {result.root}"))
     lines.append(c("dim", f"  {result.files_scanned} files scanned"))
     lines.append("")
 
@@ -146,6 +147,92 @@ def render_markdown(result: ScanResult) -> str:
     lines.append(
         "_Remember: deleting a key from your code does **not** un-leak it. "
         "Rotate every exposed credential at its provider._"
+    )
+    return "\n".join(lines) + "\n"
+
+
+SEVERITY_EMOJI = {
+    "critical": "🔴",
+    "high": "🟠",
+    "medium": "🟡",
+    "low": "🔵",
+    "info": "⚪",
+}
+
+# Marker used to find and update our own pull request comment instead of
+# posting a new one on every push.
+CI_COMMENT_MARKER = "<!-- vibecheck-report -->"
+
+
+def render_ci_markdown(
+    result: ScanResult,
+    limit: int = 30,
+    footer_link: str = "https://psychosecurity.io",
+    path_prefix: str = "",
+) -> str:
+    """A compact report for a job summary or a pull request comment.
+
+    Differs from render_markdown in shape rather than content: findings go in
+    one scannable table with the fix prompts folded away underneath, because a
+    comment that takes ten screens to scroll gets ignored.
+
+    ``path_prefix`` makes locations repository-relative when a subdirectory was
+    scanned, so they match the paths in the pull request diff.
+    """
+    prefix = path_prefix.replace("\\", "/").strip("/")
+    prefix = prefix + "/" if prefix else ""
+
+    def loc(f) -> str:
+        return prefix + _loc(f)
+
+    counts = result.counts
+    lines = [CI_COMMENT_MARKER, ""]
+    lines.append(f"## 🔒 vibecheck — Vibe Score {result.score}/100 (grade {result.grade})")
+    lines.append("")
+    lines.append(GRADE_BLURB[result.grade])
+    lines.append("")
+
+    if not result.findings:
+        lines.append("**No findings.** Nothing exposed, nothing to fix. 🎉")
+        lines.append("")
+        lines.append(f"<sub>{result.files_scanned} files scanned · [vibecheck]({footer_link})</sub>")
+        return "\n".join(lines) + "\n"
+
+    present = [sev for sev in SEVERITY_ORDER if counts.get(sev)]
+    lines.append("| " + " | ".join(SEVERITY_LABELS[s].title() for s in present) + " |")
+    lines.append("|" + "---|" * len(present))
+    lines.append("| " + " | ".join(str(counts[s]) for s in present) + " |")
+    lines.append("")
+
+    shown = result.findings[:limit]
+    lines.append("| Severity | Finding | Location |")
+    lines.append("|---|---|---|")
+    for f in shown:
+        lines.append(f"| {SEVERITY_EMOJI[f.severity]} {f.severity} | {f.title} | `{loc(f)}` |")
+    if len(result.findings) > limit:
+        remaining = len(result.findings) - limit
+        lines.append(f"| | _…and {remaining} more_ | |")
+    lines.append("")
+
+    with_prompts = [f for f in shown if f.fix_prompt]
+    if with_prompts:
+        lines.append("<details>")
+        lines.append("<summary><b>Fix prompts</b> — paste into Cursor, Claude Code, Lovable, Bolt or v0</summary>")
+        lines.append("")
+        for f in with_prompts:
+            lines.append(f"**`{loc(f)}` — {f.title}**")
+            lines.append("")
+            lines.append("```text")
+            lines.append(f.fix_prompt)
+            lines.append("```")
+            lines.append("")
+        lines.append("</details>")
+        lines.append("")
+
+    lines.append(
+        "<sub>Deleting a key from your code does not un-leak it — rotate every exposed "
+        f"credential at its provider. {result.files_scanned} files scanned · "
+        f"[vibecheck]({footer_link})</sub>"
     )
     return "\n".join(lines) + "\n"
 

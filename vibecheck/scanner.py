@@ -87,6 +87,80 @@ MAX_FINDINGS_PER_RULE_PER_FILE = 20
 
 _SEVERITY_BUMP = {"info": "low", "low": "medium", "medium": "high", "high": "critical", "critical": "critical"}
 
+IGNORE_FILE = ".vibecheckignore"
+
+# Inline suppression, spelled the way eslint does it so nobody has to look it
+# up: `vibecheck-ignore` silences the line it sits on, `-next-line` the line
+# below. An optional comma-separated rule list narrows it to those rules;
+# bare, it silences every rule on that line.
+#
+#     const q = `SELECT ...`;  // vibecheck-ignore: sql-string-building
+#     // vibecheck-ignore-next-line
+#     verify: false
+_IGNORE_RE = re.compile(
+    r"vibecheck-ignore(?P<next>-next-line)?\s*(?::\s*(?P<rules>[A-Za-z0-9_.\-]+(?:\s*,\s*[A-Za-z0-9_.\-]+)*))?"
+)
+
+
+def _ignored_rules(line: str, want_next_line: bool):
+    """What this line suppresses, or None if it suppresses nothing.
+
+    Returns a set of rule ids, or an empty set meaning "every rule".
+    """
+    for match in _IGNORE_RE.finditer(line):
+        if bool(match.group("next")) != want_next_line:
+            continue
+        raw = match.group("rules")
+        return {r.strip() for r in raw.split(",")} if raw else set()
+    return None
+
+
+def _suppressed(rule_id: str, line: str, previous: str) -> bool:
+    for text, want_next in ((line, False), (previous, True)):
+        rules = _ignored_rules(text, want_next)
+        if rules is not None and (not rules or rule_id in rules):
+            return True
+    return False
+
+
+class PathFilter:
+    """Glob-based path exclusion, from `.vibecheckignore` and --exclude.
+
+    Deliberately more forgiving than gitignore: a pattern matches if it
+    matches the whole relative path, that path under a directory prefix, or
+    any single path segment. Someone writing `tests` to mean "not my tests"
+    should not have to discover that it needed to be `tests/**`.
+    """
+
+    def __init__(self, patterns: Optional[Iterable[str]] = None):
+        self.patterns = [p.strip() for p in (patterns or []) if p.strip() and not p.strip().startswith("#")]
+
+    def __bool__(self) -> bool:
+        return bool(self.patterns)
+
+    def matches(self, rel_path: str) -> bool:
+        rel = rel_path.replace("\\", "/").lstrip("/")
+        segments = rel.split("/")
+        for raw in self.patterns:
+            pattern = raw.rstrip("/")
+            if fnmatch.fnmatch(rel, pattern):
+                return True
+            if fnmatch.fnmatch(rel, pattern + "/*"):
+                return True
+            if any(fnmatch.fnmatch(seg, pattern) for seg in segments[:-1]):
+                return True
+            if fnmatch.fnmatch(segments[-1], pattern):
+                return True
+        return False
+
+
+def _read_ignore_file(root: Path) -> List[str]:
+    target = root / IGNORE_FILE
+    try:
+        return target.read_text(encoding="utf-8", errors="ignore").splitlines()
+    except OSError:
+        return []
+
 
 @dataclass
 class Finding:
@@ -218,6 +292,7 @@ def scan_text(rel_path: str, text: str) -> List[Finding]:
 
     findings: List[Finding] = []
     per_rule_counts: dict = {}
+    previous_line = ""
 
     applicable = []
     for rule in RULES:
@@ -235,8 +310,11 @@ def scan_text(rel_path: str, text: str) -> List[Finding]:
 
     for line_no, line in enumerate(text.splitlines(), start=1):
         if len(line) > MAX_LINE_CHARS:
+            previous_line = line
             continue
         for rule in applicable:
+            if _suppressed(rule.id, line, previous_line):
+                continue
             if per_rule_counts.get(rule.id, 0) >= MAX_FINDINGS_PER_RULE_PER_FILE:
                 continue
             for match in rule.pattern.finditer(line):
@@ -255,12 +333,19 @@ def scan_text(rel_path: str, text: str) -> List[Finding]:
                         effective_rule = SUPABASE_ANON_INFO
                         severity = SUPABASE_ANON_INFO.severity
 
+                # A JWT resolves to a different rule than the one that matched,
+                # so honour a suppression naming either id.
+                if effective_rule is not rule and _suppressed(effective_rule.id, line, previous_line):
+                    continue
+
                 if effective_rule.frontend_boost and frontend:
                     severity = _SEVERITY_BUMP[severity]
 
                 excerpt = _redact(line, match) if effective_rule.is_secret else _sanitize_excerpt(line)[:200]
                 findings.append(_make_finding(effective_rule, rel_path, line_no, excerpt, severity))
                 per_rule_counts[rule.id] = per_rule_counts.get(rule.id, 0) + 1
+
+        previous_line = line
 
     return findings
 
@@ -324,7 +409,11 @@ def _finalize(result: ScanResult) -> ScanResult:
     return result
 
 
-def scan(root_path: str) -> ScanResult:
+def scan(root_path: str, exclude: Optional[Iterable[str]] = None) -> ScanResult:
+    """Walk a directory on disk.
+
+    ``exclude`` is combined with any patterns in the root ``.vibecheckignore``.
+    """
     root = Path(root_path).resolve()
     result = ScanResult(root=str(root))
 
@@ -333,6 +422,7 @@ def scan(root_path: str) -> ScanResult:
         result.files_scanned = 1
         return _finalize(result)
 
+    ignored = PathFilter(_read_ignore_file(root) + list(exclude or []))
     env_files: List[Path] = []
     stack = [root]
     while stack:
@@ -345,10 +435,13 @@ def scan(root_path: str) -> ScanResult:
             if entry.is_symlink():
                 continue
             if entry.is_dir():
-                if entry.name not in SKIP_DIRS:
+                if entry.name not in SKIP_DIRS and not ignored.matches(entry.relative_to(root).as_posix()):
                     stack.append(entry)
                 continue
             if not entry.is_file():
+                continue
+            rel = entry.relative_to(root).as_posix()
+            if ignored.matches(rel):
                 continue
             if _is_env_file(entry.name):
                 env_files.append(entry)
@@ -364,24 +457,41 @@ def scan(root_path: str) -> ScanResult:
     return _finalize(result)
 
 
-def scan_files(files: Iterable[Tuple[str, str]], root_label: str = "(uploaded files)") -> ScanResult:
+def scan_files(
+    files: Iterable[Tuple[str, str]],
+    root_label: str = "(uploaded files)",
+    exclude: Optional[Iterable[str]] = None,
+) -> ScanResult:
     """Scan (relative_path, text) pairs without touching the filesystem.
 
     Applies the same directory/file skip rules as the disk walker, so a
     caller can pass a whole project verbatim. The .env/.gitignore check
-    uses the root .gitignore from the supplied files, if present.
+    uses the root .gitignore from the supplied files, if present, and a
+    supplied .vibecheckignore is honoured the same way.
     """
     result = ScanResult(root=root_label)
     gitignore_lines: List[str] = []
     env_names: List[str] = []
     pending: List[Tuple[str, str]] = []
 
-    for raw_path, content in files:
+    # Two passes: an uploaded .vibecheckignore has to be read before it can be
+    # applied, and the caller supplies files in whatever order they arrive.
+    materialised = list(files)
+    ignore_lines: List[str] = []
+    for raw_path, content in materialised:
+        if raw_path.replace("\\", "/").strip("/") == IGNORE_FILE:
+            ignore_lines = content.splitlines()
+            break
+    ignored = PathFilter(ignore_lines + list(exclude or []))
+
+    for raw_path, content in materialised:
         norm = raw_path.replace("\\", "/").strip("/")
         if not norm:
             continue
         parts = norm.split("/")
         if any(part in SKIP_DIRS for part in parts[:-1]):
+            continue
+        if ignored.matches(norm):
             continue
         name = parts[-1]
         if norm == ".gitignore":

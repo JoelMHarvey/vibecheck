@@ -41,6 +41,13 @@ def main(argv=None) -> int:
         default="high",
         help="exit with code 1 if any finding is at or above this severity (default: high; use 'never' to always exit 0)",
     )
+    parser.add_argument(
+        "--exclude",
+        metavar="GLOB",
+        action="append",
+        default=[],
+        help="skip paths matching this glob (repeatable). Patterns in a .vibecheckignore file at the project root are applied too.",
+    )
     parser.add_argument("--no-color", action="store_true", help="disable colored output")
     parser.add_argument("--version", action="version", version=f"vibecheck {__version__}")
     args = parser.parse_args(argv)
@@ -53,7 +60,7 @@ def main(argv=None) -> int:
         target = Path(args.path)
         if not target.exists():
             parser.error(f"path does not exist: {args.path}")
-        result = scan(str(target))
+        result = scan(str(target), exclude=args.exclude)
 
     threshold = SEVERITY_ORDER[args.min_severity]
     result.findings = [f for f in result.findings if SEVERITY_ORDER[f.severity] <= threshold]

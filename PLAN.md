@@ -110,8 +110,50 @@ v0's is the invisible Next.js server/client boundary and Server Actions
 being public endpoints. If a page has no such angle, it's a doorway page
 and shouldn't be written.
 
-**v0.5 — GitHub Action + PR bot.** `vibecheck` as a check on every push;
-Pro-gated auto-fix PRs.
+**v0.5 — GitHub Action (done).** The scanner as a check on every pull
+request. Zero-dependency pays off here: no `setup-python`, no install step,
+about a second of runner time, and one `uses:` line is the whole setup.
+
+Findings surface four ways because each reaches a different person, and
+because the free tiers differ. Inline annotations and the job summary need no
+permissions at all. The pull request comment needs `pull-requests: write` and
+is updated in place rather than re-posted, so a ten-push branch has one
+comment and not ten. SARIF is the fourth, and the most interesting: with it
+uploaded, each finding becomes a tracked alert in the Security tab, and
+because the fix prompt travels in the SARIF `help` field, the alert page
+carries its own paste-ready prompt. That path is gated — code scanning is
+free on public repos but needs Advanced Security on private ones — which is
+exactly why annotations exist as the ungated fallback rather than SARIF being
+the only integration.
+
+Building it forced a gap into the open: vibecheck scanned its own repository
+at grade **F**, entirely on its own guides quoting vulnerable code and its own
+test fixtures being broken on purpose. That is survivable in a CLI someone
+runs by hand and fatal in a CI gate, which gets deleted the first week it
+cries wolf. So suppression shipped alongside: `vibecheck-ignore` and
+`vibecheck-ignore-next-line` comments (optionally naming a rule), a
+`.vibecheckignore` glob file, `--exclude` on the CLI, and an `exclude` action
+input. The repo now scores 100/100 on itself with every exclusion documented
+and justified in the file — which is the standard to hold users to as well.
+
+Two things needed care. Paths: findings are relative to whatever directory
+was scanned, but GitHub resolves annotations from the repository root, so the
+prefix is derived by resolving the scan path against `GITHUB_WORKSPACE`
+rather than by reusing the input string — an absolute path or a `./web`
+otherwise produces a prefix pointing nowhere, and annotations silently land
+on files that don't exist. Forks: their tokens are read-only, so a failed
+comment is a warning and never a failed build.
+
+Not done, and deliberately: the action can't be `uses: JoelMHarvey/…@v1` by
+anyone until `vibecheck/` is split into its own **public** repository. This
+one is private, and a private repo's action is only usable inside it. That
+split — plus a `v1` tag and a Marketplace listing — is the next distribution
+step, and it's the thing standing between this working and anyone being able
+to run it.
+
+**v0.6 — auto-fix PRs.** Pro-gated: the action opens a branch applying the
+mechanical fixes (`.gitignore` entries, moving a key to an env var reference)
+and leaves the judgement calls as review comments.
 
 ## Launch channels (in order)
 

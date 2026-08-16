@@ -1,0 +1,20 @@
+# Paths vibecheck skips when scanning its own repository.
+#
+# Everything here is insecure on purpose. Nothing here is a suppression of a
+# real problem — if you find yourself adding a line to hide a genuine finding,
+# fix the finding instead.
+
+# The guides and the landing page quote vulnerable code so that readers can
+# recognise it in their own projects. Flagging our own worked examples would
+# be a long joke at our expense.
+guides/
+index.html
+
+# Test fixtures are deliberately broken. That is what makes them fixtures.
+tests/
+
+# rules.py is a table of vulnerability descriptions, so its prose matches its
+# own patterns — "subprocess is called with shell=True" is a fix prompt, not a
+# subprocess call. Only this one data file is excluded; every module with
+# actual logic in it is still scanned.
+vibecheck/rules.py

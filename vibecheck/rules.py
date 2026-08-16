@@ -487,6 +487,7 @@ RULES = [
         id="tls-verification-disabled",
         title="TLS certificate checking disabled",
         severity="high",
+        # vibecheck-ignore-next-line: tls-verification-disabled — the detector, not the mistake.
         pattern=re.compile(r"verify\s*=\s*False|rejectUnauthorized\s*:\s*false|NODE_TLS_REJECT_UNAUTHORIZED"),
         description=(
             "Your code turns off TLS certificate verification, which silently "
