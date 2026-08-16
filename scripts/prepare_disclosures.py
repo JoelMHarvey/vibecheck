@@ -30,7 +30,11 @@ Putting the value in the report copies the secret into another mailbox and
 makes the message read as a threat.
 
 Drafts name repositories and file paths, so the output directory is written
-0600 and gitignored, exactly like disclosure.jsonl.
+0700, the tracker 0600, and the whole directory gitignored — the same handling
+disclosure.jsonl gets. On Windows those mode bits are a no-op (chmod there
+only honours read-only), so the .gitignore is the protection that actually
+holds on every platform, which is why it is written unconditionally rather
+than only when missing.
 """
 
 from __future__ import annotations

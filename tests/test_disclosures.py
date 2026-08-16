@@ -10,6 +10,7 @@ import csv
 import importlib.util
 import io
 import json
+import os
 import tempfile
 import unittest
 from datetime import date, timedelta
@@ -194,10 +195,16 @@ class TestRun(unittest.TestCase):
         self.run_it("--submit", "--yes")
         self.assertEqual(calls, [], "a repo already reported must not be reported twice")
 
-    def test_output_is_gitignored_and_locked_down(self):
+    def test_output_is_gitignored(self):
+        # The protection that works everywhere, including Windows.
         self.write_source([{"repo": "https://github.com/a/one", "findings": [finding()]}])
         self.run_it()
         self.assertEqual((self.out / ".gitignore").read_text().strip(), "*")
+
+    @unittest.skipIf(os.name == "nt", "Windows chmod only honours the read-only bit")
+    def test_output_is_locked_down(self):
+        self.write_source([{"repo": "https://github.com/a/one", "findings": [finding()]}])
+        self.run_it()
         self.assertEqual(oct((self.out / "tracker.csv").stat().st_mode)[-3:], "600")
         self.assertEqual(oct(self.out.stat().st_mode)[-3:], "700")
 
