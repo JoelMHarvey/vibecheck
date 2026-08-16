@@ -29,6 +29,7 @@ STATIC = {
     "/guides/bolt-app-security": ("guides/bolt-app-security.html", "text/html; charset=utf-8"),
     "/guides/v0-app-security": ("guides/v0-app-security.html", "text/html; charset=utf-8"),
     "/guides/api-key-leaked": ("guides/api-key-leaked.html", "text/html; charset=utf-8"),
+    "/guides/cursor-claude-code-security": ("guides/cursor-claude-code-security.html", "text/html; charset=utf-8"),
     "/guides/ai-app-security-checklist": ("guides/ai-app-security-checklist.html", "text/html; charset=utf-8"),
 }
 
