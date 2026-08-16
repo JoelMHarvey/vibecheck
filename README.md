@@ -288,10 +288,18 @@ excluded. That filtering is what makes the headline number mean anything: one
 insecure starter copied a thousand times would otherwise read as a thousand
 insecure apps.
 
-It writes two files. `aggregate.json` is safe to publish: counts,
+`research_scan.py` writes three files. `aggregate.json` is safe to publish: counts,
 percentages and score distribution, with no repo names, paths, excerpts
 or secrets. `disclosure.jsonl` is **private** (mode 0600, gitignored) and
 exists so you can notify people whose credentials are exposed.
+`scanned.jsonl` is the resume log — also private, for the same reason.
+
+Progress is written per repo rather than at the end, so an interrupted run
+picks up where it stopped. Re-run the same command to resume; pass
+`--restart` to scan everything again. No single repository can end a run
+either: a clone that fails, times out, or trips over a non-UTF-8 path is
+recorded as a failure and the scan moves on, with the reasons counted in
+`aggregate.json` so the writeup can describe its own sample honestly.
 
 The rules it's built around, which are worth following whether or not you
 use this script: never test a credential you find — reading public code

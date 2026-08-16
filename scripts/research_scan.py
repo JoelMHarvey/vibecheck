@@ -63,6 +63,31 @@ vibecheck research scan
 """
 
 
+PROGRESS_FILE = "scanned.jsonl"
+
+
+def read_progress(path: Path):
+    """Load an interrupted run's results, keyed by target.
+
+    A malformed trailing line is expected rather than exceptional — it's what
+    a kill mid-write leaves behind — so it's dropped and the run continues.
+    """
+    done = {}
+    if not path.exists():
+        return done
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            record = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(record, dict) and record.get("repo"):
+            done[record["repo"]] = record
+    return done
+
+
 def read_targets(path: Path):
     targets = []
     for line in path.read_text(encoding="utf-8").splitlines():
@@ -82,7 +107,11 @@ def fetch(target: str, workdir: Path):
         shutil.rmtree(dest, ignore_errors=True)
     result = subprocess.run(
         ["git", "clone", "--depth", "1", "--quiet", target, str(dest)],
-        capture_output=True, text=True, timeout=180,
+        capture_output=True, timeout=180,
+        # Bytes, not text. git echoes branch and path names straight from the
+        # repository, and a repo using a non-UTF-8 encoding makes a decoding
+        # subprocess raise UnicodeDecodeError from inside communicate() — which
+        # killed a 200-repo run at number 163. We only need the return code.
     )
     if result.returncode != 0:
         return None, True
@@ -152,6 +181,11 @@ def main(argv=None) -> int:
     parser.add_argument("targets", help="file with one git URL or local path per line")
     parser.add_argument("--out", default="research", help="output directory (default: research/)")
     parser.add_argument("--limit", type=int, help="only scan the first N targets")
+    parser.add_argument(
+        "--restart", action="store_true",
+        help=f"discard {PROGRESS_FILE} and scan everything again "
+             "(default: resume, skipping targets already done)",
+    )
     args = parser.parse_args(argv)
 
     print(BANNER)
@@ -166,32 +200,68 @@ def main(argv=None) -> int:
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    results, disclosures, failed = [], [], []
+    # Progress is written per repo, not at the end, so a crash 163 repos into
+    # a 200-repo run costs one repo instead of all of them. This file holds
+    # repo names and paths, so it's as private as disclosure.jsonl.
+    progress_path = out_dir / PROGRESS_FILE
+    done = {} if args.restart else read_progress(progress_path)
+    if done:
+        print(f"resuming: {len(done)} of {len(targets)} already scanned "
+              f"(--restart to start over)\n")
 
-    for i, target in enumerate(targets, 1):
-        print(f"[{i}/{len(targets)}] {target}")
-        with tempfile.TemporaryDirectory() as tmp:
-            path, cloned = fetch(target, Path(tmp))
-            if path is None:
-                failed.append(target)
-                print("      could not clone — skipped")
+    progress = open(progress_path, "w" if args.restart else "a", encoding="utf-8")
+    os.chmod(progress_path, 0o600)
+
+    with progress:
+        for i, target in enumerate(targets, 1):
+            if target in done:
                 continue
-            result = scan(str(path))
+            print(f"[{i}/{len(targets)}] {target}")
+            record = {"repo": target}
+            try:
+                with tempfile.TemporaryDirectory() as tmp:
+                    path, _ = fetch(target, Path(tmp))
+                    if path is None:
+                        record["error"] = "clone failed"
+                        print("      could not clone — skipped")
+                    else:
+                        result = scan(str(path))
+                        record.update(
+                            score=result.score,
+                            grade=result.grade,
+                            findings=[
+                                {"rule_id": f.rule_id, "severity": f.severity,
+                                 "path": f.path, "line": f.line}
+                                for f in result.findings
+                            ],
+                        )
+                        print(f"      score {result.score} ({result.grade}), "
+                              f"{len(record['findings'])} findings")
+            except subprocess.TimeoutExpired:
+                record["error"] = "clone timed out"
+                print("      clone timed out — skipped")
+            except Exception as exc:  # noqa: BLE001 — one bad repo must not end the run
+                record["error"] = f"{type(exc).__name__}: {exc}"[:200]
+                print(f"      {record['error']} — skipped")
 
-        findings = [
-            {"rule_id": f.rule_id, "severity": f.severity, "path": f.path, "line": f.line}
-            for f in result.findings
-        ]
-        results.append({"score": result.score, "grade": result.grade, "findings": findings})
+            done[target] = record
+            progress.write(json.dumps(record) + "\n")
+            progress.flush()
 
-        worst = [f for f in findings if f["severity"] in ("critical", "high")]
-        if worst:
-            disclosures.append({"repo": target, "score": result.score, "findings": worst})
-        print(f"      score {result.score} ({result.grade}), {len(findings)} findings")
+    scanned = [r for r in done.values() if "error" not in r]
+    failed = [r for r in done.values() if "error" in r]
+    disclosures = [
+        {"repo": r["repo"], "score": r["score"],
+         "findings": [f for f in r["findings"] if f["severity"] in ("critical", "high")]}
+        for r in scanned
+        if any(f["severity"] in ("critical", "high") for f in r["findings"])
+    ]
 
-    aggregate = anonymise(results)
+    aggregate = anonymise(scanned)
     aggregate["targets_attempted"] = len(targets)
     aggregate["targets_failed"] = len(failed)
+    # Why each one dropped out, so the writeup can describe its own sample.
+    aggregate["failure_reasons"] = dict(Counter(r["error"] for r in failed))
 
     agg_path = out_dir / "aggregate.json"
     agg_path.write_text(json.dumps(aggregate, indent=2) + "\n", encoding="utf-8")
@@ -202,12 +272,14 @@ def main(argv=None) -> int:
             fh.write(json.dumps(row) + "\n")
     os.chmod(disc_path, 0o600)
 
+    # Both of these name repositories; only aggregate.json is publishable.
     gitignore = out_dir / ".gitignore"
-    if not gitignore.exists():
-        gitignore.write_text("disclosure.jsonl\n", encoding="utf-8")
+    gitignore.write_text(f"disclosure.jsonl\n{PROGRESS_FILE}\n", encoding="utf-8")
 
     print(f"\nScanned {aggregate['repos_scanned']} repos "
-          f"({aggregate['targets_failed']} failed to clone)")
+          f"({aggregate['targets_failed']} could not be scanned)")
+    for reason, count in sorted(aggregate["failure_reasons"].items(), key=lambda kv: -kv[1]):
+        print(f"    {count:4}  {reason}")
     print(f"  mean score {aggregate['score']['mean']}, "
           f"{aggregate['clean_pct']}% completely clean")
     for sev in ("critical", "high"):
