@@ -327,7 +327,28 @@ seventy pointless requests against strangers' repos.
 
 Advisories rather than email, because an unsolicited message about a leaked
 key is indistinguishable from the scam that farms panic clicks — a report
-inside the repository is not, and it timestamps the disclosure. Repos with
+inside the repository is not, and it timestamps the disclosure.
+
+**Expect most of them to bounce.** Private reporting is off by default and
+has to be switched on; in the first real run it reached 0 of 71 repositories.
+So `find_contacts.py` works out how else to reach the ones it missed:
+
+```bash
+python3 scripts/find_contacts.py                  # criticals (the default)
+python3 scripts/find_contacts.py --severity high  # widen it
+```
+
+It tries `SECURITY.md`, then a public profile email, then a commit author
+address, and falls back to "open a public issue with no details" only when
+there's nothing else — that route is visible, and seventy of them in an
+afternoon reads as spam to GitHub's abuse detection. `@users.noreply` is
+recorded and marked unusable rather than quietly dropped, so a repo with no
+route says so instead of looking unexamined. Output is `contacts.csv`, mode
+0600, in the same gitignored directory.
+
+It defaults to criticals because that is what the rule above actually says.
+Fifteen repositories is a person-sized amount of careful work; seventy-one is
+the number that produces a rushed job or no job at all. Repos with
 private reporting turned off come back as failures in `tracker.csv`, and
 template 3 in `content/disclosure-templates.md` covers those. Nothing is sent
 without `--yes`, a repo already marked reported is never contacted twice, and
@@ -342,7 +363,7 @@ enough anecdote identifies someone as surely as a name does.
 ## Development
 
 ```bash
-python3 -m unittest discover -s tests -v   # 225 tests
+python3 -m unittest discover -s tests -v   # 245 tests
 
 python3 scripts/devserver.py               # run the hosted site locally
 python3 scripts/generate_rules_manifest.py # after editing rules.py
