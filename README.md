@@ -314,9 +314,16 @@ recorded as a failure and the scan moves on, with the reasons counted in
 repository, then files them as GitHub private security advisories:
 
 ```bash
-python3 scripts/prepare_disclosures.py                 # write drafts, read them
-python3 scripts/prepare_disclosures.py --submit --yes  # file them
+python3 scripts/prepare_disclosures.py                        # write drafts, read them
+python3 scripts/prepare_disclosures.py --submit --yes --limit 1   # try one
+python3 scripts/prepare_disclosures.py --submit --yes          # file the rest
 ```
+
+Do the `--limit 1` run first. One real report tells you whether your `gh` auth
+and the endpoint work; without it you spend seventy attempts finding out. A run
+also stops itself after three consecutive errors, because a systemic problem
+fails identically on every repository and grinding through the rest just makes
+seventy pointless requests against strangers' repos.
 
 Advisories rather than email, because an unsolicited message about a leaked
 key is indistinguishable from the scam that farms panic clicks — a report
@@ -335,7 +342,7 @@ enough anecdote identifies someone as surely as a name does.
 ## Development
 
 ```bash
-python3 -m unittest discover -s tests -v   # 201 tests
+python3 -m unittest discover -s tests -v   # 218 tests
 
 python3 scripts/devserver.py               # run the hosted site locally
 python3 scripts/generate_rules_manifest.py # after editing rules.py

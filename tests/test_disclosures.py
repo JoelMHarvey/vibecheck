@@ -220,3 +220,53 @@ class TestRun(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSubmitSafety(TestRun):
+    """A bulk run that contacts strangers has to fail loudly and stop early."""
+
+    def five_repos(self):
+        self.write_source([
+            {"repo": f"https://github.com/o{n}/r{n}", "findings": [finding()]}
+            for n in range(5)
+        ])
+
+    def stub(self, result):
+        calls = []
+        original = prep.submit
+        prep.submit = lambda slug, payload: (calls.append(slug), result)[1]
+        self.addCleanup(setattr, prep, "submit", original)
+        return calls
+
+    def test_a_systemic_failure_stops_the_run(self):
+        self.five_repos()
+        calls = self.stub(("error", "HTTP 403: Resource not accessible"))
+        self.run_it("--submit", "--yes")
+        self.assertEqual(len(calls), prep.ABORT_AFTER_ERRORS,
+                         "should stop after consecutive errors, not grind through all five")
+
+    def test_reporting_disabled_is_not_systemic_and_does_not_stop_the_run(self):
+        # Per-repo, expected, and says nothing about the next repo.
+        self.five_repos()
+        calls = self.stub(("reporting-disabled", "private reporting is off"))
+        self.run_it("--submit", "--yes")
+        self.assertEqual(len(calls), 5)
+
+    def test_the_error_reason_reaches_the_tracker(self):
+        self.five_repos()
+        self.stub(("error", "HTTP 403: Resource not accessible by integration"))
+        self.run_it("--submit", "--yes")
+        notes = {r["note"] for r in self.tracker().values() if r["status"] == "error"}
+        self.assertTrue(any("403" in n for n in notes), notes)
+
+    def test_limit_caps_how_many_are_contacted(self):
+        self.five_repos()
+        calls = self.stub(("reported", "https://example/1"))
+        self.run_it("--submit", "--yes", "--limit", "1")
+        self.assertEqual(len(calls), 1)
+
+    def test_limit_still_drafts_everything(self):
+        self.five_repos()
+        self.stub(("reported", "https://example/1"))
+        self.run_it("--submit", "--yes", "--limit", "1")
+        self.assertEqual(len(list(self.out.glob("*.md"))), 5)
