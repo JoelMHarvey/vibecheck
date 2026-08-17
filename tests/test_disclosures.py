@@ -270,3 +270,39 @@ class TestSubmitSafety(TestRun):
         self.stub(("reported", "https://example/1"))
         self.run_it("--submit", "--yes", "--limit", "1")
         self.assertEqual(len(list(self.out.glob("*.md"))), 5)
+
+
+class TestHttpStatusDetection(unittest.TestCase):
+    """Whether a report was filed is a fact about the status code.
+
+    The endpoint answers 202 Accepted with an empty body, which makes `gh`
+    exit non-zero with "unexpected end of JSON input". Reading that as failure
+    marks a delivered report as an error — and the next run sends the same
+    person a second copy. That happened, to three real repositories.
+    """
+
+    def test_202_with_an_empty_body_is_a_status_not_a_failure(self):
+        self.assertEqual(prep.http_status("HTTP/2.0 202 Accepted\r\nserver: GitHub.com\r\n\r\n"), 202)
+
+    def test_the_last_status_wins(self):
+        # 100 Continue and redirects put earlier status lines in front.
+        self.assertEqual(prep.http_status("HTTP/1.1 100 Continue\r\n\r\nHTTP/2.0 202 Accepted\r\n\r\n"), 202)
+
+    def test_error_statuses_are_read(self):
+        self.assertEqual(prep.http_status("HTTP/2.0 403 Forbidden\r\n\r\n{}"), 403)
+        self.assertEqual(prep.http_status("HTTP/2.0 404 Not Found\r\n\r\n{}"), 404)
+
+    def test_no_status_line_is_none_rather_than_a_guess(self):
+        self.assertIsNone(prep.http_status("some unrelated error text"))
+
+    def test_url_survives_crlf_headers(self):
+        out = ('HTTP/2.0 201 Created\r\nserver: GitHub.com\r\n\r\n'
+               '{"html_url": "https://github.com/o/r/security/advisories/GHSA-x"}')
+        self.assertEqual(prep.advisory_url(out),
+                         "https://github.com/o/r/security/advisories/GHSA-x")
+
+    def test_empty_body_means_no_url_not_an_error(self):
+        self.assertEqual(prep.advisory_url("HTTP/2.0 202 Accepted\r\n\r\n"), "")
+
+    def test_non_object_body_does_not_raise(self):
+        self.assertEqual(prep.advisory_url('HTTP/2.0 200 OK\r\n\r\n["a", "b"]'), "")

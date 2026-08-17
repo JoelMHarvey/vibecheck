@@ -43,6 +43,7 @@ import argparse
 import csv
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import date, timedelta
@@ -171,14 +172,49 @@ def write_draft(out_dir: Path, slug: str, payload: dict, findings) -> Path:
     return path
 
 
+_STATUS_RE = re.compile(r"^HTTP/[\d.]+\s+(\d{3})", re.M)
+
+
+def http_status(output: str):
+    """The last HTTP status in a `gh api --include` response, or None.
+
+    The last one, because redirects and `100 Continue` put earlier status
+    lines ahead of the one that describes the outcome.
+    """
+    found = _STATUS_RE.findall(output)
+    return int(found[-1]) if found else None
+
+
+def advisory_url(output: str) -> str:
+    """html_url from the response body, if there is a parseable one.
+
+    A 202 with no body is still a filed report, so its absence is not an
+    error — it just means there's no link to record.
+    """
+    # Headers are CRLF-separated, so the blank line is "\r\n\r\n" — partitioning
+    # on "\n\n" finds nothing and silently loses the body.
+    _, _, body = output.replace("\r\n", "\n").partition("\n\n")
+    try:
+        parsed = json.loads(body)
+    except ValueError:
+        return ""
+    return parsed.get("html_url", "") if isinstance(parsed, dict) else ""
+
+
 def submit(slug: str, payload: dict):
     """File a private vulnerability report via the gh CLI.
 
     Returns (status, note). Never raises: one repository with reporting
     disabled must not stop the other seventy.
     """
+    # --include so the HTTP status is in the output. Whether the report was
+    # filed is a fact about the status code, not about whether a body happened
+    # to parse: this endpoint answers 202 Accepted with an empty body, which
+    # makes `gh` exit non-zero with "unexpected end of JSON input". Reading
+    # that as failure marks a delivered report as an error — and the next run
+    # sends the same person a second copy.
     args = [
-        "gh", "api", "--method", "POST",
+        "gh", "api", "--method", "POST", "--include",
         f"/repos/{slug}/security-advisories/reports",
         "-f", f"summary={payload['summary']}",
         "-f", f"description={payload['description']}",
@@ -188,24 +224,26 @@ def submit(slug: str, payload: dict):
         result = subprocess.run(args, capture_output=True, timeout=60)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return "error", f"{type(exc).__name__}: {exc}"[:200]
-    if result.returncode != 0:
-        err = result.stderr.decode("utf-8", errors="replace").strip().replace("\n", " ")
-        # Private reporting off is the expected, per-repository outcome, and
-        # GitHub words it several ways depending on the endpoint and the
-        # token. Anything else is our problem, not theirs, so it keeps the
-        # raw message.
-        lowered = err.lower()
-        if any(hint in lowered for hint in (
-            "disabled", "not enabled", "private vulnerability reporting",
-            "404", "not found",
-        )):
-            return "reporting-disabled", "private reporting is off — template 3 (public issue, no details)"
-        return "error", err[:300]
-    try:
-        body = json.loads(result.stdout.decode("utf-8", errors="replace"))
-    except ValueError:
-        return "reported", ""
-    return "reported", body.get("html_url", "")
+
+    out = result.stdout.decode("utf-8", errors="replace")
+    err = result.stderr.decode("utf-8", errors="replace").strip().replace("\n", " ")
+    status = http_status(out)
+
+    if status is not None and 200 <= status < 300:
+        return "reported", advisory_url(out)
+
+    haystack = f"{err} {out}".lower()
+    # Private reporting being off is the expected per-repository outcome, and
+    # GitHub words it several ways depending on endpoint and token. Anything
+    # else is our problem rather than theirs, so it keeps the raw message.
+    if any(hint in haystack for hint in (
+        "disabled", "not enabled", "private vulnerability reporting",
+        "404", "not found",
+    )):
+        return "reporting-disabled", "private reporting is off — template 3 (public issue, no details)"
+    if status is not None:
+        return "error", f"HTTP {status}: {err[:280]}"
+    return "error", err[:300] or "no HTTP status in response"
 
 
 def load_tracker(path: Path):

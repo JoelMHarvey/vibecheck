@@ -342,7 +342,7 @@ enough anecdote identifies someone as surely as a name does.
 ## Development
 
 ```bash
-python3 -m unittest discover -s tests -v   # 218 tests
+python3 -m unittest discover -s tests -v   # 225 tests
 
 python3 scripts/devserver.py               # run the hosted site locally
 python3 scripts/generate_rules_manifest.py # after editing rules.py
