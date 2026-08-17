@@ -52,6 +52,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 SEVERITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
+# Stop a bulk run once this many submissions fail in a row.
+ABORT_AFTER_ERRORS = 3
 # GitHub's advisory severities. Ours map cleanly onto the top two; nothing
 # below "high" is worth a stranger's advisory.
 GH_SEVERITY = {"critical": "critical", "high": "high"}
@@ -188,10 +190,17 @@ def submit(slug: str, payload: dict):
         return "error", f"{type(exc).__name__}: {exc}"[:200]
     if result.returncode != 0:
         err = result.stderr.decode("utf-8", errors="replace").strip().replace("\n", " ")
-        # The common one by far: private reporting not enabled on the repo.
-        if "Disabled" in err or "not enabled" in err or "404" in err:
-            return "reporting-disabled", "use template 3: public issue asking them to enable it"
-        return "error", err[:200]
+        # Private reporting off is the expected, per-repository outcome, and
+        # GitHub words it several ways depending on the endpoint and the
+        # token. Anything else is our problem, not theirs, so it keeps the
+        # raw message.
+        lowered = err.lower()
+        if any(hint in lowered for hint in (
+            "disabled", "not enabled", "private vulnerability reporting",
+            "404", "not found",
+        )):
+            return "reporting-disabled", "private reporting is off — template 3 (public issue, no details)"
+        return "error", err[:300]
     try:
         body = json.loads(result.stdout.decode("utf-8", errors="replace"))
     except ValueError:
@@ -219,6 +228,10 @@ def main(argv=None) -> int:
                         help="file the reports via gh, not just write drafts")
     parser.add_argument("--yes", action="store_true",
                         help="required with --submit; contacting people is not a dry run")
+    parser.add_argument("--limit", type=int,
+                        help="only submit this many. Try --limit 1 first: one real "
+                             "report tells you whether auth and the endpoint work, "
+                             "without spending seventy attempts finding out")
     args = parser.parse_args(argv)
 
     source = Path(args.disclosures)
@@ -241,7 +254,7 @@ def main(argv=None) -> int:
     tracker_path = out_dir / "tracker.csv"
     tracker = load_tracker(tracker_path)
 
-    considered = drafted = below_threshold = 0
+    considered = drafted = below_threshold = consecutive_errors = submitted = 0
     # A non-GitHub host can't take an advisory, but it can still be hiding a
     # live key. Counting it as "below threshold" would quietly drop someone who
     # needs telling, so these are named and handed back for manual contact.
@@ -274,16 +287,35 @@ def main(argv=None) -> int:
         }
 
         # Already reported? Leave it alone. Re-reporting is not diligence.
-        if args.submit and record["status"] != "reported":
+        if args.submit and record["status"] != "reported" and (
+            args.limit is None or submitted < args.limit
+        ):
+            submitted += 1
             status, note = submit(slug, payload)
             record["status"] = status
             if status == "reported":
                 record["reported_on"] = date.today().isoformat()
                 record["advisory_url"] = note
                 record["note"] = ""
+                consecutive_errors = 0
             else:
                 record["note"] = note
-            print(f"  {status:20} {slug}")
+                consecutive_errors = consecutive_errors + 1 if status == "error" else 0
+            # The reason, not just the verdict. A bulk tool that prints
+            # seventy identical "error" lines has told you nothing.
+            print(f"  {status:20} {slug}" + (f"\n      {note}" if note else ""))
+
+            # Something systemic — a missing scope, a wrong endpoint — fails
+            # identically on every repository. Grinding through the rest
+            # produces seventy useless rows and seventy pointless requests
+            # against strangers' repositories.
+            if consecutive_errors >= ABORT_AFTER_ERRORS:
+                print(f"\n::  {consecutive_errors} errors in a row — stopping.\n"
+                      "    These all failed the same way, which points at auth or the\n"
+                      "    endpoint rather than at the repositories. Fix that and re-run;\n"
+                      "    anything already reported is skipped.", file=sys.stderr)
+                tracker[slug] = record
+                break
 
         tracker[slug] = record
 
