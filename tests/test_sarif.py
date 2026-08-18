@@ -68,19 +68,19 @@ class TestSarif(unittest.TestCase):
         region = doc["runs"][0]["results"][0]["locations"][0]["physicalLocation"]["region"]
         self.assertEqual(region["startLine"], 1)
 
-    def test_severity_levels_map_to_three_sarif_levels(self):
+    def test_severity_levels_map_to_sarif_levels(self):
+        # info is absent on purpose — see TestInfoExcluded.
         doc = to_sarif_dict(
             result(
                 finding(rule_id="a", severity="critical"),
                 finding(rule_id="b", severity="high"),
                 finding(rule_id="c", severity="medium"),
                 finding(rule_id="d", severity="low"),
-                finding(rule_id="e", severity="info"),
             ),
             "0.1.0",
         )
         levels = [r["level"] for r in doc["runs"][0]["results"]]
-        self.assertEqual(levels, ["error", "error", "warning", "note", "note"])
+        self.assertEqual(levels, ["error", "error", "warning", "note"])
 
     def test_rules_are_deduplicated_by_id(self):
         doc = to_sarif_dict(
@@ -155,3 +155,44 @@ class TestSarif(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestInfoExcluded(unittest.TestCase):
+    """Code scanning is an alert queue, not a report.
+
+    GitHub renders its alerts as inline review comments. An informational
+    finding — a credential in a test fixture, worth zero points — became a
+    comment on vibecheck's own pull request telling the author to rotate a key
+    that was never real. That is cry-wolf arriving through a different door.
+    """
+
+    def test_info_findings_do_not_become_alerts(self):
+        doc = to_sarif_dict(result(
+            finding(rule_id="real", severity="critical", path="src/app.js"),
+            finding(rule_id="fixture", severity="info", path="tests/x.py"),
+        ), "0.1.0")
+        self.assertEqual([r["ruleId"] for r in doc["runs"][0]["results"]], ["real"])
+
+    def test_an_excluded_finding_leaves_no_orphan_rule(self):
+        doc = to_sarif_dict(result(finding(severity="info")), "0.1.0")
+        self.assertEqual(doc["runs"][0]["tool"]["driver"]["rules"], [])
+        self.assertEqual(doc["runs"][0]["results"], [])
+
+    def test_every_other_severity_still_reports(self):
+        doc = to_sarif_dict(result(
+            finding(rule_id="c", severity="critical"),
+            finding(rule_id="h", severity="high"),
+            finding(rule_id="m", severity="medium"),
+            finding(rule_id="l", severity="low"),
+        ), "0.1.0")
+        self.assertEqual([r["ruleId"] for r in doc["runs"][0]["results"]], ["c", "h", "m", "l"])
+
+    def test_rule_indices_stay_aligned_after_exclusion(self):
+        # An off-by-one here points every alert at the wrong rule.
+        doc = to_sarif_dict(result(
+            finding(rule_id="skipped", severity="info"),
+            finding(rule_id="kept", severity="high"),
+        ), "0.1.0")
+        run = doc["runs"][0]
+        for res in run["results"]:
+            self.assertEqual(run["tool"]["driver"]["rules"][res["ruleIndex"]]["id"], res["ruleId"])
