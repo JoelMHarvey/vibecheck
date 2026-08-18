@@ -10,8 +10,9 @@
 guides/
 index.html
 
-# Test fixtures are deliberately broken. That is what makes them fixtures.
-tests/
+# tests/ used to be listed here. It no longer needs to be: findings in test
+# paths are demoted to info automatically, because nothing in a test file
+# ships. One fewer suppression to trust.
 
 # rules.py is a table of vulnerability descriptions, so its prose matches its
 # own patterns — "subprocess is called with shell=True" is a fix prompt, not a

@@ -50,6 +50,11 @@ SKIP_DIRS = {
     ".turbo",
     ".cache",
     "vendor",
+    "vendored",
+    "third_party",
+    "bower_components",
+    ".yarn",
+    "Pods",
     "site-packages",
     ".idea",
     ".vscode",
@@ -86,6 +91,43 @@ MAX_LINE_CHARS = 1_000  # longer lines are almost always bundled/minified output
 MAX_FINDINGS_PER_RULE_PER_FILE = 20
 
 _SEVERITY_BUMP = {"info": "low", "low": "medium", "medium": "high", "high": "critical", "critical": "critical"}
+
+# Directories and filenames that mean "this credential is scenery".
+#
+# A scan of 192 real repositories put four false positives in its fifteen
+# criticals, and every one was a secret that was never a secret: Expo's own
+# certificate fixtures vendored into an app, a test file, a blog post about
+# security testing, and a tutorial page whose subject was not telling AI your
+# keys. Reporting those to their authors would be worse than reporting
+# nothing, and in the aggregate they inflate the one number the research
+# turns on.
+TEST_PATH_SEGMENTS = {
+    "__tests__", "__snapshots__", "__mocks__", "__fixtures__",
+    "test", "tests", "spec", "specs", "testing",
+    "fixture", "fixtures", "testdata", "e2e", "cypress",
+}
+TEST_FILE_MARKERS = (".test.", ".spec.", "_test.", "_spec.", ".snap")
+
+# Prose: documentation, tutorials, blog posts. Only the private-key rule is
+# demoted here, and that limit is not arbitrary — see below.
+PROSE_EXTS = {".md", ".mdx", ".rst", ".txt", ".adoc"}
+PROSE_SEGMENTS = {
+    "docs", "doc", "documentation", "blog", "posts",
+    "example", "examples", "sample", "samples", "tutorial", "tutorials",
+}
+PRIVATE_KEY_RULE_ID = "private-key-block"
+
+
+def is_test_path(rel: PurePosixPath) -> bool:
+    if any(part.lower() in TEST_PATH_SEGMENTS for part in rel.parts[:-1]):
+        return True
+    return any(marker in rel.name.lower() for marker in TEST_FILE_MARKERS)
+
+
+def is_prose_path(rel: PurePosixPath) -> bool:
+    if rel.suffix.lower() in PROSE_EXTS:
+        return True
+    return any(part.lower() in PROSE_SEGMENTS for part in rel.parts[:-1])
 
 IGNORE_FILE = ".vibecheckignore"
 
@@ -286,6 +328,8 @@ def scan_text(rel_path: str, text: str) -> List[Finding]:
     ext = rel.suffix.lower()
     frontend = is_frontend_path(rel)
     in_env_file = _is_env_file(rel.name)
+    in_test = is_test_path(rel)
+    in_prose = is_prose_path(rel)
 
     if "\x00" in text[:1024]:
         return []
@@ -340,6 +384,32 @@ def scan_text(rel_path: str, text: str) -> List[Finding]:
 
                 if effective_rule.frontend_boost and frontend:
                     severity = _SEVERITY_BUMP[severity]
+
+                # Nothing in a test file ships, so nothing in a test file is
+                # a live exposure — not the fixture credential, not the SQL
+                # built by string concatenation in a case that proves the
+                # scanner catches it. Narrowing this to secrets only leaves an
+                # awkward rule to defend: why is a fake key in a test
+                # informational while string-built SQL beside it is high?
+                #
+                # Demoted to info rather than dropped. Silently discarding is
+                # how a scanner misses the one real key somebody did commit in
+                # a test, and info scores zero, so it cannot move a Vibe Score
+                # in either direction.
+                if in_test:
+                    severity = "info"
+
+                # Prose demotes ONLY the private-key rule, and the limit is
+                # the whole point. That rule matches the PEM header alone —
+                # no key material, no entropy — so every tutorial, README and
+                # worked example that quotes one trips it.
+                #
+                # Provider credentials keep full severity in prose, because
+                # the most serious finding in a 192-repo scan was a live
+                # Stripe key sitting in a DEPLOYMENT_SUCCESS.md. Demoting
+                # secrets in markdown generally would have hidden it.
+                elif in_prose and effective_rule.id == PRIVATE_KEY_RULE_ID:
+                    severity = "low"
 
                 excerpt = _redact(line, match) if effective_rule.is_secret else _sanitize_excerpt(line)[:200]
                 findings.append(_make_finding(effective_rule, rel_path, line_no, excerpt, severity))

@@ -192,9 +192,28 @@ inline annotations work either way, which is why they aren't gated behind it.
 
 ## Silencing false positives
 
-A scanner you can't quiet is a scanner people turn off, and some code is
-insecure on purpose — worked examples in documentation, deliberately broken
-test fixtures, a rule table that describes the very thing it detects.
+Some of this happens on its own.
+
+**Findings in test paths are demoted to info** — `__tests__/`, `tests/`,
+`fixtures/`, `*.test.*`, `*.spec.*`, `*.snap` and friends. Nothing in a test
+file ships, so nothing in one is a live exposure, and info scores zero points.
+Demoted rather than dropped: silently discarding is how a scanner misses the
+one real key somebody did commit in a test.
+
+**Private keys quoted in prose are demoted to low** — `.md`, `docs/`, `blog/`,
+`examples/`. The private-key rule matches the PEM header alone, with no key
+material and no entropy, so every tutorial and worked example that quotes one
+trips it. This applies to *that rule only*: a Stripe or Supabase key keeps
+full severity in a markdown file, because pasting real credentials into a
+`DEPLOYMENT.md` is a thing people genuinely do.
+
+Vendored trees (`third_party/`, `Pods/`, `bower_components/`, `.yarn/`) are
+skipped outright, like `node_modules`.
+
+For everything else there's manual suppression, because a scanner you can't
+quiet is a scanner people turn off, and some code is insecure on purpose —
+worked examples in documentation, a rule table that describes the very thing
+it detects.
 
 **One line**, with a comment. The rule id is optional; without it the whole
 line goes quiet:
@@ -363,7 +382,7 @@ enough anecdote identifies someone as surely as a name does.
 ## Development
 
 ```bash
-python3 -m unittest discover -s tests -v   # 245 tests
+python3 -m unittest discover -s tests -v   # 260 tests
 
 python3 scripts/devserver.py               # run the hosted site locally
 python3 scripts/generate_rules_manifest.py # after editing rules.py
