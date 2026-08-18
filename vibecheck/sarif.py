@@ -80,11 +80,24 @@ def to_sarif_dict(result: ScanResult, version: str, path_prefix: str = "") -> di
     # worse than the same key in a server file), so the rule-level number takes
     # the most severe occurrence in this run while each result keeps its own
     # accurate level.
+    # Informational findings are left out of SARIF entirely.
+    #
+    # Code scanning is an alert queue, and GitHub turns its alerts into inline
+    # review comments on the pull request. A finding worth zero points — a
+    # credential in a test fixture, say — becomes a comment telling the author
+    # to rotate a key that was never real. That is the same cry-wolf failure
+    # that gets scanners switched off, arriving through a different door.
+    #
+    # They are not lost: the job summary, the PR comment and the JSON report
+    # all still carry them. Only the alert queue is kept for things that are
+    # actually alerts.
+    reportable = [f for f in result.findings if f.severity != "info"]
+
     rules: List[dict] = []
     rule_index: Dict[str, int] = {}
     rule_worst: Dict[str, str] = {}
 
-    for f in result.findings:
+    for f in reportable:
         if f.rule_id not in rule_index:
             rule_index[f.rule_id] = len(rules)
             rule_worst[f.rule_id] = f.severity
@@ -109,7 +122,7 @@ def to_sarif_dict(result: ScanResult, version: str, path_prefix: str = "") -> di
             rule["properties"]["security-severity"] = SECURITY_SEVERITY[f.severity]
 
     results = []
-    for f in result.findings:
+    for f in reportable:
         results.append(
             {
                 "ruleId": f.rule_id,

@@ -181,6 +181,12 @@ That needs `security-events: write`. Code scanning is free on public
 repositories and requires GitHub Advanced Security on private ones — the
 inline annotations work either way, which is why they aren't gated behind it.
 
+**Informational findings are left out of SARIF.** GitHub renders code scanning
+alerts as inline review comments, so a zero-point finding — a credential in a
+test fixture — would arrive as a comment telling the author to rotate a key
+that was never real. They still appear in the job summary, the PR comment and
+the JSON report; only the alert queue is reserved for things that are alerts.
+
 ### Notes
 
 - **Forks.** A pull request from a fork gets a read-only token, so the
@@ -382,7 +388,7 @@ enough anecdote identifies someone as surely as a name does.
 ## Development
 
 ```bash
-python3 -m unittest discover -s tests -v   # 260 tests
+python3 -m unittest discover -s tests -v   # 264 tests
 
 python3 scripts/devserver.py               # run the hosted site locally
 python3 scripts/generate_rules_manifest.py # after editing rules.py
