@@ -26,6 +26,7 @@ def aggregate(**over):
     base = {
         "repos_scanned": 192,
         "clean_pct": 12.0,
+        "repos_at_or_above_high": 71,
         "targets_attempted": 200,
         "targets_excluded": 8,
         "score": {"mean": 67.2, "median": 85.0, "min": 0, "max": 100},
@@ -67,9 +68,50 @@ class TestValues(unittest.TestCase):
         agg["score"]["median"] = 85.5
         self.assertEqual(fw.values_from(agg)["MEDIAN_SCORE"], 85.5)
 
-    def test_disclosed_is_critical_plus_high_not_just_critical(self):
-        # The disclosure run contacts everyone at or above high.
-        self.assertEqual(fw.values_from(aggregate())["N_DISCLOSED"], 80)
+    def test_disclosed_comes_from_the_scan_and_is_never_added_up(self):
+        # Severity counts overlap: a repo with a critical and a high is in
+        # both. 11 + 69 is 80, but the disclosure run found 71 repos, because
+        # nine of them are in both buckets. Adding them invents nine projects.
+        agg = aggregate(repos_at_or_above_high=71)
+        self.assertEqual(fw.values_from(agg)["N_DISCLOSED"], 71)
+
+    def test_an_aggregate_without_the_union_yields_no_value_at_all(self):
+        # An older aggregate.json predates the field. No number is correct
+        # here, so the filler must have none rather than reach for the sum.
+        old = aggregate()
+        del old["repos_at_or_above_high"]
+        self.assertIsNone(fw.values_from(old)["N_DISCLOSED"])
+
+    def test_the_disclosure_file_can_supply_it_instead_of_a_rescan(self):
+        old = aggregate()
+        del old["repos_at_or_above_high"]
+        self.assertEqual(fw.values_from(old, disclosed=71)["N_DISCLOSED"], 71)
+
+    def test_the_aggregate_wins_over_the_fallback(self):
+        self.assertEqual(fw.values_from(aggregate(), disclosed=999)["N_DISCLOSED"], 71)
+
+
+class TestDisclosureFileCount(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.path = Path(self.tmp.name) / "disclosure.jsonl"
+
+    def test_one_row_per_repo(self):
+        self.path.write_text('{"repo":"a/b"}\n{"repo":"c/d"}\n', encoding="utf-8")
+        self.assertEqual(fw.count_disclosures(self.path), 2)
+
+    def test_blank_lines_are_not_repos(self):
+        self.path.write_text('{"repo":"a/b"}\n\n\n', encoding="utf-8")
+        self.assertEqual(fw.count_disclosures(self.path), 1)
+
+    def test_a_missing_file_is_not_a_zero(self):
+        # Zero would read as "nobody needed telling", which is a claim.
+        self.assertIsNone(fw.count_disclosures(self.path))
+
+    def test_an_empty_file_is_not_a_zero_either(self):
+        self.path.write_text("", encoding="utf-8")
+        self.assertIsNone(fw.count_disclosures(self.path))
 
     def test_rules_are_named_not_left_as_ids(self):
         # The post says "31.3% — .env file is not protected by .gitignore",

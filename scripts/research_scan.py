@@ -154,6 +154,10 @@ def anonymise(results):
     grades = Counter()
     scores = []
     clean = 0
+    # Repos at critical OR high. Severity counts overlap — one repo with both
+    # increments both — so this cannot be recovered by adding them up, and the
+    # sum overstates how many separate projects are affected.
+    needs_disclosure = 0
 
     for r in results:
         scores.append(r["score"])
@@ -169,6 +173,8 @@ def anonymise(results):
             rule_repo_counts[rule_id] += 1
         for sev in seen_sevs:
             severity_repo_counts[sev] += 1
+        if seen_sevs & {"critical", "high"}:
+            needs_disclosure += 1
 
     def pct(n):
         return round(100.0 * n / scanned, 1) if scanned else 0.0
@@ -184,6 +190,8 @@ def anonymise(results):
             "max": max(scores) if scores else None,
         },
         "grades": {g: grades.get(g, 0) for g in "ABCDF"},
+        "repos_at_or_above_high": needs_disclosure,
+        "repos_at_or_above_high_pct": pct(needs_disclosure),
         "repos_with_severity": {
             sev: {"count": severity_repo_counts.get(sev, 0), "pct": pct(severity_repo_counts.get(sev, 0))}
             for sev in SEVERITY_ORDER

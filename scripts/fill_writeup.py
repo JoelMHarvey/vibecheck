@@ -76,7 +76,22 @@ def rule_titles() -> dict:
     return {rid: spec.get("t", rid) for rid, spec in manifest.get("rules", {}).items()}
 
 
-def values_from(aggregate: dict) -> dict:
+def count_disclosures(path: Path):
+    """How many repos the disclosure run actually listed, one row each.
+
+    A fallback for aggregates written before the scanner recorded the union,
+    so an existing corpus doesn't have to be rescanned to get one number
+    right. disclosure.jsonl is the disclosure set itself, so it is at least
+    as authoritative as the aggregate. Returns None if it isn't there.
+    """
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    return sum(1 for line in lines if line.strip()) or None
+
+
+def values_from(aggregate: dict, disclosed=None) -> dict:
     """Every placeholder the template can ask for, and nothing invented."""
     titles = rule_titles()
     severity = aggregate.get("repos_with_severity", {})
@@ -94,11 +109,13 @@ def values_from(aggregate: dict) -> dict:
         "N_EXCLUDED": aggregate.get("targets_excluded"),
         "N_ATTEMPTED": aggregate.get("targets_attempted"),
     }
-    # N_DISCLOSED is everyone at critical *or* high — the set the disclosure
-    # run actually contacts, which is not the same as the critical count.
-    critical = (severity.get("critical") or {}).get("count")
-    high = (severity.get("high") or {}).get("count")
-    values["N_DISCLOSED"] = None if critical is None or high is None else critical + high
+    # Everyone at critical *or* high: the set the disclosure run contacts.
+    # This is a union and must come from the scan, because the severity counts
+    # overlap — a repo with both a critical and a high is in each of them, so
+    # adding them up overstates the number of affected projects. An aggregate
+    # written before the scanner recorded it has no value here rather than a
+    # wrong one.
+    values["N_DISCLOSED"] = aggregate.get("repos_at_or_above_high") or disclosed
 
     severity = rule_severities()
     ranked, _ = problem_rules(aggregate.get("rules", []))
@@ -140,6 +157,9 @@ def strip_draft_note(text: str) -> str:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--aggregate", default="research/aggregate.json")
+    parser.add_argument("--disclosures", default="research/disclosure.jsonl",
+                        help="counted only to fill in the number of repos needing "
+                             "disclosure when the aggregate predates that field")
     parser.add_argument("--out", default="research/scanned-vibe-coded-apps.md")
     parser.add_argument("--template", default=str(TEMPLATE))
     parser.add_argument("--stdout", action="store_true",
@@ -157,7 +177,7 @@ def main(argv=None) -> int:
         return 1
 
     template = Path(args.template).read_text(encoding="utf-8")
-    values = values_from(aggregate)
+    values = values_from(aggregate, count_disclosures(Path(args.disclosures)))
     text, missing = fill(strip_draft_note(template), values)
 
     print("values from the scan:")

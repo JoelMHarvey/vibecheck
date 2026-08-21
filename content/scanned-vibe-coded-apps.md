@@ -93,13 +93,25 @@ i didn't test a single credential. finding a key in public code is reading; usin
 it to check whether it works is unauthorised access, and the fact that someone
 left the door open isn't an invitation.
 
-{{N_ANY_CRITICAL}} repos had something critical — a credential someone could
-use today. i contacted those maintainers privately and gave them time to rotate
-before publishing this.
+{{N_ANY_CRITICAL}} repos had something critical: a live Stripe key, a private
+key, a Supabase service_role key, or an LLM key being shipped to the browser.
+those are the ones where the worst case is someone else's money or someone
+else's entire database. i contacted those maintainers privately and gave them
+time to rotate before publishing this.
 
-a further {{N_ANY_HIGH}} had high-severity findings. those aren't live keys, and
-i didn't contact each one individually. that's a judgement call about where a
-person's time goes, and you're welcome to think it's the wrong one.
+{{N_ANY_HIGH}} had at least one high-severity finding, and i want to be straight
+about what that covers: plenty of them are live credentials too — database
+connection strings with the password in them, API keys for paid services. it
+isn't a tier of harmless stuff. i didn't contact those maintainers individually,
+and the reason isn't that it doesn't matter. it's that {{N_ANY_CRITICAL}} of these
+done properly is an evening's work, and {{N_DISCLOSED}} done properly doesn't
+happen at all — you get a rushed job or no job. i'd rather do the smaller
+number carefully.
+that's a judgement call about where one person's time goes, and you're welcome
+to think it's the wrong one.
+
+(those two figures overlap, by the way — a repo can have both, and some do. it
+isn't {{N_ANY_CRITICAL}} plus {{N_ANY_HIGH}} separate projects.)
 
 the numbers above are aggregates — no repo names, no owners, no file paths, no
 code. people published their code, not their consent to be made an example of.
