@@ -93,10 +93,10 @@ i didn't test a single credential. finding a key in public code is reading; usin
 it to check whether it works is unauthorised access, and the fact that someone
 left the door open isn't an invitation.
 
-{{N_ANY_CRITICAL}} repos had something critical: a live Stripe key, a private
-key, a Supabase service_role key, or an LLM key being shipped to the browser.
-those are the ones where the worst case is someone else's money or someone
-else's entire database. i contacted those maintainers privately and gave them
+{{N_ANY_CRITICAL}} repos had something critical: a committed private key, a
+Supabase service_role key, an LLM key being shipped to the browser, or — in one
+case — a live Stripe key. those are the ones where the worst case is someone
+else's money or someone else's entire database. i contacted those maintainers privately and gave them
 time to rotate before publishing this.
 
 {{N_ANY_HIGH}} had at least one high-severity finding, and i want to be straight

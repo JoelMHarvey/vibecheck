@@ -256,6 +256,20 @@ and leaves the judgement calls as review comments.
    that wasn't true. `anonymise()` records `repos_at_or_above_high` so the
    union never has to be derived by addition again, and the filler reads it
    from the scan or counts `disclosure.jsonl`, never by adding.
+
+   `scripts/mark_reported.py` closes the last loop. Private vulnerability
+   reporting reached zero of seventy-one repositories, so the contacting
+   happens by email, outside any tool — and `prepare_disclosures.py` only
+   writes `reported` for advisories it filed through the API. Nothing on disk
+   knew the emails had gone out, so `find_contacts.py` would hand back the
+   same people, and "did everyone get told?" had no answer except a sent-mail
+   folder. It names repositories explicitly rather than offering a
+   mark-them-all, because marking a repo reported when nobody was told leaves
+   a row that looks finished and ends with a live credential never disclosed.
+   A typo aborts the run rather than marking the rest. An already-reported
+   repo keeps its first date, since that is when the window started. It ends
+   by counting the criticals still unreported and saying, in as many words,
+   that the post's claim to have contacted them isn't true yet.
 2. **SEO pages per platform** (done): the seven platform/topic guides plus
    three per-provider "my key is exposed" pages, each ending with the hosted
    scanner.
