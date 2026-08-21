@@ -186,6 +186,16 @@ and leaves the judgement calls as review comments.
    "I scanned 100 vibe-coded apps; here's what leaked." (Do the scan of
    public repos for real — responsibly, reporting privately first — it's the
    single best content asset possible here.)
+
+   The draft lives at `content/scanned-vibe-coded-apps.md` with every figure
+   as a `{{PLACEHOLDER}}`, and `scripts/fill_writeup.py` substitutes them from
+   `research/aggregate.json`. Hand-typing eleven numbers out of a JSON file is
+   how a transposed digit gets into the one document where a transposed digit
+   is the whole problem. The filler refuses to write a post with an unfilled
+   placeholder in it, and refuses to write anywhere but the gitignored
+   `research/` directory, because the disclosure window may still be open.
+   What it can't check is whether anyone was actually contacted — that stays a
+   human step, and the header it stamps on the output says so.
 2. **SEO pages per platform**: "Lovable app security checklist",
    "Is my Bolt app secure?", "Cursor security best practices" — each ends
    with the hosted scanner.

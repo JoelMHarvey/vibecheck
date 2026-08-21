@@ -28,8 +28,9 @@ i wanted to know how common that was, so i built a scanner and pointed it at
 
 ## what i found
 
-{{PCT_ANY_CRITICAL}}% had at least one critical problem. the median score was
-{{MEDIAN_SCORE}} out of 100. {{PCT_CLEAN}}% were completely clean.
+{{PCT_ANY_CRITICAL}}% had at least one critical problem — a live credential,
+mostly. {{PCT_ANY_HIGH}}% had at least one high-severity one. the median score
+was {{MEDIAN_SCORE}} out of 100, and {{PCT_CLEAN}}% were completely clean.
 
 the most common problems, by share of apps affected:
 
@@ -77,10 +78,16 @@ i didn't test a single credential. finding a key in public code is reading; usin
 it to check whether it works is unauthorised access, and the fact that someone
 left the door open isn't an invitation.
 
-{{N_DISCLOSED}} repos had something critical. i contacted those maintainers
-privately and gave them time to rotate before publishing this. the numbers above
-are aggregates — no repo names, no owners, no file paths, no code. people
-published their code, not their consent to be made an example of.
+{{N_ANY_CRITICAL}} repos had something critical — a credential someone could
+use today. i contacted those maintainers privately and gave them time to rotate
+before publishing this.
+
+a further {{N_ANY_HIGH}} had high-severity findings. those aren't live keys, and
+i didn't contact each one individually. that's a judgement call about where a
+person's time goes, and you're welcome to think it's the wrong one.
+
+the numbers above are aggregates — no repo names, no owners, no file paths, no
+code. people published their code, not their consent to be made an example of.
 
 if you'd rather not be in a future version of this post, the scanner is below.
 
@@ -105,6 +112,10 @@ python3 -m vibecheck --url https://myapp.com
 the scanner looks for known patterns. a clean score means it didn't find those
 patterns, not that your app is secure — it doesn't understand your auth logic or
 your database rules, and it never will.
+
+i started from {{N_ATTEMPTED}} candidate repos and scanned {{N_REPOS}} of them;
+the rest were excluded for having no application code in them at all — prompt
+collections and link lists, mostly, which score perfectly and mean nothing.
 
 the sample is public repos, which is a biased slice. people who commit their app
 to a public GitHub repo are probably not identical to people who ship on Lovable
