@@ -71,11 +71,11 @@
   <table>
     <thead><tr><th>Provider</th><th>Where</th><th>Also do this</th></tr></thead>
     <tbody>
-      <tr><td>OpenAI</td><td>platform.openai.com → API keys → revoke, create new</td><td>Check Usage for spend you don't recognise</td></tr>
-      <tr><td>Anthropic</td><td>console.anthropic.com → API keys</td><td>Check Usage</td></tr>
-      <tr><td>Stripe</td><td>Developers → API keys → roll the secret key</td><td>Check Payments and Refunds for anything unfamiliar. Contact Stripe support if you find any.</td></tr>
+      <tr><td>OpenAI</td><td>platform.openai.com → API keys → revoke, create new</td><td>Check Usage for spend you don't recognise · <a href="/guides/openai-api-key-exposed">full guide</a></td></tr>
+      <tr><td>Anthropic</td><td>console.anthropic.com → API keys</td><td>Check Usage · <a href="/guides/openai-api-key-exposed">full guide</a></td></tr>
+      <tr><td>Stripe</td><td>Developers → API keys → roll the secret key</td><td>Check Payments and Refunds for anything unfamiliar. Contact Stripe support if you find any. · <a href="/guides/stripe-secret-key-exposed">full guide</a></td></tr>
       <tr><td>AWS</td><td>IAM → Users → Security credentials → deactivate, then delete</td><td>See the AWS note below — this is the expensive one</td></tr>
-      <tr><td>Supabase</td><td>Settings → API → rotate <code>service_role</code></td><td>Assume every row was readable; see below</td></tr>
+      <tr><td>Supabase</td><td>Settings → API → rotate <code>service_role</code></td><td>Assume every row was readable · <a href="/guides/supabase-service-role-key-exposed">full guide</a></td></tr>
       <tr><td>GitHub</td><td>Settings → Developer settings → Personal access tokens</td><td>Check recent activity on your repos</td></tr>
       <tr><td>Google Cloud</td><td>APIs &amp; Services → Credentials</td><td>Add referrer/API restrictions to the replacement</td></tr>
       <tr><td>Telegram</td><td>Message @BotFather → <code>/revoke</code></td><td>—</td></tr>
@@ -165,6 +165,7 @@
       <li><a href="/guides/lovable-app-security">Lovable</a> · <a href="/guides/bolt-app-security">Bolt</a> · <a href="/guides/v0-app-security">v0</a> — how keys leak in each, specifically</li>
       <li><a href="/guides/cursor-claude-code-security">Cursor &amp; Claude Code</a> — the risks specific to agents that read and run</li>
       <li><a href="/guides/firebase-app-security">Is my Firebase app secure?</a> — Security Rules, test mode, and why the config is public on purpose</li>
+      <li>Leaked a specific one? <a href="/guides/supabase-service-role-key-exposed">Supabase <code>service_role</code></a> · <a href="/guides/stripe-secret-key-exposed">Stripe secret key</a> · <a href="/guides/openai-api-key-exposed">OpenAI &amp; Anthropic</a></li>
     </ul>
   </div>
 </article>
