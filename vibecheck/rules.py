@@ -58,9 +58,46 @@ class Rule:
     frontend_only: bool = False  # only fires in browser-served files
 
 
+# The password inside a connection string, when it is obviously an
+# illustration. The URI rules match any `user:pass@host`, which is also the
+# exact shape every piece of database documentation uses — a scan of one real
+# repository produced twenty-five of these from README files, deployment docs
+# and a .env.production.example, against six from code. Crying wolf twenty-five
+# times is how a scanner teaches people to ignore it.
+#
+# Matched whole, never as a substring. "password" is a placeholder;
+# "MyPassword2024!" is somebody's actual credential, and a substring check
+# would throw it away — which is the one error here that can't be noticed
+# afterwards.
+PLACEHOLDER_SECRETS = frozenset({
+    "pass", "passwd", "password", "pwd", "secret", "changeme", "change_me",
+    "mypassword", "mysecret", "yourpassword", "your_password", "db_password",
+    "dbpassword", "user", "username", "admin", "root", "test", "testing",
+    "postgres", "mongo", "mongodb", "mysql", "redis", "hunter2",
+    "password123", "123456", "abc123", "none", "null", "todo",
+})
+URI_CREDENTIAL_RE = re.compile(r"://([^:/@\s]+):([^@\s]+)@")
+_REPEATED_CHAR_RE = re.compile(r"(.)\1{2,}\Z")
+_TEMPLATE_TOKEN_RE = re.compile(r"[A-Z][A-Z0-9_]{2,}\Z")
+
+
+def _is_placeholder_secret(value: str) -> bool:
+    """Is this password an illustration rather than a credential?"""
+    if value.lower() in PLACEHOLDER_SECRETS:
+        return True
+    if _REPEATED_CHAR_RE.match(value):        # xxxx, ****, ####
+        return True
+    if _TEMPLATE_TOKEN_RE.match(value):       # PASSWORD, DB_PASSWORD
+        return True
+    return False
+
+
 def looks_like_placeholder(matched_text: str) -> bool:
     lowered = matched_text.lower()
-    return any(hint in lowered for hint in PLACEHOLDER_HINTS)
+    if any(hint in lowered for hint in PLACEHOLDER_HINTS):
+        return True
+    found = URI_CREDENTIAL_RE.search(matched_text)
+    return bool(found and _is_placeholder_secret(found.group(2)))
 
 
 # Special rule handled by the scanner: hardcoded JWTs get their payload
