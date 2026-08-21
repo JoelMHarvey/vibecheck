@@ -620,3 +620,11 @@ ENV_NOT_IGNORED = Rule(
         "inside it and rewrite it out of git history."
     ),
 )
+
+
+# Every rule the file scanner can emit, including the three built
+# programmatically rather than matched by pattern. Anything that needs to
+# reason about the full rule set — the client manifest, the writeup filler —
+# reads this, so a new programmatic rule can't be added to one list and
+# forgotten in another.
+ALL_RULES = RULES + [SUPABASE_SERVICE_ROLE, SUPABASE_ANON_INFO, ENV_NOT_IGNORED]

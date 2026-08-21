@@ -89,6 +89,53 @@ class TestValues(unittest.TestCase):
         self.assertIsNone(fw.values_from(agg)["PCT_ANY_CRITICAL"])
 
 
+class TestInfoRulesAreNotProblems(unittest.TestCase):
+    """An info rule in a list headed "the most common problems" is a claim the
+    scanner itself disagrees with — and, for the Supabase anon key, one the
+    site's own guide spends a section refuting."""
+
+    def rules_with_anon_key(self):
+        return [
+            {"rule_id": "env-file-not-gitignored", "repos_affected": 60,
+             "repos_affected_pct": 31.3, "total_occurrences": 60},
+            {"rule_id": "supabase-anon-key", "repos_affected": 34,
+             "repos_affected_pct": 17.7, "total_occurrences": 40},
+            {"rule_id": "cors-allow-all", "repos_affected": 30,
+             "repos_affected_pct": 15.6, "total_occurrences": 44},
+        ]
+
+    def test_the_anon_key_is_not_listed_as_a_problem(self):
+        kept, dropped = fw.problem_rules(self.rules_with_anon_key())
+        self.assertEqual([r["rule_id"] for r in dropped], ["supabase-anon-key"])
+        self.assertNotIn("supabase-anon-key", [r["rule_id"] for r in kept])
+
+    def test_dropping_it_promotes_the_next_real_rule(self):
+        agg = aggregate(rules=self.rules_with_anon_key())
+        v = fw.values_from(agg)
+        self.assertEqual(v["RULE_2_NAME"], "CORS allows every website")
+
+    def test_severity_is_available_to_the_template(self):
+        v = fw.values_from(aggregate())
+        self.assertEqual(v["RULE_1_SEVERITY"], "high")
+
+    def test_a_rule_of_unknown_severity_is_kept_rather_than_silently_dropped(self):
+        # Losing a rule because its ID moved is worse than showing one too many.
+        kept, dropped = fw.problem_rules([{"rule_id": "brand-new-rule",
+                                           "repos_affected": 5,
+                                           "repos_affected_pct": 2.6,
+                                           "total_occurrences": 5}])
+        self.assertEqual(len(kept), 1)
+        self.assertEqual(dropped, [])
+
+    def test_every_severity_resolves_for_every_rule_the_scanner_can_emit(self):
+        # The three programmatic rules used to live in a second list that the
+        # manifest knew about and nothing else did.
+        severities = fw.rule_severities()
+        for rule_id in ("supabase-anon-key", "supabase-service-role-key", "env-file-not-gitignored"):
+            with self.subTest(rule_id):
+                self.assertIn(rule_id, severities)
+
+
 class TestFill(unittest.TestCase):
     def test_a_placeholder_with_no_value_is_reported_not_guessed(self):
         text, missing = fw.fill("scanned {{N_REPOS}}, found {{NOT_A_THING}}",

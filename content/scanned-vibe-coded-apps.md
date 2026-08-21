@@ -40,6 +40,21 @@ the most common problems, by share of apps affected:
 - {{RULE_4_PCT}}% — {{RULE_4_NAME}}
 - {{RULE_5_PCT}}% — {{RULE_5_NAME}}
 
+a caveat on that list, because the top of it is the number people will push
+back on: these are pattern matches, not confirmed exploits. the scanner can see
+that HTML is being built out of a variable. it cannot see whether that variable
+ever holds someone else's input, and in plenty of these apps it won't. the
+credential figures above are the ones i'd defend one at a time. this list is
+prevalence, which is the weaker claim.
+
+i also left something out of it on purpose. Supabase anon keys turned up in a
+lot of these apps, and that is not a finding — the anon key is meant to be
+public, it's in the page source of every Supabase app by design, and the only
+thing it tells you is that Row Level Security is now load-bearing. the scanner
+grades it as information rather than a problem. putting it in a list titled
+"the most common problems" would have inflated the numbers with something i
+spend a whole page telling people not to panic about.
+
 <!--
 Optional: one anonymised example here. Be careful. A specific enough
 story identifies the repo even without naming it — if the detail is

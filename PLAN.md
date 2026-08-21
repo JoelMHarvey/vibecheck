@@ -222,6 +222,23 @@ and leaves the judgement calls as review comments.
    `research/` directory, because the disclosure window may still be open.
    What it can't check is whether anyone was actually contacted — that stays a
    human step, and the header it stamps on the output says so.
+
+   The first real run caught two things the post would otherwise have claimed.
+   Supabase anon keys were the fifth most common finding at 17.7% — and an
+   anon key is not a finding: it's public by design, and the guide at
+   `/guides/supabase-service-role-key-exposed` spends a section telling people
+   to stop worrying about it. Listing it under "the most common problems"
+   would have contradicted our own advice on our own domain. The filler now
+   drops info-severity rules from that list and prints what it dropped, since
+   a list that quietly lost an entry reads as the whole picture. Second, the
+   top entry is `innerhtml-assignment` at 81.8%, which is a pattern match
+   rather than a confirmed hole — the post now says so in its own paragraph
+   rather than leaving a reader to point it out.
+
+   Both needed a severity lookup covering every rule the scanner can emit,
+   including the three built programmatically. Those lived in a second list
+   that only the manifest generator knew about, so `vibecheck/rules.py` now
+   exports `ALL_RULES` and both callers read it.
 2. **SEO pages per platform** (done): the seven platform/topic guides plus
    three per-provider "my key is exposed" pages, each ending with the hosted
    scanner.
