@@ -56,33 +56,54 @@ def write_tracker(path: Path, rows):
     os.chmod(path, 0o600)
 
 
+def append_note(existing: str, addition: str) -> str:
+    """Add to a note without losing what was there, and without repeating."""
+    if not addition:
+        return existing
+    if not existing:
+        return addition
+    if addition in existing:
+        return existing
+    return f"{existing} · {addition}"
+
+
 def note_for(existing: str, route: str) -> str:
     """Keep whatever was already noted; add how they were reached."""
-    added = f"contacted by {route}"
-    if not existing:
-        return added
-    if added in existing:
-        return existing
-    return f"{existing} · {added}"
+    return append_note(existing, f"contacted by {route}")
 
 
-def plan(rows, wanted, route, on):
-    """What each named repo would become. Returns (changes, skipped, missing)."""
+def plan(rows, wanted, route, on, note=""):
+    """What each named repo would become.
+
+    A repo already marked reported normally has nothing to change — the
+    window runs from the first time they were told, so the date stays put.
+    With a note it becomes a note-only edit instead: a maintainer who replied
+    "I'll rotate it" is in a different position from one who never answered,
+    and on day seven that difference decides who gets chased.
+
+    Returns (changes, skipped, missing), where a change is
+    (slug, what_it_was, fields_to_set).
+    """
     by_repo = {row["repo"]: row for row in rows}
     changes, skipped, missing = [], [], []
+    stamped = f"{note} {on.isoformat()}".strip() if note else ""
     for slug in wanted:
         row = by_repo.get(slug)
         if row is None:
             missing.append(slug)
-        elif row.get("status") == "reported":
-            # The window runs from the first time they were told.
-            skipped.append((slug, row.get("reported_on", "")))
-        else:
-            changes.append((slug, row.get("status", ""), {
-                "status": "reported",
-                "reported_on": on.isoformat(),
-                "note": note_for(row.get("note", ""), route),
-            }))
+            continue
+        if row.get("status") == "reported":
+            updated = append_note(row.get("note", ""), stamped)
+            if stamped and updated != row.get("note", ""):
+                changes.append((slug, "note", {"note": updated}))
+            else:
+                skipped.append((slug, row.get("reported_on", "")))
+            continue
+        changes.append((slug, row.get("status", ""), {
+            "status": "reported",
+            "reported_on": on.isoformat(),
+            "note": append_note(note_for(row.get("note", ""), route), stamped),
+        }))
     return changes, skipped, missing
 
 
@@ -125,6 +146,10 @@ def main(argv=None) -> int:
     parser.add_argument("--on", help="date contacted, YYYY-MM-DD (default: today)")
     parser.add_argument("--window", type=int, default=DEFAULT_WINDOW,
                         help=f"days before publishing (default: {DEFAULT_WINDOW})")
+    parser.add_argument("--note", default="",
+                        help="append to each repo's note, stamped with the date — "
+                             "e.g. --note acknowledged. Works on repos already "
+                             "marked reported, whose date is left alone.")
     parser.add_argument("--yes", action="store_true", help="skip the confirmation")
     args = parser.parse_args(argv)
 
@@ -152,10 +177,13 @@ def main(argv=None) -> int:
         return 1
 
     rows = read_tracker(tracker_path)
-    changes, skipped, missing = plan(rows, wanted, args.route, on)
+    changes, skipped, missing = plan(rows, wanted, args.route, on, args.note)
 
-    for slug, was, _ in changes:
-        print(f"  {was or 'unset':20} -> reported   {slug}")
+    for slug, was, fields in changes:
+        if was == "note":
+            print(f"  {'note':20} +  {slug}\n  {'':20}    {fields['note']}")
+        else:
+            print(f"  {was or 'unset':20} -> reported   {slug}")
     for slug, when in skipped:
         print(f"  already reported{' on ' + when if when else '':<8} {slug}")
     if missing:
@@ -171,8 +199,14 @@ def main(argv=None) -> int:
         return 0
 
     if not args.yes:
-        answer = confirm(f"\nmark {len(changes)} repositories reported on "
-                         f"{on.isoformat()}? [y/N] ")
+        marking = sum(1 for _, was, _ in changes if was != "note")
+        annotating = len(changes) - marking
+        parts = []
+        if marking:
+            parts.append(f"mark {marking} reported on {on.isoformat()}")
+        if annotating:
+            parts.append(f"annotate {annotating}")
+        answer = confirm("\n" + " and ".join(parts) + "? [y/N] ")
         if answer is None:
             # Nobody to ask. Say which of the two situations this is, rather
             # than printing a refusal that reads like the user declined.
@@ -193,7 +227,12 @@ def main(argv=None) -> int:
     remaining = sum(1 for row in rows
                     if row.get("worst_severity") == "critical"
                     and row.get("status") != "reported")
-    print(f"\n  {len(changes)} marked reported -> {tracker_path}")
+    marked = sum(1 for _, was, _ in changes if was != "note")
+    annotated = len(changes) - marked
+    summary = ", ".join(
+        part for part in (f"{marked} marked reported" if marked else "",
+                          f"{annotated} annotated" if annotated else "") if part)
+    print(f"\n  {summary} -> {tracker_path}")
     print(f"  Earliest honest publication date: {publish_after.isoformat()}")
     if remaining:
         print(f"\n  {remaining} critical repo(s) still not reported. Those are the ones "

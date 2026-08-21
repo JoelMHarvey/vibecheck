@@ -278,6 +278,14 @@ and leaves the judgement calls as review comments.
    there is genuinely nobody to ask it says so and names the two ways out
    instead of pretending someone said no.
 
+   `--note` came out of the first replies. Template 4 allows one follow-up
+   after a week on a critical with no response, and forbids a third message;
+   acting on that needs a record of who answered, which `reported` alone
+   doesn't carry. A note lands on an already-reported row without touching
+   `reported_on` — restarting a fourteen-day window because somebody said
+   thanks would be both absurd and silent — and the day-seven list becomes a
+   filter on the tracker rather than a trawl through a sent folder.
+
    Drafting the one remaining disclosure email exposed a precision problem
    worth more than the email. The URI credential rules match any
    `user:pass@host`, which is also exactly how database documentation writes
