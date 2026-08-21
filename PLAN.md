@@ -270,6 +270,13 @@ and leaves the judgement calls as review comments.
    repo keeps its first date, since that is when the window started. It ends
    by counting the criticals still unreported and saying, in as many words,
    that the post's claim to have contacted them isn't true yet.
+
+   First real use found a flaw in it immediately: `--from -` spends stdin on
+   the repo list, so the confirmation prompt hit EOF and the run refused with
+   "nothing written" — safe, unusable, and phrased as though the operator had
+   declined. It now asks the terminal directly when stdin is spent, and when
+   there is genuinely nobody to ask it says so and names the two ways out
+   instead of pretending someone said no.
 2. **SEO pages per platform** (done): the seven platform/topic guides plus
    three per-provider "my key is exposed" pages, each ending with the hosted
    scanner.
