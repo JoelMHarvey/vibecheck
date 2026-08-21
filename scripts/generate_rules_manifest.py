@@ -20,21 +20,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from vibecheck.rules import (  # noqa: E402
-    ENV_NOT_IGNORED,
-    RULES,
-    SUPABASE_ANON_INFO,
-    SUPABASE_SERVICE_ROLE,
-)
+from vibecheck.rules import ALL_RULES  # noqa: E402
 from vibecheck.urlscan import iter_url_rules  # noqa: E402
 
 MANIFEST_PATH = Path(__file__).resolve().parent.parent / "rules.json"
 
 
 def build_manifest() -> dict:
-    # The scanner can emit rules that aren't in the RULES list (they're
-    # produced programmatically), so include them explicitly.
-    all_rules = list(RULES) + [SUPABASE_SERVICE_ROLE, SUPABASE_ANON_INFO, ENV_NOT_IGNORED]
+    all_rules = ALL_RULES
     rules = {}
     for rule in all_rules:
         rules[rule.id] = {"t": rule.title, "d": rule.description, "f": rule.fix_prompt}

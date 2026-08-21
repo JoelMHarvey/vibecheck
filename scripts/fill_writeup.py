@@ -31,9 +31,40 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from vibecheck.rules import ALL_RULES  # noqa: E402
+
 TEMPLATE = ROOT / "content" / "scanned-vibe-coded-apps.md"
 PLACEHOLDER_RE = re.compile(r"\{\{([A-Z0-9_]+)\}\}")
 TOP_RULES = 5
+
+
+def rule_severities() -> dict:
+    """rule_id -> severity, straight from the rule objects."""
+    return {rule.id: rule.severity for rule in ALL_RULES}
+
+
+def problem_rules(rules):
+    """The rules worth calling problems, and the ones held back.
+
+    An info-severity rule is not a finding — it is the scanner saying "this is
+    normal, here is the thing to check". A Supabase anon key is the example
+    that matters: it is public by design, our own guide tells people to stop
+    worrying about it, and listing it under "the most common problems" would
+    contradict the advice on the same website.
+
+    Returns (kept, dropped) rather than filtering silently, because a list
+    that quietly lost an entry reads as the whole picture when it isn't.
+    """
+    severity = rule_severities()
+    kept, dropped = [], []
+    for rule in rules:
+        if severity.get(rule["rule_id"]) == "info":
+            dropped.append(rule)
+        else:
+            kept.append(rule)
+    return kept, dropped
 
 
 def rule_titles() -> dict:
@@ -69,10 +100,13 @@ def values_from(aggregate: dict) -> dict:
     high = (severity.get("high") or {}).get("count")
     values["N_DISCLOSED"] = None if critical is None or high is None else critical + high
 
-    for i, rule in enumerate(aggregate.get("rules", [])[:TOP_RULES], 1):
+    severity = rule_severities()
+    ranked, _ = problem_rules(aggregate.get("rules", []))
+    for i, rule in enumerate(ranked[:TOP_RULES], 1):
         values[f"RULE_{i}_NAME"] = titles.get(rule["rule_id"], rule["rule_id"])
         values[f"RULE_{i}_PCT"] = rule["repos_affected_pct"]
         values[f"RULE_{i}_REPOS"] = rule["repos_affected"]
+        values[f"RULE_{i}_SEVERITY"] = severity.get(rule["rule_id"], "")
 
     # A median that happens to be an integer should read "71", not "71.0".
     for key, value in values.items():
@@ -133,6 +167,15 @@ def main(argv=None) -> int:
     unused = [k for k in sorted(values) if f"{{{{{k}}}}}" not in template and values[k] is not None]
     if unused:
         print("\n  available but unused by the template: " + ", ".join(unused))
+
+    _, dropped = problem_rules(aggregate.get("rules", []))
+    if dropped:
+        titles = rule_titles()
+        print("\n  held back from the list of problems (info severity — not findings):")
+        for rule in dropped:
+            name = titles.get(rule["rule_id"], rule["rule_id"])
+            print(f"    {rule['repos_affected_pct']:5}%  {name}")
+        print("    Mentioning these in the post is fine; calling them problems is not.")
 
     if missing:
         print("\nnot written — no value for: " + ", ".join(missing), file=sys.stderr)
