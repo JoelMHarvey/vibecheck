@@ -86,6 +86,28 @@ def plan(rows, wanted, route, on):
     return changes, skipped, missing
 
 
+def confirm(question: str):
+    """Ask, even when stdin was spent on the repo list.
+
+    `--from -` consumes stdin, so a later input() sees EOF straight away.
+    Treating that as "no" is safe but leaves the run impossible and the
+    reason unexplained, so try the terminal directly first. Returns None
+    when there is nobody to ask — a caller must not read that as consent.
+    """
+    try:
+        if sys.stdin.isatty():
+            return input(question)
+    except (OSError, ValueError):
+        pass
+    try:
+        with open("/dev/tty", "r+") as tty:   # not on Windows, hence the guard
+            tty.write(question)
+            tty.flush()
+            return tty.readline()
+    except OSError:
+        return None
+
+
 def read_slugs(source: str):
     text = sys.stdin.read() if source == "-" else Path(source).read_text(encoding="utf-8")
     return [line.strip() for line in text.splitlines() if line.strip()
@@ -149,11 +171,15 @@ def main(argv=None) -> int:
         return 0
 
     if not args.yes:
-        try:
-            answer = input(f"\nmark {len(changes)} repositories reported on "
-                           f"{on.isoformat()}? [y/N] ")
-        except EOFError:
-            answer = ""
+        answer = confirm(f"\nmark {len(changes)} repositories reported on "
+                         f"{on.isoformat()}? [y/N] ")
+        if answer is None:
+            # Nobody to ask. Say which of the two situations this is, rather
+            # than printing a refusal that reads like the user declined.
+            print("\ncannot ask for confirmation — there is no terminal to read "
+                  "from.\nRe-run with --yes if the list above is right, or pass "
+                  "--from a file\ninstead of - so stdin stays free.", file=sys.stderr)
+            return 1
         if answer.strip().lower() not in {"y", "yes"}:
             print("nothing written.")
             return 1

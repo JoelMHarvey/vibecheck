@@ -121,9 +121,9 @@ class TestRefusals(TrackerCase):
         self.assertEqual(code, 1)
 
     def confirm_with(self, answer):
-        """Run without --yes, answering the prompt."""
+        """Run without --yes, with the prompt answered."""
         buf = io.StringIO()
-        with mock.patch("builtins.input", return_value=answer), \
+        with mock.patch.object(mr, "confirm", return_value=answer), \
                 contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
             code = mr.main(["--tracker", str(self.tracker), "a/one"])
         return code, buf.getvalue()
@@ -146,6 +146,76 @@ class TestRefusals(TrackerCase):
         code, _ = self.confirm_with("y")
         self.assertEqual(code, 0)
         self.assertEqual(self.read()["a/one"]["status"], "reported")
+
+
+class TestNobodyToAsk(TrackerCase):
+    """--from - spends stdin on the repo list, so the prompt has no input.
+
+    Refusing is right, but refusing while printing "nothing written" reads as
+    though the operator declined, and leaves the run impossible with no hint
+    why. This is the shape that made the tool unusable the first time it was
+    used for real.
+    """
+
+    def run_headless(self):
+        buf = io.StringIO()
+        with mock.patch.object(mr, "confirm", return_value=None), \
+                contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+            code = mr.main(["--tracker", str(self.tracker), "a/one"])
+        return code, buf.getvalue()
+
+    def test_it_refuses_rather_than_assuming_yes(self):
+        self.write([self.row("a/one")])
+        code, _ = self.run_headless()
+        self.assertEqual(code, 1)
+        self.assertEqual(self.read()["a/one"]["status"], "reporting-disabled")
+
+    def test_it_explains_the_situation_and_the_way_out(self):
+        self.write([self.row("a/one")])
+        _, output = self.run_headless()
+        self.assertIn("no terminal", output)
+        self.assertIn("--yes", output)
+
+    def test_it_does_not_read_as_the_operator_declining(self):
+        self.write([self.row("a/one")])
+        _, output = self.run_headless()
+        self.assertNotIn("nothing written.", output)
+
+    def test_yes_still_works_without_a_terminal(self):
+        # The escape hatch the message points at has to actually work.
+        self.write([self.row("a/one")])
+        buf = io.StringIO()
+        with mock.patch.object(mr, "confirm", return_value=None), \
+                contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+            code = mr.main(["--tracker", str(self.tracker), "--yes", "a/one"])
+        self.assertEqual(code, 0)
+        self.assertEqual(self.read()["a/one"]["status"], "reported")
+
+
+class TestConfirm(unittest.TestCase):
+    """confirm() itself: it must never invent an answer."""
+
+    def test_an_interactive_stdin_is_asked(self):
+        with mock.patch("sys.stdin") as stdin, \
+                mock.patch("builtins.input", return_value="y") as asked:
+            stdin.isatty.return_value = True
+            self.assertEqual(mr.confirm("ok? "), "y")
+        asked.assert_called_once()
+
+    def test_a_spent_stdin_falls_back_to_the_terminal(self):
+        opened = mock.mock_open(read_data="y\n")
+        opened.return_value.readline.return_value = "y\n"
+        with mock.patch("sys.stdin") as stdin, mock.patch("builtins.open", opened):
+            stdin.isatty.return_value = False
+            self.assertEqual(mr.confirm("ok? ").strip(), "y")
+
+    def test_no_terminal_at_all_returns_none_not_a_blank(self):
+        # A blank would be compared against "y" and read as a decline, which
+        # is the wrong story. None means "nobody was asked".
+        with mock.patch("sys.stdin") as stdin, \
+                mock.patch("builtins.open", side_effect=OSError):
+            stdin.isatty.return_value = False
+            self.assertIsNone(mr.confirm("ok? "))
 
 
 class TestReporting(TrackerCase):
