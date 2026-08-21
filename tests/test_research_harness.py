@@ -146,5 +146,44 @@ class TestAppDetection(unittest.TestCase):
         self.assertFalse(research.looks_like_an_app(self.root))
 
 
+class TestDisclosureCount(unittest.TestCase):
+    """How many repos need contacting is the number the ethics rests on.
+
+    It cannot be recovered by adding the severity counts: those count a repo
+    once per severity it contains, so a repo holding both a critical and a
+    high appears in each. Adding them invents projects that don't exist and
+    overstates the number of people who weren't contacted.
+    """
+
+    def repo(self, *severities):
+        return {"score": 50, "grade": "D",
+                "findings": [{"rule_id": f"r{i}", "severity": sev}
+                             for i, sev in enumerate(severities)]}
+
+    def test_a_repo_with_both_is_counted_once(self):
+        agg = research.anonymise([self.repo("critical", "high")])
+        self.assertEqual(agg["repos_with_severity"]["critical"]["count"], 1)
+        self.assertEqual(agg["repos_with_severity"]["high"]["count"], 1)
+        self.assertEqual(agg["repos_at_or_above_high"], 1, "counted twice")
+
+    def test_the_union_is_smaller_than_the_sum_when_they_overlap(self):
+        agg = research.anonymise([
+            self.repo("critical", "high"),
+            self.repo("critical"),
+            self.repo("high"),
+        ])
+        counts = agg["repos_with_severity"]
+        self.assertEqual(counts["critical"]["count"] + counts["high"]["count"], 4)
+        self.assertEqual(agg["repos_at_or_above_high"], 3)
+
+    def test_medium_and_below_do_not_need_disclosing(self):
+        agg = research.anonymise([self.repo("medium", "low", "info")])
+        self.assertEqual(agg["repos_at_or_above_high"], 0)
+
+    def test_a_clean_repo_is_not_in_it(self):
+        agg = research.anonymise([{"score": 100, "grade": "A", "findings": []}])
+        self.assertEqual(agg["repos_at_or_above_high"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()

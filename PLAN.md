@@ -239,6 +239,23 @@ and leaves the judgement calls as review comments.
    including the three built programmatically. Those lived in a second list
    that only the manifest generator knew about, so `vibecheck/rules.py` now
    exports `ALL_RULES` and both callers read it.
+
+   The next run caught two more, both in the paragraph the ethics of the whole
+   project rests on. The post said the high-severity repos "aren't live keys" —
+   ten of the sixteen high rules are hardcoded credentials, and the post's own
+   fifth-place finding was a Postgres connection string with the password in
+   it, three lines above the sentence denying it. And it said "a further 69",
+   implying 80 affected projects, when `repos_with_severity` counts a repo once
+   per severity it contains: nine repos hold both a critical and a high, so the
+   real union is the 71 the disclosure run reported. The sum invents nine
+   projects and overstates how many people went uncontacted.
+
+   Both are now stated correctly, and the real reason for the contact
+   boundary — eleven done carefully beats seventy-one done badly, which
+   `find_contacts.py` already argued in its own docstring — replaces a claim
+   that wasn't true. `anonymise()` records `repos_at_or_above_high` so the
+   union never has to be derived by addition again, and the filler reads it
+   from the scan or counts `disclosure.jsonl`, never by adding.
 2. **SEO pages per platform** (done): the seven platform/topic guides plus
    three per-provider "my key is exposed" pages, each ending with the hosted
    scanner.
