@@ -98,10 +98,37 @@ Database cascades and can't be revoked deeper, Storage being a separate rule
 set, and rules not being filters (which is why unconstrained queries fail
 and people loosen the rule instead of the query).
 
-Seven pages, fully interlinked. Remaining content ideas, in rough priority:
-per-provider landing pages ("Stripe key exposed", "Supabase service_role
-leaked") if the leaked-key page pulls traffic — its table is the obvious
-thing to split out.
+**Per-provider pages (done).** Three more, split out of the leaked-key
+table, for the searches people actually type at the moment it happens:
+Supabase `service_role`, Stripe secret key, OpenAI/Anthropic key. These earn
+their place because the *response* differs, not just the dashboard URL —
+which is the same doorway-page test the platform guides have to pass.
+
+Supabase: the anon and service_role keys look identical, so the page opens by
+decoding the JWT, and half the readers can stop there. Rotation has a real
+cost (regenerating the JWT secret signs every user out), and the aftermath is
+about data rather than billing. Stripe: money can move, the prefix tells you
+whether it's live, rolling has an expiry window that's a genuine trade-off,
+Developers → Logs gives a definitive answer about use, and the right
+replacement is a restricted key rather than another secret key. OpenAI: it's
+a bill and not a breach — past completions aren't retrievable and revoking
+costs nothing — so the page spends its length on the cause, which is nearly
+always `dangerouslyAllowBrowser` or a `VITE_`-prefixed variable, and on spend
+caps as the thing that actually bounds the damage.
+
+Supabase went first because it was the most common real leak in the corpus:
+five of the fifteen criticals. Sections 5 of the Supabase and Stripe pages
+report where the keys were actually found — migration scripts, deployment
+markdown, platform config — anonymised, and it's the part of each page that
+couldn't have been written without the research.
+
+Ten pages, fully interlinked. `tests/test_site.py` now asserts the wiring
+that used to be four manual edits per page: sitemap entry, dev-server route,
+home-page card, canonical matching the filename, no link to a page that
+doesn't exist, and at least three outbound links so no page is a dead end.
+Adding a guide and forgetting the sitemap was previously silent, and silent
+is the whole problem with SEO plumbing. It caught two over-long meta
+descriptions on the first run.
 
 Each platform guide should lead with what's genuinely specific to that tool
 rather than restating the checklist. Lovable's is Supabase RLS; Bolt's is
@@ -186,9 +213,9 @@ and leaves the judgement calls as review comments.
    "I scanned 100 vibe-coded apps; here's what leaked." (Do the scan of
    public repos for real — responsibly, reporting privately first — it's the
    single best content asset possible here.)
-2. **SEO pages per platform**: "Lovable app security checklist",
-   "Is my Bolt app secure?", "Cursor security best practices" — each ends
-   with the hosted scanner.
+2. **SEO pages per platform** (done): the seven platform/topic guides plus
+   three per-provider "my key is exposed" pages, each ending with the hosted
+   scanner.
 3. **X/Twitter build-in-public** thread series; the report screenshots are
    inherently shareable.
 4. **Community presence**: answer every "my key leaked" post in Lovable/Bolt

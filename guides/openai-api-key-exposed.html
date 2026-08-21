@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My OpenAI API key is exposed — what to do — vibecheck</title>
+<meta name="description" content="A leaked OpenAI or Anthropic key is a bill, not a breach. Revoke it in two minutes — then fix the reason it was reachable, because rotating alone will leak the next one too.">
+<link rel="canonical" href="https://psychosecurity.io/guides/openai-api-key-exposed">
+<meta name="theme-color" content="#0b0e14">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="vibecheck">
+<meta property="og:url" content="https://psychosecurity.io/guides/openai-api-key-exposed">
+<meta property="og:title" content="My OpenAI API key is exposed">
+<meta property="og:description" content="It's a bill, not a breach. Revoking takes two minutes — the part that matters is why it was reachable.">
+<meta property="og:image" content="https://psychosecurity.io/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://psychosecurity.io/og.png">
+<link rel="stylesheet" href="/guide.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="logo" href="/">vibe<span>check</span> 🔒</a>
+    <div class="byline">a psychosecurity.io tool</div>
+  </div>
+</header>
+
+<div class="wrap">
+<article>
+  <h1>My OpenAI API key is exposed</h1>
+  <p class="standfirst">Good news first: this is the least bad key to leak.
+  Nobody gets your data, nobody gets your users, and revoking it takes two
+  minutes with no side effects. The bad news is why it leaked — and that part
+  usually needs a code change, not a new key.</p>
+  <p>Everything here applies equally to an Anthropic key
+  (<code>sk-ant-</code>), a Google AI Studio key, or a Groq or Mistral key. The
+  dashboards differ; the shape of the problem doesn't.</p>
+
+  <div class="emergency">
+    <h2>Do this first</h2>
+    <ol>
+      <li><strong>Revoke it.</strong> OpenAI: platform.openai.com → API keys →
+      the ⋯ next to the key → Delete. Anthropic: console.anthropic.com → API
+      keys. Takes effect immediately.</li>
+      <li><strong>Create a replacement</strong> — project-scoped, not
+      account-wide, if you're offered the choice.</li>
+      <li><strong>Set a spend limit</strong> before you go anywhere else. Two
+      clicks, and it's the difference between a bad week and a bad month.</li>
+      <li><strong>Then find out why the key was reachable.</strong> Section 3.
+      This is the actual job.</li>
+    </ol>
+  </div>
+
+  <h2>1. What's actually at risk (less than you think)</h2>
+
+  <p>It's worth being precise, because people lose an afternoon to the wrong
+  worry:</p>
+
+  <table>
+    <thead><tr><th>Not at risk</th><th>At risk</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Your past conversations.</strong> An API key can't retrieve
+        completions you already made. There's no "read my history" endpoint to
+        abuse — whoever has the key can make new calls, not read old ones.</td>
+        <td><strong>Your money.</strong> Directly, at whatever rate they can
+        burn tokens. Leaked keys get collected and resold in bulk, and the
+        buyers are running production traffic on them.</td>
+      </tr>
+      <tr>
+        <td><strong>Your users' accounts.</strong> The key has nothing to do
+        with your app's auth. Nobody logs in as anyone.</td>
+        <td><strong>Your rate limits.</strong> Someone else's traffic on your
+        organisation means your real users hit 429s.</td>
+      </tr>
+      <tr>
+        <td><strong>Your customer data.</strong> Unless you put it in a
+        vector store or file that the same key can list — worth a look if you
+        use the Files or Assistants APIs.</td>
+        <td><strong>Your reputation with the provider.</strong> If the key gets
+        used for something against their policy, it's your organisation that
+        gets flagged.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout good">
+    <p>This is why the response is different from a leaked database or payments
+    key. There's no forensics to do on your data and nobody to notify. Cap the
+    spend, kill the key, fix the cause.</p>
+  </div>
+
+  <h2>2. Revoking costs you nothing, so don't hesitate</h2>
+
+  <p>Unlike a Supabase JWT rotation (which signs out every user) or a Stripe key
+  roll (which can drop live payments), revoking an LLM key breaks exactly one
+  thing: requests using that key. Deploy the replacement and it's over.</p>
+
+  <p>So there's no reason to wait, to schedule it, or to "check first whether it
+  was really public". If you're unsure, revoke. The worst case is five minutes
+  of a broken feature.</p>
+
+  <p>Note that you cannot read an existing key back out of either dashboard —
+  only the prefix is shown. If you're trying to work out whether the key in your
+  repository is the same as the live one, match the last four characters, or
+  just revoke both and start clean.</p>
+
+  <h2>3. The real problem is almost never the key</h2>
+
+  <p>Here's the pattern, and it's near-universal in AI-built apps: the key
+  leaked because <strong>the browser was calling the model provider
+  directly</strong>. Rotating gives you a fresh key in exactly the same
+  position — public — and it leaks again on the next deploy.</p>
+
+  <p>Two shapes to look for.</p>
+
+  <h3>The one with a warning label in the name</h3>
+
+  <pre><code>const openai = new OpenAI({
+  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+  dangerouslyAllowBrowser: true,   // ← this
+})</code></pre>
+
+  <p>The OpenAI SDK refuses to run in a browser unless you explicitly override
+  it, and it named the override <code>dangerouslyAllowBrowser</code> so nobody
+  could claim they weren't told. Anthropic's SDK has
+  <code>dangerouslyAllowBrowser</code> too. An AI coding tool hits the error,
+  reads the fix in the message, and adds the flag — the error goes away and the
+  key goes public.</p>
+
+  <h3>The one with no warning at all</h3>
+
+  <p>Any environment variable prefixed <code>VITE_</code>,
+  <code>NEXT_PUBLIC_</code>, <code>REACT_APP_</code>, <code>EXPO_PUBLIC_</code>
+  or <code>PUBLIC_</code> is <strong>compiled into the JavaScript you ship</strong>.
+  That's the entire purpose of the prefix. Your <code>.env</code> file being
+  gitignored changes nothing: the value is in the built bundle, and anyone can
+  read it with View Source.</p>
+
+  <div class="callout bad">
+    <p>If your key is in a <code>VITE_</code>-style variable, it is already
+    public to every visitor your site has ever had — whether or not it's also in
+    git. Revoking the key is step one; the variable has to stop existing.</p>
+  </div>
+
+  <h2>4. The fix: put a server in the middle</h2>
+
+  <p>The key belongs on a server. The browser calls your endpoint, your endpoint
+  calls the model. It's one small file, and every host you're likely to be on
+  has a place to put it:</p>
+
+  <ul>
+    <li><strong>Next.js:</strong> a route handler in <code>app/api/chat/route.ts</code></li>
+    <li><strong>Vercel / Netlify (any framework):</strong> a serverless function</li>
+    <li><strong>Supabase:</strong> an edge function, with the key in its secrets</li>
+    <li><strong>Vite SPA with no backend:</strong> this is the case that needs a
+    real decision — add a small serverless function, or move to a framework that
+    has somewhere to run server code. There is no client-side arrangement that
+    keeps the key secret. Obfuscation, encoding it, splitting it in half: all
+    still public.</li>
+  </ul>
+
+  <p>While you're adding that endpoint, add the two things that make it survive
+  contact with the internet, because an open proxy to a paid model is its own
+  kind of leak:</p>
+
+  <ul>
+    <li><strong>Check who's calling.</strong> Require a logged-in session, or at
+    minimum something that isn't just "anyone who found the URL".</li>
+    <li><strong>Rate limit it.</strong> Per user and per IP. Without this,
+    you've replaced a leaked key with a free public API that bills you.</li>
+  </ul>
+
+  <h2>5. Cap the damage before it happens</h2>
+
+  <p>The single highest-value thing on this page, and it takes a minute:</p>
+
+  <ul class="checklist">
+    <li><strong>Spend limits.</strong> OpenAI: Settings → Organization → Limits,
+    set a monthly budget and a notification threshold. Anthropic: Settings →
+    Limits. This is a hard ceiling on the worst case.</li>
+    <li><strong>Project-scoped keys.</strong> OpenAI keys can be scoped to a
+    single project with its own budget — one leak stops being an
+    account-wide problem.</li>
+    <li><strong>Prepaid credits rather than a card on file</strong>, if the
+    provider offers it. Your exposure is capped at the balance.</li>
+    <li><strong>Usage alerts</strong> to an address you actually read. Abuse
+    shows up as a spike, usually overnight, usually on the most expensive
+    model available.</li>
+    <li><strong>One key per app.</strong> Shared keys mean you can't tell whose
+    traffic is whose, and revoking breaks four things instead of one.</li>
+  </ul>
+
+  <h2>6. Checking whether it was used</h2>
+
+  <p>Both providers break usage down per key: OpenAI under Usage (group by API
+  key), Anthropic under Usage in the console. Look at the window between the
+  commit that exposed it and the moment you revoked.</p>
+
+  <p>What abuse looks like: a step change rather than a ramp, traffic at hours
+  when your app is quiet, and requests to models your code never calls — a
+  chat app that only ever uses a small model suddenly running the flagship one
+  is the giveaway.</p>
+
+  <p>If the bill is already large, contact the provider's support and tell them
+  the key was public and when. They can see the traffic pattern, they've handled
+  it many times, and credits for clearly fraudulent usage are not unheard of.
+  You get a much better hearing before the invoice than after it.</p>
+
+  <h2>7. The prompt</h2>
+
+  <p>Paste this into whatever built the app:</p>
+
+  <blockquote>Find every place an LLM API key appears in this repository —
+  OpenAI, Anthropic, Google, or any other provider — including markdown files,
+  scripts and environment examples. Remove every client-side use: delete any
+  dangerouslyAllowBrowser flag, and remove any key from a VITE_, NEXT_PUBLIC_,
+  REACT_APP_ or EXPO_PUBLIC_ variable. Move the model calls into a server-side
+  route that reads the key from process.env, requires an authenticated session,
+  and rate limits per user. Then list every file you changed and every key you
+  found, so I know which ones to revoke.</blockquote>
+
+  <p>That last clause matters more than it looks. Revoke every key it finds,
+  not just the one that sent you here — if one was reachable, the others in the
+  same repository probably were too.</p>
+
+  <div class="cta">
+    <h2>Check whether there's another one</h2>
+    <p>vibecheck scans your project for exposed keys, secrets compiled into
+    frontend bundles, and <code>dangerouslyAllowBrowser</code> — and explains
+    each one in plain English, with a fix prompt to paste back into your AI
+    coding tool.</p>
+    <a class="btn" href="/">Scan my project — free</a>
+  </div>
+
+  <div class="related">
+    <h2>Related</h2>
+    <ul>
+      <li><a href="/guides/api-key-leaked">My API key leaked — what now?</a> — the general version, all providers</li>
+      <li><a href="/guides/stripe-secret-key-exposed">My Stripe secret key is exposed</a> — the one that can move money</li>
+      <li><a href="/guides/supabase-service-role-key-exposed">My Supabase service_role key is exposed</a> — the one that costs data</li>
+      <li><a href="/guides/ai-app-security-checklist">The AI app security checklist</a> — everything else worth checking</li>
+    </ul>
+  </div>
+</article>
+
+<footer>
+  <p><strong>Two rules of thumb:</strong> browser code cannot keep a secret, and
+  deleting a leaked key does not un-leak it — rotate it.</p>
+  <p style="margin-top:8px">vibecheck · a <strong>psychosecurity.io</strong> tool</p>
+</footer>
+</div>
+
+</body>
+</html>

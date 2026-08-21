@@ -32,6 +32,9 @@ STATIC = {
     "/guides/cursor-claude-code-security": ("guides/cursor-claude-code-security.html", "text/html; charset=utf-8"),
     "/guides/firebase-app-security": ("guides/firebase-app-security.html", "text/html; charset=utf-8"),
     "/guides/ai-app-security-checklist": ("guides/ai-app-security-checklist.html", "text/html; charset=utf-8"),
+    "/guides/supabase-service-role-key-exposed": ("guides/supabase-service-role-key-exposed.html", "text/html; charset=utf-8"),
+    "/guides/stripe-secret-key-exposed": ("guides/stripe-secret-key-exposed.html", "text/html; charset=utf-8"),
+    "/guides/openai-api-key-exposed": ("guides/openai-api-key-exposed.html", "text/html; charset=utf-8"),
 }
 
 

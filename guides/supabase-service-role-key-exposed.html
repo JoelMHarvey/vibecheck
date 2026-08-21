@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Supabase service_role key is exposed — what to do — vibecheck</title>
+<meta name="description" content="A leaked Supabase service_role key bypasses every Row Level Security policy you have. How to tell it from the harmless anon key, rotate without logging out your users, and check what was reachable.">
+<link rel="canonical" href="https://psychosecurity.io/guides/supabase-service-role-key-exposed">
+<meta name="theme-color" content="#0b0e14">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="vibecheck">
+<meta property="og:url" content="https://psychosecurity.io/guides/supabase-service-role-key-exposed">
+<meta property="og:title" content="My Supabase service_role key is exposed">
+<meta property="og:description" content="It bypasses every RLS policy you have. What to do, in order — and why rotating isn't the whole job.">
+<meta property="og:image" content="https://psychosecurity.io/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://psychosecurity.io/og.png">
+<link rel="stylesheet" href="/guide.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="logo" href="/">vibe<span>check</span> 🔒</a>
+    <div class="byline">a psychosecurity.io tool</div>
+  </div>
+</header>
+
+<div class="wrap">
+<article>
+  <h1>My Supabase service_role key is exposed</h1>
+  <p class="standfirst">This is the worst key you own, and it is also the one
+  most likely to end up committed — because it's the one that makes your
+  migration script work. Here's what to do, in order.</p>
+
+  <div class="emergency">
+    <h2>Do this first</h2>
+    <ol>
+      <li><strong>Confirm it's actually the service_role key</strong> and not
+      the anon key. They look identical and only one is an emergency. Thirty
+      seconds, below.</li>
+      <li><strong>Rotate it</strong> in the Supabase dashboard, under Settings
+      → API.</li>
+      <li><strong>Then</strong> look at your data, not just your billing. This
+      is the part people skip.</li>
+    </ol>
+  </div>
+
+  <h2>1. Which key is it? Decode it and see</h2>
+
+  <p>Supabase gives you two keys that look the same — long, three-part strings
+  starting <code>eyJ</code>. One is public by design and one is catastrophic.
+  Before you do anything else, find out which one you're holding.</p>
+
+  <p>They're JWTs, which means they aren't encrypted, just encoded. Paste the
+  middle section (between the two dots) into any base64 decoder, or run:</p>
+
+  <pre><code>echo 'PASTE_THE_MIDDLE_SECTION' | base64 -d</code></pre>
+
+  <p>You'll get something like <code>{"iss":"supabase","role":"anon",...}</code>
+  or <code>{"role":"service_role",...}</code>. That word is the whole answer:</p>
+
+  <table>
+    <thead><tr><th>Role</th><th>What it means</th></tr></thead>
+    <tbody>
+    <tr>
+      <td><code>anon</code></td>
+      <td><strong>Not an emergency.</strong> This key is meant to be public —
+      it's in your page source and always has been. It only does what your Row
+      Level Security policies allow. If this is the one that leaked, you have
+      not lost anything. Go and check your RLS policies are actually written,
+      then get on with your day.</td>
+    </tr>
+    <tr>
+      <td><code>service_role</code></td>
+      <td><strong>Emergency.</strong> Keep reading.</td>
+    </tr>
+    </tbody>
+  </table>
+
+  <p>Newer Supabase projects use a different format —
+  <code>sb_publishable_…</code> and <code>sb_secret_…</code> — where the name
+  tells you directly. Same distinction, less decoding.</p>
+
+  <h2>2. Why this one is different from other leaked keys</h2>
+
+  <p>A leaked OpenAI key costs you money. A leaked service_role key costs you
+  your data, and the difference matters for what you do next.</p>
+
+  <p>The service_role key <strong>bypasses Row Level Security entirely</strong>.
+  Not "has broad permissions" — bypasses. Every policy you carefully wrote,
+  every <code>auth.uid() = user_id</code> check, stops applying. Anyone holding
+  that key can read, edit and delete every row in every table in your project,
+  from their own laptop, without touching your app.</p>
+
+  <div class="callout bad">
+    <p>That's why rotating isn't the whole job. With most leaked keys, the
+    question is "what did it cost me". With this one, the question is
+    <strong>"what did they see, and did they change anything"</strong> — and
+    the answer isn't in your billing page.</p>
+  </div>
+
+  <h2>3. Rotating it — and the thing that catches people</h2>
+
+  <p>In the dashboard: <strong>Settings → API</strong>. Newer projects can
+  revoke and reissue the secret key on its own, which is clean and
+  uneventful.</p>
+
+  <p>Older projects, using the JWT-based keys, have a catch worth knowing
+  before you click:</p>
+
+  <div class="callout bad">
+    <p><strong>Regenerating the JWT secret invalidates both keys and signs
+    every user out.</strong> The anon key changes too — so any deployed
+    frontend still holding the old one stops working until you redeploy with
+    the new value — and existing sessions become invalid, so all your logged-in
+    users get logged out at once.</p>
+    <p style="margin-top:12px">That's survivable, and it's much better than
+    leaving the key live. But do it knowing it will happen, rather than
+    discovering it from a support message ten minutes later. Have the new anon
+    key ready to deploy before you rotate.</p>
+  </div>
+
+  <p>Deleting the key from the file is not rotation. It stays in your git
+  history, and public repositories are crawled for credentials within minutes
+  of a push — frequently faster than you'll finish reading this page.</p>
+
+  <h2>4. What to actually check afterwards</h2>
+
+  <p>Because the key bypasses RLS rather than using it, ordinary application
+  logs won't show the access — it didn't go through your app. Look at the
+  data itself:</p>
+
+  <ul>
+    <li><strong>Rows you didn't create.</strong> Sort your main tables by
+    <code>created_at</code> descending and look for entries with no matching
+    application activity. Injected admin users are the classic one — check any
+    roles or permissions table first.</li>
+    <li><strong>Rows that changed without a reason.</strong> If you have
+    <code>updated_at</code> columns, the same trick.</li>
+    <li><strong>Missing rows.</strong> Harder to spot, which is why a backup
+    from before the exposure window is worth pulling now while you still know
+    the dates.</li>
+    <li><strong>Storage buckets.</strong> The service_role key reaches those
+    too, and people forget them because they think in tables.</li>
+  </ul>
+
+  <p>If your project holds other people's personal data and you find evidence
+  of access, that may be a reportable breach where you are. That's a question
+  for someone who knows your jurisdiction, and it's a much easier question to
+  answer while the dates are fresh.</p>
+
+  <h2>5. Where it usually leaked from</h2>
+
+  <p>Scanning a couple of hundred public AI-built apps, the service_role key
+  was the most common serious finding by a distance — and it was almost never
+  in the application code. It was in the supporting cast:</p>
+
+  <ul>
+    <li><strong>One-off migration and seed scripts.</strong>
+    <code>run-migration.mjs</code>, <code>setup-database.js</code>,
+    <code>add-column.ts</code>. These need to bypass RLS, which is exactly why
+    they get the powerful key — and they're written in a hurry and never
+    reviewed.</li>
+    <li><strong>Deployment notes.</strong> <code>DEPLOYMENT.md</code>,
+    <code>VERCEL_ENV_VARS.md</code>, <code>DEPLOY_OPTIONS.md</code>. Someone
+    pastes the real environment variables into a markdown file so they can
+    copy them into a dashboard later, and the file gets committed. Markdown
+    doesn't feel like code, so it doesn't feel like a leak.</li>
+    <li><strong>Platform config files.</strong> <code>.replit</code>,
+    deploy scripts, CI files.</li>
+  </ul>
+
+  <p>Notice what those have in common: none of them is the app. If you're
+  checking whether you've done this, grep the whole repository, not just
+  <code>src/</code>.</p>
+
+  <h2>6. Keeping it out next time</h2>
+
+  <p>The service_role key belongs in exactly two places: a server-side
+  environment variable, and an edge function's secrets. Nowhere else, ever.</p>
+
+  <ul class="checklist">
+    <li>Key read from <code>process.env</code>, never a literal</li>
+    <li>Never in a <code>VITE_</code> / <code>NEXT_PUBLIC_</code> / <code>REACT_APP_</code> variable — those compile into the browser bundle</li>
+    <li>Scripts that need it read it from the environment too, not from a constant at the top</li>
+    <li><code>.env</code> in <code>.gitignore</code>, and check it's actually covered</li>
+    <li>Row Level Security enabled and scoped on every table, so the anon key alone can't do damage</li>
+    <li>GitHub push protection on, so the next one gets stopped before it lands</li>
+  </ul>
+
+  <p>Paste this into whatever built the app:</p>
+
+  <blockquote>Find every place my Supabase service_role key appears in this
+  repository, including markdown files, deployment notes, scripts and config
+  files. Replace each with a read from an environment variable named
+  SUPABASE_SERVICE_ROLE_KEY, move any client-side usage into a server-side
+  route or edge function, and list every file you changed so I can confirm
+  nothing was missed.</blockquote>
+
+  <div class="cta">
+    <h2>Check whether there's another one</h2>
+    <p>vibecheck scans your project for exposed keys — decoding Supabase JWTs
+    to tell a harmless anon key from a service_role one — and tells you in
+    plain English, with a fix prompt to paste back into your AI coding tool.</p>
+    <a class="btn" href="/">Scan my project — free</a>
+  </div>
+
+  <div class="related">
+    <h2>Related</h2>
+    <ul>
+      <li><a href="/guides/api-key-leaked">My API key leaked — what now?</a> — the general version, all providers</li>
+      <li><a href="/guides/lovable-app-security">Is my Lovable app secure?</a> — Row Level Security, and getting it right the first time</li>
+      <li><a href="/guides/ai-app-security-checklist">The AI app security checklist</a> — everything else worth checking</li>
+      <li><a href="/guides/firebase-app-security">Is my Firebase app secure?</a> — the same story, on the other database</li>
+      <li><a href="/guides/stripe-secret-key-exposed">My Stripe secret key is exposed</a> — the one that can move money</li>
+      <li><a href="/guides/openai-api-key-exposed">My OpenAI API key is exposed</a> — a bill, not a breach</li>
+    </ul>
+  </div>
+</article>
+
+<footer>
+  <p><strong>Two rules of thumb:</strong> browser code cannot keep a secret, and
+  deleting a leaked key does not un-leak it — rotate it.</p>
+  <p style="margin-top:8px">vibecheck · a <strong>psychosecurity.io</strong> tool</p>
+</footer>
+</div>
+
+</body>
+</html>
