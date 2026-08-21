@@ -277,6 +277,28 @@ and leaves the judgement calls as review comments.
    declined. It now asks the terminal directly when stdin is spent, and when
    there is genuinely nobody to ask it says so and names the two ways out
    instead of pretending someone said no.
+
+   Drafting the one remaining disclosure email exposed a precision problem
+   worth more than the email. The URI credential rules match any
+   `user:pass@host`, which is also exactly how database documentation writes
+   a connection string, and `looks_like_placeholder` only ever tested the
+   matched text for substrings like "example" or "your_". In one repository
+   that produced twenty-five hits out of README files, deployment guides and
+   a `.env.production.example` — one of them inside a `SECRET_PREVENTION.md`,
+   a document about not committing secrets — against six from code that runs.
+   That rule is the writeup's fifth most common finding at 8.3%, so the
+   inflation reached the post as well as the reports.
+
+   The fix tests the password itself, not the path. Path-based demotion was
+   considered and rejected once already: the most serious finding in the
+   whole corpus was a live Stripe key in a `DEPLOYMENT_SUCCESS.md`, and
+   demoting secrets in markdown would have buried it. A value test cuts the
+   right way in both directions — `user:password` is an illustration wherever
+   it appears, and a real credential in prose still fires.
+
+   Matched whole, never as a substring. "password" is a placeholder;
+   "MyPassword2024!" is somebody's credential, and a substring check throws
+   the second away — the one error here nobody ever notices.
 2. **SEO pages per platform** (done): the seven platform/topic guides plus
    three per-provider "my key is exposed" pages, each ending with the hosted
    scanner.
