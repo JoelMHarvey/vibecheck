@@ -24,11 +24,12 @@ spec.loader.exec_module(fw)
 
 def aggregate(**over):
     base = {
-        "repos_scanned": 192,
+        "repos_scanned": 189,
         "clean_pct": 12.0,
         "repos_at_or_above_high": 71,
         "targets_attempted": 200,
-        "targets_excluded": 8,
+        "targets_excluded": 7,
+        "targets_failed": 4,
         "score": {"mean": 67.2, "median": 85.0, "min": 0, "max": 100},
         "repos_with_severity": {
             "critical": {"count": 11, "pct": 5.7},
@@ -54,7 +55,7 @@ def aggregate(**over):
 class TestValues(unittest.TestCase):
     def test_numbers_come_from_the_file(self):
         v = fw.values_from(aggregate())
-        self.assertEqual(v["N_REPOS"], 192)
+        self.assertEqual(v["N_REPOS"], 189)
         self.assertEqual(v["PCT_ANY_CRITICAL"], 5.7)
         self.assertEqual(v["PCT_ANY_HIGH"], 35.9)
         self.assertEqual(v["N_ANY_CRITICAL"], 11)
@@ -178,6 +179,39 @@ class TestInfoRulesAreNotProblems(unittest.TestCase):
                 self.assertIn(rule_id, severities)
 
 
+class TestSampleAccounting(unittest.TestCase):
+    """An exclusion and a failure are not the same thing.
+
+    An exclusion is a filter that was chosen — a prompt directory with no
+    application code, which would score 100 and mean nothing. A clone failure
+    is a hole: probably a real app, contents unknown. Reporting the second as
+    the first describes the sample as tidier than it was, in the one section
+    of the post whose whole job is admitting what it doesn't cover.
+    """
+
+    def test_both_counts_are_available(self):
+        v = fw.values_from(aggregate())
+        self.assertEqual(v["N_EXCLUDED"], 7)
+        self.assertEqual(v["N_FAILED"], 4)
+
+    def test_they_account_for_the_whole_gap(self):
+        # scanned + excluded + failed must equal attempted, or the caveat
+        # leaves repos unaccounted for and a reader can spot it.
+        v = fw.values_from(aggregate())
+        self.assertEqual(v["N_REPOS"] + v["N_EXCLUDED"] + v["N_FAILED"],
+                         v["N_ATTEMPTED"])
+
+    def test_no_failures_is_zero_not_missing(self):
+        # Zero is a real answer — everything cloned. It must fill, not refuse.
+        v = fw.values_from(aggregate(targets_failed=0))
+        self.assertEqual(v["N_FAILED"], 0)
+
+    def test_an_aggregate_predating_the_field_refuses(self):
+        old = aggregate()
+        del old["targets_failed"]
+        self.assertIsNone(fw.values_from(old)["N_FAILED"])
+
+
 class TestFill(unittest.TestCase):
     def test_a_placeholder_with_no_value_is_reported_not_guessed(self):
         text, missing = fw.fill("scanned {{N_REPOS}}, found {{NOT_A_THING}}",
@@ -229,7 +263,7 @@ class TestEndToEnd(unittest.TestCase):
         self.assertEqual(code, 0, output)
         text = self.out.read_text(encoding="utf-8")
         self.assertNotIn("{{", text)
-        self.assertIn("192", text)
+        self.assertIn("189", text)
 
     def test_it_refuses_to_write_when_something_is_missing(self):
         code, output = self.run_it(aggregate(), template="i scanned {{WHAT}} apps")

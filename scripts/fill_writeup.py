@@ -107,6 +107,12 @@ def values_from(aggregate: dict, disclosed=None) -> dict:
         "N_ANY_CRITICAL": (severity.get("critical") or {}).get("count"),
         "N_ANY_HIGH": (severity.get("high") or {}).get("count"),
         "N_EXCLUDED": aggregate.get("targets_excluded"),
+        # Repos that could not be cloned. Not the same thing as an exclusion
+        # and the post must not merge the two: an exclusion is a filter we
+        # chose, a failure is a hole in the sample we don't know the contents
+        # of. Both have to be subtracted from the attempted count for the
+        # arithmetic in the caveat to work.
+        "N_FAILED": aggregate.get("targets_failed"),
         "N_ATTEMPTED": aggregate.get("targets_attempted"),
     }
     # Everyone at critical *or* high: the set the disclosure run contacts.

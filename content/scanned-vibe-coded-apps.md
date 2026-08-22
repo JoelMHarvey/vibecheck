@@ -140,9 +140,12 @@ the scanner looks for known patterns. a clean score means it didn't find those
 patterns, not that your app is secure — it doesn't understand your auth logic or
 your database rules, and it never will.
 
-i started from {{N_ATTEMPTED}} candidate repos and scanned {{N_REPOS}} of them;
-the rest were excluded for having no application code in them at all — prompt
-collections and link lists, mostly, which score perfectly and mean nothing.
+i started from {{N_ATTEMPTED}} candidate repos and scanned {{N_REPOS}} of them.
+{{N_EXCLUDED}} were dropped for having no application code in them at all —
+prompt collections and link lists, mostly, which score perfectly and mean
+nothing. a further {{N_FAILED}} couldn't be cloned. that second number is a
+hole rather than a filter: those were probably real apps and i have no idea
+what was in them.
 
 the sample is public repos, which is a biased slice. people who commit their app
 to a public GitHub repo are probably not identical to people who ship on Lovable
