@@ -218,6 +218,69 @@ class TestConfirm(unittest.TestCase):
             self.assertIsNone(mr.confirm("ok? "))
 
 
+class TestNotes(TrackerCase):
+    """A maintainer who replied is not in the same position as one who didn't.
+
+    On day seven that difference decides who gets a follow-up, and template 4
+    is explicit that a second message is diligence while a third is
+    harassment. So it has to be recorded somewhere other than an inbox.
+    """
+
+    def test_a_note_lands_on_a_repo_already_reported(self):
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-21",
+                             note="contacted by email")])
+        code, _ = self.run_it("a/one", "--note", "acknowledged", "--on", "2026-08-21")
+        self.assertEqual(code, 0)
+        note = self.read()["a/one"]["note"]
+        self.assertIn("contacted by email", note)
+        self.assertIn("acknowledged 2026-08-21", note)
+
+    def test_annotating_does_not_move_the_disclosure_date(self):
+        # Restarting the fourteen days because somebody said thanks would be
+        # absurd, and silent.
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-01")])
+        self.run_it("a/one", "--note", "acknowledged")
+        row = self.read()["a/one"]
+        self.assertEqual(row["reported_on"], "2026-08-01")
+        self.assertEqual(row["status"], "reported")
+
+    def test_a_note_on_a_pending_repo_marks_it_and_annotates(self):
+        self.write([self.row("a/one")])
+        self.run_it("a/one", "--note", "replied same day", "--on", "2026-08-21")
+        row = self.read()["a/one"]
+        self.assertEqual(row["status"], "reported")
+        self.assertIn("contacted by email", row["note"])
+        self.assertIn("replied same day 2026-08-21", row["note"])
+
+    def test_the_same_note_twice_is_not_written_twice(self):
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-21")])
+        self.run_it("a/one", "--note", "acknowledged", "--on", "2026-08-21")
+        self.run_it("a/one", "--note", "acknowledged", "--on", "2026-08-21")
+        self.assertEqual(self.read()["a/one"]["note"].count("acknowledged"), 1)
+
+    def test_without_a_note_an_already_reported_repo_is_still_skipped(self):
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-01",
+                             note="contacted by email")])
+        _, output = self.run_it("a/one")
+        self.assertIn("already reported", output)
+        self.assertEqual(self.read()["a/one"]["note"], "contacted by email")
+
+    def test_the_summary_counts_marks_and_annotations_separately(self):
+        self.write([self.row("a/new"),
+                    self.row("b/old", status="reported", reported_on="2026-08-01")])
+        _, output = self.run_it("a/new", "b/old", "--note", "acknowledged")
+        self.assertIn("1 marked reported", output)
+        self.assertIn("1 annotated", output)
+
+    def test_an_existing_note_is_never_overwritten(self):
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-01",
+                             note="issues are off · contacted by email")])
+        self.run_it("a/one", "--note", "acknowledged")
+        note = self.read()["a/one"]["note"]
+        self.assertIn("issues are off", note)
+        self.assertIn("contacted by email", note)
+
+
 class TestReporting(TrackerCase):
     def test_it_says_how_many_criticals_are_still_unreported(self):
         self.write([self.row("a/one"), self.row("b/two"), self.row("c/high", severity="high")])
