@@ -72,6 +72,33 @@ def note_for(existing: str, route: str) -> str:
     return append_note(existing, f"contacted by {route}")
 
 
+def publication_date(rows, window: int):
+    """The earliest defensible publication date, from the tracker itself.
+
+    The window runs from the *last* person told, not from whatever date this
+    particular invocation was given. Deriving it from --on was wrong in a way
+    that looked authoritative: on an annotate-only run --on means "when they
+    replied", so recording an acknowledgement printed a publication date
+    earlier than the real one, immediately after a run that had printed the
+    right one.
+
+    Returns (date, latest_reported_on), or (None, None) if nobody has been
+    reported yet — no date is the honest answer then, not today plus fourteen.
+    """
+    dates = []
+    for row in rows:
+        if row.get("status") != "reported":
+            continue
+        try:
+            dates.append(date.fromisoformat(row.get("reported_on", "")))
+        except ValueError:
+            continue      # a row recorded before dates were kept
+    if not dates:
+        return None, None
+    latest = max(dates)
+    return latest + timedelta(days=window), latest
+
+
 def plan(rows, wanted, route, on, note=""):
     """What each named repo would become.
 
@@ -223,7 +250,7 @@ def main(argv=None) -> int:
         row.update(updates.get(row["repo"], {}))
     write_tracker(tracker_path, rows)
 
-    publish_after = on + timedelta(days=args.window)
+    publish_after, last_told = publication_date(rows, args.window)
     remaining = sum(1 for row in rows
                     if row.get("worst_severity") == "critical"
                     and row.get("status") != "reported")
@@ -233,7 +260,12 @@ def main(argv=None) -> int:
         part for part in (f"{marked} marked reported" if marked else "",
                           f"{annotated} annotated" if annotated else "") if part)
     print(f"\n  {summary} -> {tracker_path}")
-    print(f"  Earliest honest publication date: {publish_after.isoformat()}")
+    if publish_after:
+        print(f"  Earliest honest publication date: {publish_after.isoformat()}"
+              f"  ({args.window} days after {last_told.isoformat()}, the last "
+              f"person told)")
+    else:
+        print("  No publication date yet — nobody is marked reported.")
     if remaining:
         print(f"\n  {remaining} critical repo(s) still not reported. Those are the ones "
               f"with a\n  live credential, and the post's claim to have contacted them "
