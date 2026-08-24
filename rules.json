@@ -86,9 +86,14 @@
    "t": "Hardcoded password"
   },
   "innerhtml-assignment": {
-   "d": "Setting innerHTML (or dangerouslySetInnerHTML) with anything derived from user input lets attackers inject scripts into your page \u2014 stealing sessions or defacing your app for other users.",
+   "d": "HTML is being built from a variable rather than a fixed string. That is only a problem if the variable can hold something a stranger chose \u2014 the scanner can see the pattern but not where the value came from, so this is worth a look rather than a finding. If the value is ever user input, it is an XSS hole; if it is your own markup, it is fine.",
    "f": "innerHTML is assigned in {path} on line {line}. If the content includes any user-provided data, switch to textContent, or sanitize the HTML with a library like DOMPurify before inserting it.",
-   "t": "HTML built from strings (XSS risk)"
+   "t": "HTML built from a variable"
+  },
+  "innerhtml-untrusted-input": {
+   "d": "HTML is being built from a value that comes from outside your app \u2014 the URL, a form field, a request, or browser storage. Anyone who controls that value can inject a script that runs for whoever views the page, stealing their session or defacing the app for them.",
+   "f": "In {path} on line {line}, HTML is built from a value that comes from outside the app (the URL, a form field, a request, or storage) and assigned to innerHTML. Use textContent if the value is meant to be text, or sanitize it with DOMPurify before inserting it as HTML. Check the rest of the file for the same pattern.",
+   "t": "HTML built from user-controlled data (XSS risk)"
   },
   "jwt-secret-hardcoded": {
    "d": "The secret used to sign your login tokens is written in the code. Anyone who reads it can forge a valid login token for ANY user of your app, including admins.",

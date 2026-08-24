@@ -34,18 +34,22 @@ was {{MEDIAN_SCORE}} out of 100, and {{PCT_CLEAN}}% were completely clean.
 
 the most common problems, by share of apps affected:
 
-- {{RULE_1_PCT}}% — {{RULE_1_NAME}}
-- {{RULE_2_PCT}}% — {{RULE_2_NAME}}
-- {{RULE_3_PCT}}% — {{RULE_3_NAME}}
-- {{RULE_4_PCT}}% — {{RULE_4_NAME}}
-- {{RULE_5_PCT}}% — {{RULE_5_NAME}}
+- {{RULE_1_PCT}}% — {{RULE_1_NAME}} ({{RULE_1_SEVERITY}})
+- {{RULE_2_PCT}}% — {{RULE_2_NAME}} ({{RULE_2_SEVERITY}})
+- {{RULE_3_PCT}}% — {{RULE_3_NAME}} ({{RULE_3_SEVERITY}})
+- {{RULE_4_PCT}}% — {{RULE_4_NAME}} ({{RULE_4_SEVERITY}})
+- {{RULE_5_PCT}}% — {{RULE_5_NAME}} ({{RULE_5_SEVERITY}})
 
-a caveat on that list, because the top of it is the number people will push
-back on: these are pattern matches, not confirmed exploits. the scanner can see
-that HTML is being built out of a variable. it cannot see whether that variable
-ever holds someone else's input, and in plenty of these apps it won't. the
-credential figures above are the ones i'd defend one at a time. this list is
-prevalence, which is the weaker claim.
+the severity tags on that list are doing real work, so don't skip them. a low
+is a pattern worth a look, not a demonstrated hole. "HTML built from a
+variable" is the clearest case: the scanner can see the pattern but not where
+the value came from, and in most of these apps it came from the app itself.
+where it could actually see the value arriving from the URL, a form field or a
+request, that's a separate and higher finding, and it's a much smaller number.
+
+i mention this because the big percentage is the one people will push back on,
+and they'd be right to. the credential figures further up are the ones i'd
+defend one at a time. this list is prevalence, which is the weaker claim.
 
 i also left something out of it on purpose. Supabase anon keys turned up in a
 lot of these apps, and that is not a finding — the anon key is meant to be

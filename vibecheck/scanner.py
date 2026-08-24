@@ -25,6 +25,9 @@ from .rules import (
     SUPABASE_ANON_INFO,
     SUPABASE_SERVICE_ROLE,
     Rule,
+    INNERHTML_RULE_ID,
+    INNERHTML_UNTRUSTED,
+    UNTRUSTED_SOURCE_RE,
     looks_like_placeholder,
 )
 
@@ -367,6 +370,15 @@ def scan_text(rel_path: str, text: str) -> List[Finding]:
 
                 effective_rule = rule
                 severity = rule.severity
+
+                # innerHTML from a named untrusted source is a different
+                # finding from innerHTML from any variable, and saying so is
+                # the difference between a statistic and a defect. Resolved
+                # here rather than in the pattern because the signal is
+                # elsewhere on the line, not inside the match.
+                if rule.id == INNERHTML_RULE_ID and UNTRUSTED_SOURCE_RE.search(line):
+                    effective_rule = INNERHTML_UNTRUSTED
+                    severity = INNERHTML_UNTRUSTED.severity
 
                 if rule.id == JWT_RULE_ID:
                     role = _decode_jwt_role(match.group(0))
