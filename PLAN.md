@@ -286,6 +286,16 @@ and leaves the judgement calls as review comments.
    thanks would be both absurd and silent — and the day-seven list becomes a
    filter on the tracker rather than a trawl through a sent folder.
 
+   Recording the first replies then exposed a worse bug in the same tool. The
+   publication date was `--on + window`, and on an annotate-only run `--on`
+   means "when they replied" — so logging an acknowledgement printed a date
+   *earlier* than the real one, straight after a run that had printed the
+   right one. Two contradicting dates, the wrong one last, on the number the
+   whole disclosure window rests on. It now comes from the latest
+   `reported_on` in the tracker, which is the actual answer in every mode and
+   cannot be made to contradict itself, and the line names the date it
+   counted from so the arithmetic is checkable rather than trusted.
+
    Drafting the one remaining disclosure email exposed a precision problem
    worth more than the email. The URI credential rules match any
    `user:pass@host`, which is also exactly how database documentation writes

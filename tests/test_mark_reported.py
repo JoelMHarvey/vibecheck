@@ -304,6 +304,69 @@ class TestReporting(TrackerCase):
         self.assertEqual(oct(self.tracker.stat().st_mode)[-3:], "600")
 
 
+class TestPublicationDate(TrackerCase):
+    """The window runs from the last person told — not from --on.
+
+    Deriving it from --on was wrong in a way that looked authoritative. On an
+    annotate-only run --on means "when they replied", so logging a reply
+    printed a publication date *earlier* than the real one, immediately after
+    a run that had printed the right one. Two contradicting dates, the wrong
+    one last.
+    """
+
+    def test_it_comes_from_the_latest_contact_not_the_earliest(self):
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-21"),
+                    self.row("b/two", status="reported", reported_on="2026-08-22")])
+        self.assertEqual(mr.publication_date(self.read().values(), 14)[0],
+                         date(2026, 9, 5))
+
+    def test_annotating_an_older_reply_does_not_move_it_earlier(self):
+        # The exact bug: --on 2026-08-21 on a tracker whose last contact was
+        # the 22nd must still say the 5th, not the 4th.
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-21"),
+                    self.row("b/two", status="reported", reported_on="2026-08-22")])
+        _, output = self.run_it("a/one", "--note", "acknowledged", "--on", "2026-08-21")
+        self.assertIn("2026-09-05", output)
+        self.assertNotIn("2026-09-04", output)
+
+    def test_unreported_rows_do_not_count(self):
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-21"),
+                    self.row("b/two", status="reporting-disabled")])
+        self.assertEqual(mr.publication_date(self.read().values(), 14)[0],
+                         date(2026, 9, 4))
+
+    def test_nobody_reported_yet_has_no_date(self):
+        # Today plus fourteen would be a promise nobody was given.
+        self.write([self.row("a/one")])
+        self.assertEqual(mr.publication_date(self.read().values(), 14), (None, None))
+
+    def test_every_reported_row_having_an_unusable_date_also_yields_none(self):
+        # Defensive: main() always leaves at least one dated row behind, so
+        # this is only reachable with a hand-edited tracker. Better a plain
+        # sentence than a date invented from today.
+        self.write([self.row("a/one", status="reported", reported_on="not a date")])
+        self.assertEqual(mr.publication_date(self.read().values(), 14), (None, None))
+
+    def test_a_row_with_no_date_is_skipped_not_a_crash(self):
+        # Rows recorded before dates were kept, or hand-edited.
+        self.write([self.row("a/one", status="reported", reported_on=""),
+                    self.row("b/two", status="reported", reported_on="2026-08-22")])
+        self.assertEqual(mr.publication_date(self.read().values(), 14)[0],
+                         date(2026, 9, 5))
+
+    def test_the_window_is_configurable(self):
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-22")])
+        self.assertEqual(mr.publication_date(self.read().values(), 30)[0],
+                         date(2026, 9, 21))
+
+    def test_the_output_names_the_date_it_counted_from(self):
+        # So a reader can check the arithmetic instead of trusting it.
+        self.write([self.row("a/one")])
+        _, output = self.run_it("a/one", "--on", "2026-08-22")
+        self.assertIn("2026-09-05", output)
+        self.assertIn("last person told", output)
+
+
 class TestSlugInput(TrackerCase):
     def test_slugs_can_come_from_a_file(self):
         self.write([self.row("a/one"), self.row("b/two")])
