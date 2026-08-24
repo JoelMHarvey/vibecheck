@@ -45,6 +45,41 @@ def rule_severities() -> dict:
     return {rule.id: rule.severity for rule in ALL_RULES}
 
 
+def placeholder_stem(rule_id: str) -> str:
+    """RULE_INNERHTML_UNTRUSTED_INPUT from innerhtml-untrusted-input.
+
+    Rule IDs never start with a digit, so these can't collide with the
+    RULE_1..RULE_5 slots that hold the top of the list.
+    """
+    return "RULE_" + rule_id.upper().replace("-", "_")
+
+
+def named_rule_values(aggregate: dict) -> dict:
+    """Every rule addressable by name, so prose can cite one that didn't
+    make the top five.
+
+    The caveat about innerHTML claims the escalated variant is "a much
+    smaller number" than the vague one. That comparison has to be shown, not
+    asserted, and the vague one is the only half of it that ranks.
+
+    A rule the scanner can emit but that fired nowhere gets 0, because zero
+    is a real answer. A name that isn't a rule at all gets nothing, so a
+    typo in the template fails the run instead of quietly reading as 0%.
+    """
+    stats = {rule["rule_id"]: rule for rule in aggregate.get("rules", [])}
+    titles = rule_titles()
+    severity = rule_severities()
+    values = {}
+    for rule_id in severity:
+        stem = placeholder_stem(rule_id)
+        found = stats.get(rule_id)
+        values[f"{stem}_PCT"] = found["repos_affected_pct"] if found else 0
+        values[f"{stem}_REPOS"] = found["repos_affected"] if found else 0
+        values[f"{stem}_NAME"] = titles.get(rule_id, rule_id)
+        values[f"{stem}_SEVERITY"] = severity[rule_id]
+    return values
+
+
 def problem_rules(rules):
     """The rules worth calling problems, and the ones held back.
 
@@ -122,6 +157,8 @@ def values_from(aggregate: dict, disclosed=None) -> dict:
     # written before the scanner recorded it has no value here rather than a
     # wrong one.
     values["N_DISCLOSED"] = aggregate.get("repos_at_or_above_high") or disclosed
+
+    values.update(named_rule_values(aggregate))
 
     severity = rule_severities()
     ranked, _ = problem_rules(aggregate.get("rules", []))

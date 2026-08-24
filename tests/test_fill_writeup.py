@@ -16,7 +16,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
+ROOT = Path(__file__).resolve().parent.parent
+SCRIPTS = ROOT / "scripts"
 spec = importlib.util.spec_from_file_location("fill_writeup", SCRIPTS / "fill_writeup.py")
 fw = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(fw)
@@ -210,6 +211,88 @@ class TestSampleAccounting(unittest.TestCase):
         old = aggregate()
         del old["targets_failed"]
         self.assertIsNone(fw.values_from(old)["N_FAILED"])
+
+
+class TestRulesAddressableByName(unittest.TestCase):
+    """Prose has to be able to cite a rule that didn't make the top five.
+
+    The innerHTML caveat compares the escalated variant to the vague one, and
+    only the vague one ranks. A comparison the reader can't see the second
+    half of is an assertion, not evidence.
+    """
+
+    def test_a_rule_is_addressable_by_its_id(self):
+        v = fw.values_from(aggregate())
+        self.assertEqual(v["RULE_ENV_FILE_NOT_GITIGNORED_PCT"], 31.3)
+        self.assertEqual(v["RULE_ENV_FILE_NOT_GITIGNORED_REPOS"], 60)
+        self.assertEqual(v["RULE_ENV_FILE_NOT_GITIGNORED_SEVERITY"], "high")
+
+    def test_the_name_is_the_human_title(self):
+        v = fw.values_from(aggregate())
+        self.assertEqual(v["RULE_CORS_ALLOW_ALL_NAME"], "CORS allows every website")
+
+    def test_a_rule_that_fired_nowhere_is_zero(self):
+        # Zero is a real answer: the scanner looked and found none.
+        v = fw.values_from(aggregate(rules=[]))
+        self.assertEqual(v["RULE_CORS_ALLOW_ALL_PCT"], 0)
+        self.assertEqual(v["RULE_CORS_ALLOW_ALL_REPOS"], 0)
+
+    def test_a_name_that_is_not_a_rule_gets_nothing(self):
+        # So a typo in the template fails the run rather than reading as 0%.
+        v = fw.values_from(aggregate())
+        self.assertNotIn("RULE_CORS_ALOW_ALL_PCT", v)
+
+    def test_it_does_not_collide_with_the_ranked_slots(self):
+        # Rule IDs never start with a digit, so RULE_1_PCT stays the top of
+        # the list rather than a rule called "1".
+        v = fw.values_from(aggregate())
+        self.assertEqual(v["RULE_1_NAME"], ".env file is not protected by .gitignore")
+        self.assertNotEqual(v["RULE_1_NAME"], v["RULE_CORS_ALLOW_ALL_NAME"])
+
+    def test_the_stem_is_derived_from_the_id(self):
+        self.assertEqual(fw.placeholder_stem("innerhtml-untrusted-input"),
+                         "RULE_INNERHTML_UNTRUSTED_INPUT")
+
+    def test_every_rule_the_scanner_can_emit_is_addressable(self):
+        # Including the ones built programmatically, which have historically
+        # been the ones left out of a second list.
+        v = fw.values_from(aggregate())
+        for rule_id in ("supabase-service-role-key", "supabase-anon-key",
+                        "env-file-not-gitignored", "innerhtml-untrusted-input"):
+            with self.subTest(rule_id):
+                self.assertIn(f"{fw.placeholder_stem(rule_id)}_PCT", v)
+
+
+class TestTheStatedWeightsAreTheRealOnes(unittest.TestCase):
+    """The post prints the scoring weights as prose, so they can drift.
+
+    It says the score takes off 25 for a critical, 15 for a high, 7 for a
+    medium and 3 for a low, and uses that to argue the median is partly an
+    artefact of choices the author made. If someone retunes the weights, that
+    paragraph becomes a confident false statement in the caveats section —
+    the worst place in the piece to have one.
+    """
+
+    def template(self):
+        text = (ROOT / "content" / "scanned-vibe-coded-apps.md").read_text(
+            encoding="utf-8")
+        return " ".join(text.split())   # the paragraph rewraps; the claim doesn't
+
+    def test_the_claim_is_still_in_the_post(self):
+        self.assertIn("takes off 25 for a critical, 15 for a high, "
+                      "7 for a medium, 3 for a low", self.template(),
+                      "the caveat's wording moved — re-check it against "
+                      "SEVERITY_WEIGHTS by hand")
+
+    def test_those_are_the_weights_the_scanner_uses(self):
+        from vibecheck.rules import SEVERITY_WEIGHTS
+        for severity, points in (("critical", 25), ("high", 15),
+                                 ("medium", 7), ("low", 3)):
+            with self.subTest(severity):
+                self.assertEqual(
+                    SEVERITY_WEIGHTS[severity], points,
+                    f"{severity} is now {SEVERITY_WEIGHTS[severity]}, but the "
+                    f"writeup still tells readers it is {points}")
 
 
 class TestFill(unittest.TestCase):

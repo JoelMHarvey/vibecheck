@@ -226,6 +226,29 @@ The writeup's list now carries each finding's severity, because a low at 79%
 and a high at 19% mean very different things and an unlabelled list invites
 the reader to weigh them the same.
 
+The rescan then showed the split had left the post making an unshowable
+claim: the caveat compares the escalated variant to the vague one, and only
+the vague one ranks in the top five, so the second half of the comparison
+appeared nowhere. Every rule is now addressable by its id —
+`{{RULE_INNERHTML_UNTRUSTED_INPUT_PCT}}` — so prose can cite one that didn't
+rank. A rule that fired nowhere is 0, because zero is a real answer; a name
+that isn't a rule gets no value at all, so a typo fails the run rather than
+quietly reading as 0%.
+
+The same rescan raised a subtler honesty problem. Demoting the innerHTML rule
+lifted the median from 86 to 90 and the mean from 68 to 73 — the apps didn't
+change, a weight did. The direction flatters the apps rather than the tool,
+so nothing was being oversold, but the post presented the median as a fact
+about the world when it is partly a fact about a number the author chose. The
+caveats now say so: the weights are printed, the change is described, and the
+paragraph ends by pointing at the critical and high counts, which did not move
+when the weight did, as the figures worth trusting.
+
+Printed weights can drift out of true, so a test asserts the prose matches
+`SEVERITY_WEIGHTS`. Retuning a weight now fails the suite instead of leaving a
+confident false sentence in the caveats section, which is the worst place in
+the piece to have one.
+
 **v0.6 — auto-fix PRs.** Pro-gated: the action opens a branch applying the
 mechanical fixes (`.gitignore` entries, moving a key to an env var reference)
 and leaves the judgement calls as review comments.
