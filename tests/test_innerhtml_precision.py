@@ -112,8 +112,10 @@ class TestContextStillApplies(unittest.TestCase):
         found = one("el.innerHTML = location.hash", path="tests/dom.test.js")
         self.assertEqual(found.severity, "info")
 
-    def test_python_files_do_not_get_the_escalated_rule(self):
-        # innerHTML is a browser API; the escalated variant is JS-only.
+    def test_python_files_get_neither_rule(self):
+        # innerHTML is a browser API, so both variants are JS-only — which is
+        # also why this test file, full of innerHTML lines inside Python
+        # strings, contributes nothing to the self-scan.
         self.assertEqual(scan("x.innerHTML = request.args", path="app.py"), [])
 
 
