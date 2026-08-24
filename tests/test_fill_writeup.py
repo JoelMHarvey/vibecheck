@@ -16,7 +16,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
+ROOT = Path(__file__).resolve().parent.parent
+SCRIPTS = ROOT / "scripts"
 spec = importlib.util.spec_from_file_location("fill_writeup", SCRIPTS / "fill_writeup.py")
 fw = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(fw)
@@ -260,6 +261,38 @@ class TestRulesAddressableByName(unittest.TestCase):
                         "env-file-not-gitignored", "innerhtml-untrusted-input"):
             with self.subTest(rule_id):
                 self.assertIn(f"{fw.placeholder_stem(rule_id)}_PCT", v)
+
+
+class TestTheStatedWeightsAreTheRealOnes(unittest.TestCase):
+    """The post prints the scoring weights as prose, so they can drift.
+
+    It says the score takes off 25 for a critical, 15 for a high, 7 for a
+    medium and 3 for a low, and uses that to argue the median is partly an
+    artefact of choices the author made. If someone retunes the weights, that
+    paragraph becomes a confident false statement in the caveats section —
+    the worst place in the piece to have one.
+    """
+
+    def template(self):
+        text = (ROOT / "content" / "scanned-vibe-coded-apps.md").read_text(
+            encoding="utf-8")
+        return " ".join(text.split())   # the paragraph rewraps; the claim doesn't
+
+    def test_the_claim_is_still_in_the_post(self):
+        self.assertIn("takes off 25 for a critical, 15 for a high, "
+                      "7 for a medium, 3 for a low", self.template(),
+                      "the caveat's wording moved — re-check it against "
+                      "SEVERITY_WEIGHTS by hand")
+
+    def test_those_are_the_weights_the_scanner_uses(self):
+        from vibecheck.rules import SEVERITY_WEIGHTS
+        for severity, points in (("critical", 25), ("high", 15),
+                                 ("medium", 7), ("low", 3)):
+            with self.subTest(severity):
+                self.assertEqual(
+                    SEVERITY_WEIGHTS[severity], points,
+                    f"{severity} is now {SEVERITY_WEIGHTS[severity]}, but the "
+                    f"writeup still tells readers it is {points}")
 
 
 class TestFill(unittest.TestCase):

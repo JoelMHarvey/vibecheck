@@ -147,6 +147,23 @@ the scanner looks for known patterns. a clean score means it didn't find those
 patterns, not that your app is secure — it doesn't understand your auth logic or
 your database rules, and it never will.
 
+and the score itself is mine. the Vibe Score starts at 100 and takes off 25 for
+a critical, 15 for a high, 7 for a medium, 3 for a low. those weights are ones
+i picked, not a standard, so "the median was {{MEDIAN_SCORE}}" is a statement
+about my weights as much as about the apps.
+
+worth knowing that i changed one of them while doing this. the innerHTML
+pattern at the top of the list was rated medium until i noticed it fires on
+four apps in five, which makes it a fact about JavaScript rather than a
+finding, so it moved down to low. an earlier run over this same corpus, before
+that change, had a median of 86. most of the gap is the reweighting, though
+the corpus shifted by a repo or two between runs too, so i can't honestly pin
+all of it on that.
+
+what didn't move when i made that change was the count of criticals and highs.
+that's why those are the numbers i lead with, and why the median is the one i'd
+trust least.
+
 i started from {{N_ATTEMPTED}} candidate repos and scanned {{N_REPOS}} of them.
 {{N_EXCLUDED}} were dropped for having no application code in them at all —
 prompt collections and link lists, mostly, which score perfectly and mean
