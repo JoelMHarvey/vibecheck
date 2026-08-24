@@ -203,6 +203,29 @@ exclusion counts are printed so the writeup can state what the sample
 actually is. Without that, one insecure starter copied a thousand times reads
 as a thousand insecure apps, and the whole post is worthless.
 
+**Rule precision over rule coverage.** v0.2 above lists rules to add. The
+corpus argues for sharpening the ones that exist first. `innerhtml-assignment`
+fired on 82% of 189 repos, which is close to "this app is written in
+JavaScript" — a number that large stops being a finding and becomes a fact
+about the language, and it sat at the top of the writeup's list of problems
+where it could not be defended.
+
+It is now two rules. If the line names a source an attacker chooses — the URL,
+a form field, a request, browser storage — that is a demonstrated path from
+stranger to page and it stays a finding, retitled to say so. If the value's
+origin isn't visible, it is still reported, at low, titled "HTML built from a
+variable", which is what the scanner actually knows. Demoted rather than
+dropped: a real hole it can't prove is still worth a look, and the same
+argument that kept placeholder detection to exact matches applies here.
+
+The split is on evidence rather than a guess about what a variable might
+hold, which is why the untrusted-source list is short. Widening it trades
+away the precision the split was for.
+
+The writeup's list now carries each finding's severity, because a low at 79%
+and a high at 19% mean very different things and an unlabelled list invites
+the reader to weigh them the same.
+
 **v0.6 — auto-fix PRs.** Pro-gated: the action opens a branch applying the
 mechanical fixes (`.gitignore` entries, moving a key to an env var reference)
 and leaves the judgement calls as review comments.

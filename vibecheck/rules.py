@@ -147,6 +147,45 @@ SUPABASE_ANON_INFO = Rule(
 )
 
 
+# Sources a value can come from that an attacker gets to choose. Deliberately
+# narrow: each of these is a name that means "this came from outside", not a
+# guess about what a variable might hold. Widening it costs precision, which
+# is the entire point of splitting the rule in two.
+UNTRUSTED_SOURCE_RE = re.compile(
+    r"\blocation\b"
+    r"|document\.(?:URL|referrer|cookie|location)"
+    r"|window\.name"
+    r"|\breq(?:uest)?\."
+    r"|useParams\b|useSearchParams\b|searchParams\b|URLSearchParams\b"
+    r"|\.value\b"
+    r"|(?:local|session)Storage\.getItem"
+    r"|decodeURIComponent\b|\bunescape\("
+)
+
+INNERHTML_RULE_ID = "innerhtml-assignment"
+
+INNERHTML_UNTRUSTED = Rule(
+    id="innerhtml-untrusted-input",
+    title="HTML built from user-controlled data (XSS risk)",
+    severity="medium",
+    pattern=re.compile(r"(?!x)x"),  # never matched directly; produced by the scanner
+    description=(
+        "HTML is being built from a value that comes from outside your app — the "
+        "URL, a form field, a request, or browser storage. Anyone who controls "
+        "that value can inject a script that runs for whoever views the page, "
+        "stealing their session or defacing the app for them."
+    ),
+    fix_prompt=(
+        "In {path} on line {line}, HTML is built from a value that comes from "
+        "outside the app (the URL, a form field, a request, or storage) and "
+        "assigned to innerHTML. Use textContent if the value is meant to be text, "
+        "or sanitize it with DOMPurify before inserting it as HTML. Check the rest "
+        "of the file for the same pattern."
+    ),
+    extensions=JS,
+)
+
+
 RULES = [
     # ------------------------------------------------------------------
     # Hardcoded secrets and API keys
@@ -600,8 +639,8 @@ RULES = [
     ),
     Rule(
         id="innerhtml-assignment",
-        title="HTML built from strings (XSS risk)",
-        severity="medium",
+        title="HTML built from a variable",
+        severity="low",
         # A pure string literal with no interpolation can't carry user input,
         # so `el.innerHTML = '<p>Loading…</p>'` is not worth flagging.
         pattern=re.compile(
@@ -609,9 +648,11 @@ RULES = [
             r"|dangerouslySetInnerHTML"
         ),
         description=(
-            "Setting innerHTML (or dangerouslySetInnerHTML) with anything derived "
-            "from user input lets attackers inject scripts into your page — stealing "
-            "sessions or defacing your app for other users."
+            "HTML is being built from a variable rather than a fixed string. That "
+            "is only a problem if the variable can hold something a stranger chose "
+            "— the scanner can see the pattern but not where the value came from, "
+            "so this is worth a look rather than a finding. If the value is ever "
+            "user input, it is an XSS hole; if it is your own markup, it is fine."
         ),
         fix_prompt=(
             "innerHTML is assigned in {path} on line {line}. If the content includes "
@@ -664,4 +705,5 @@ ENV_NOT_IGNORED = Rule(
 # reason about the full rule set — the client manifest, the writeup filler —
 # reads this, so a new programmatic rule can't be added to one list and
 # forgotten in another.
-ALL_RULES = RULES + [SUPABASE_SERVICE_ROLE, SUPABASE_ANON_INFO, ENV_NOT_IGNORED]
+ALL_RULES = RULES + [SUPABASE_SERVICE_ROLE, SUPABASE_ANON_INFO, ENV_NOT_IGNORED,
+                     INNERHTML_UNTRUSTED]
