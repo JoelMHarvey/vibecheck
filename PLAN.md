@@ -226,6 +226,15 @@ The writeup's list now carries each finding's severity, because a low at 79%
 and a high at 19% mean very different things and an unlabelled list invites
 the reader to weigh them the same.
 
+The rescan then showed the split had left the post making an unshowable
+claim: the caveat compares the escalated variant to the vague one, and only
+the vague one ranks in the top five, so the second half of the comparison
+appeared nowhere. Every rule is now addressable by its id —
+`{{RULE_INNERHTML_UNTRUSTED_INPUT_PCT}}` — so prose can cite one that didn't
+rank. A rule that fired nowhere is 0, because zero is a real answer; a name
+that isn't a rule gets no value at all, so a typo fails the run rather than
+quietly reading as 0%.
+
 **v0.6 — auto-fix PRs.** Pro-gated: the action opens a branch applying the
 mechanical fixes (`.gitignore` entries, moving a key to an env var reference)
 and leaves the judgement calls as review comments.

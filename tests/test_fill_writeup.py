@@ -212,6 +212,56 @@ class TestSampleAccounting(unittest.TestCase):
         self.assertIsNone(fw.values_from(old)["N_FAILED"])
 
 
+class TestRulesAddressableByName(unittest.TestCase):
+    """Prose has to be able to cite a rule that didn't make the top five.
+
+    The innerHTML caveat compares the escalated variant to the vague one, and
+    only the vague one ranks. A comparison the reader can't see the second
+    half of is an assertion, not evidence.
+    """
+
+    def test_a_rule_is_addressable_by_its_id(self):
+        v = fw.values_from(aggregate())
+        self.assertEqual(v["RULE_ENV_FILE_NOT_GITIGNORED_PCT"], 31.3)
+        self.assertEqual(v["RULE_ENV_FILE_NOT_GITIGNORED_REPOS"], 60)
+        self.assertEqual(v["RULE_ENV_FILE_NOT_GITIGNORED_SEVERITY"], "high")
+
+    def test_the_name_is_the_human_title(self):
+        v = fw.values_from(aggregate())
+        self.assertEqual(v["RULE_CORS_ALLOW_ALL_NAME"], "CORS allows every website")
+
+    def test_a_rule_that_fired_nowhere_is_zero(self):
+        # Zero is a real answer: the scanner looked and found none.
+        v = fw.values_from(aggregate(rules=[]))
+        self.assertEqual(v["RULE_CORS_ALLOW_ALL_PCT"], 0)
+        self.assertEqual(v["RULE_CORS_ALLOW_ALL_REPOS"], 0)
+
+    def test_a_name_that_is_not_a_rule_gets_nothing(self):
+        # So a typo in the template fails the run rather than reading as 0%.
+        v = fw.values_from(aggregate())
+        self.assertNotIn("RULE_CORS_ALOW_ALL_PCT", v)
+
+    def test_it_does_not_collide_with_the_ranked_slots(self):
+        # Rule IDs never start with a digit, so RULE_1_PCT stays the top of
+        # the list rather than a rule called "1".
+        v = fw.values_from(aggregate())
+        self.assertEqual(v["RULE_1_NAME"], ".env file is not protected by .gitignore")
+        self.assertNotEqual(v["RULE_1_NAME"], v["RULE_CORS_ALLOW_ALL_NAME"])
+
+    def test_the_stem_is_derived_from_the_id(self):
+        self.assertEqual(fw.placeholder_stem("innerhtml-untrusted-input"),
+                         "RULE_INNERHTML_UNTRUSTED_INPUT")
+
+    def test_every_rule_the_scanner_can_emit_is_addressable(self):
+        # Including the ones built programmatically, which have historically
+        # been the ones left out of a second list.
+        v = fw.values_from(aggregate())
+        for rule_id in ("supabase-service-role-key", "supabase-anon-key",
+                        "env-file-not-gitignored", "innerhtml-untrusted-input"):
+            with self.subTest(rule_id):
+                self.assertIn(f"{fw.placeholder_stem(rule_id)}_PCT", v)
+
+
 class TestFill(unittest.TestCase):
     def test_a_placeholder_with_no_value_is_reported_not_guessed(self):
         text, missing = fw.fill("scanned {{N_REPOS}}, found {{NOT_A_THING}}",

@@ -45,7 +45,10 @@ is a pattern worth a look, not a demonstrated hole. "HTML built from a
 variable" is the clearest case: the scanner can see the pattern but not where
 the value came from, and in most of these apps it came from the app itself.
 where it could actually see the value arriving from the URL, a form field or a
-request, that's a separate and higher finding, and it's a much smaller number.
+request, that's a separate and higher finding — and it lands on
+{{RULE_INNERHTML_UNTRUSTED_INPUT_PCT}}% of these apps, against
+{{RULE_INNERHTML_ASSIGNMENT_PCT}}% for the vague one. that gap is the honest
+shape of it.
 
 i mention this because the big percentage is the one people will push back on,
 and they'd be right to. the credential figures further up are the ones i'd
