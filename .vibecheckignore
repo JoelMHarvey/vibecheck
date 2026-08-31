@@ -10,6 +10,11 @@
 guides/
 index.html
 
+# The research writeup quotes the same code the guides do — it names
+# dangerouslyAllowBrowser in prose, and .html counts as JavaScript to the
+# extension gate, so the article about the finding becomes the finding.
+posts/
+
 # tests/ used to be listed here. It no longer needs to be: findings in test
 # paths are demoted to info automatically, because nothing in a test file
 # ships. One fewer suppression to trust.

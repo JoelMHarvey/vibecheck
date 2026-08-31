@@ -18,6 +18,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 GUIDES = sorted(ROOT.glob("guides/*.html"))
+# Empty until the research post is published; the repository is public, so
+# committing it is publishing it. These checks apply the moment it lands.
+POSTS = sorted(ROOT.glob("posts/*.html"))
 SITEMAP = (ROOT / "sitemap.xml").read_text(encoding="utf-8")
 DEVSERVER = (ROOT / "scripts" / "devserver.py").read_text(encoding="utf-8")
 INDEX = (ROOT / "index.html").read_text(encoding="utf-8")
@@ -60,6 +63,54 @@ class TestGuidesAreWiredIn(unittest.TestCase):
         self.assertEqual(listed - {g.stem for g in GUIDES}, set())
 
 
+class TestPostsAreWiredIn(unittest.TestCase):
+    """A post gets the same treatment as a guide, for the same reasons.
+
+    Nothing here runs until posts/ has a file in it. That is deliberate: the
+    research post can't be committed before its disclosure window closes,
+    because this repository is public and committing it is publishing it. The
+    checks are written now so the page can't land unwired on the day.
+    """
+
+    def test_every_post_is_in_the_sitemap(self):
+        for post in POSTS:
+            with self.subTest(post.name):
+                self.assertIn(f"{SITE}/posts/{post.stem}<", SITEMAP)
+
+    def test_every_post_is_reachable_locally(self):
+        # Discovered by the dev server rather than listed, so this asserts the
+        # discovery still works rather than that somebody remembered.
+        for post in POSTS:
+            with self.subTest(post.name):
+                self.assertIn('ROOT.glob("posts/*.html")', DEVSERVER)
+
+    def test_canonical_matches_the_filename(self):
+        for post in POSTS:
+            with self.subTest(post.name):
+                self.assertEqual(tag(text(post), r'<link rel="canonical" href="([^"]+)"'),
+                                 f"{SITE}/posts/{post.stem}")
+
+    def test_open_graph_url_agrees_with_the_canonical(self):
+        for post in POSTS:
+            html = text(post)
+            with self.subTest(post.name):
+                self.assertEqual(
+                    tag(html, r'<meta property="og:url" content="([^"]+)"'),
+                    tag(html, r'<link rel="canonical" href="([^"]+)"'))
+
+    def test_a_post_carries_no_unfilled_placeholder(self):
+        for post in POSTS:
+            with self.subTest(post.name):
+                self.assertNotIn("{{", text(post))
+
+    def test_a_post_sends_the_reader_somewhere(self):
+        # The post is the top of the funnel; a dead end wastes the traffic.
+        for post in POSTS:
+            html = text(post)
+            with self.subTest(post.name):
+                self.assertIn('href="/guides/', html)
+
+
 class TestGuideMetadata(unittest.TestCase):
     def test_canonical_matches_the_filename(self):
         # A wrong canonical is the one SEO mistake that actively hurts: it
@@ -98,6 +149,7 @@ class TestInternalLinks(unittest.TestCase):
 
     def routes(self):
         known = {f"/guides/{g.stem}" for g in GUIDES}
+        known |= {f"/posts/{p.stem}" for p in POSTS}
         known |= {"/", "/guide.css", "/og.png", "/robots.txt", "/sitemap.xml",
                   "/rules.json", "/index.html"}
         return known
