@@ -470,6 +470,7 @@ class TestBounces(TrackerCase):
         self.assertIn("bounced", output)
         self.assertNotIn("-> reported", output)
 
+    @unittest.skipIf(os.name == "nt", "Windows chmod only honours the read-only bit")
     def test_the_tracker_stays_locked_down(self):
         self.write([self.row("a/one", status="reported", reported_on="2026-08-21")])
         self.run_it("a/one", "--bounced")
