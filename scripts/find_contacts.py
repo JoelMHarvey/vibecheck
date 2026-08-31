@@ -61,8 +61,10 @@ CONTACT_COLUMNS = [
     "note",
 ]
 
-# Statuses that mean "still needs a route". A repo already reported is done.
-NEEDS_CONTACT = {"reporting-disabled", "error", "drafted"}
+# Statuses that mean "still needs a route". A repo already reported is done —
+# but `bounced` is not done: the message was sent and never arrived, so the
+# repo needs a different route, not a second copy of the same email.
+NEEDS_CONTACT = {"reporting-disabled", "error", "drafted", "bounced"}
 
 
 def gh_json(path: str):
