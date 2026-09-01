@@ -12,6 +12,11 @@ leaves the judgement.
 
 ## The routes, in the order worth trying
 
+0. **Not an address already known to bounce.** `mark_reported.py --bounced`
+   records the dead address in the tracker note; every route below skips it.
+   Without that, a repo put back in this list gets the same dead address
+   proposed again, which is how a bounce turns into two bounces.
+
 1. **SECURITY.md** — someone who wrote one has said how they want to be told.
 2. **A public profile email** — published deliberately, on their own page.
 3. **A commit author email** — published by them in the git history. Using one
@@ -133,20 +138,54 @@ def commit_email(slug: str) -> str:
     return fallback
 
 
-def route_for(security, profile, commit, issues_enabled):
-    """Which route to actually use, and why the others were passed over."""
-    if security:
-        return "security.md", ""
-    if profile:
-        return "profile email", ""
-    if commit and NOREPLY not in commit:
-        return "commit email", "published by them in git history — this use only"
+ADDRESS_FOR_ROUTE = {
+    "security.md": "security_md_email",
+    "profile email": "profile_email",
+    "commit email": "commit_email",
+}
+
+DEAD_ADDRESS_RE = re.compile(r"email bounced \d{4}-\d{2}-\d{2} (\S+@\S+)")
+
+
+def dead_addresses(note: str):
+    """Addresses this repo's note records as having bounced.
+
+    Written by mark_reported.py --bounced. Reading it here is the whole
+    point of recording it: the routes below are derived from the repository,
+    so they reproduce whatever address was tried the first time.
+    """
+    return {match.lower() for match in DEAD_ADDRESS_RE.findall(note or "")}
+
+
+def route_for(security, profile, commit, issues_enabled, dead=frozenset()):
+    """Which route to actually use, and why the others were passed over.
+
+    `dead` is the set of addresses already known to bounce for this repo. An
+    address in it is not a route, however well-published it is: proposing a
+    SECURITY.md address whose domain does not resolve is worse than proposing
+    nothing, because it looks like a live lead and it silently isn't.
+    """
+    def usable(address):
+        return bool(address) and address.lower() not in dead
+
+    skipped = " · ".join(f"{address} bounced" for address in sorted(dead))
+    def annotate(note):
+        return " · ".join(part for part in (note, skipped) if part)
+
+    if usable(security):
+        return "security.md", annotate("")
+    if usable(profile):
+        return "profile email", annotate("")
+    if usable(commit) and NOREPLY not in commit:
+        return "commit email", annotate("published by them in git history — this use only")
     if issues_enabled:
-        return "public issue", "template 3: no details, ask them to enable private reporting"
-    return "none found", "no route — issues are off and every address is noreply"
+        return "public issue", annotate(
+            "template 3: no details, ask them to enable private reporting")
+    return "none found", annotate(
+        "no route — issues are off and every address is noreply")
 
 
-def investigate(slug: str) -> dict:
+def investigate(slug: str, dead=frozenset()) -> dict:
     repo = gh_json(f"/repos/{slug}")
     if not isinstance(repo, dict):
         return {"owner": "", "owner_type": "", "issues_enabled": "",
@@ -162,7 +201,7 @@ def investigate(slug: str) -> dict:
     profile = ((user or {}).get("email") or "").strip()
     commit = commit_email(slug)
 
-    best, note = route_for(security, profile, commit, issues_enabled)
+    best, note = route_for(security, profile, commit, issues_enabled, dead)
     if repo.get("archived"):
         note = (note + " · repo is archived").strip(" ·")
     return {
@@ -213,12 +252,20 @@ def main(argv=None) -> int:
     rows = []
     for i, row in enumerate(pending, 1):
         slug = row["repo"]
-        found = investigate(slug)
+        dead = dead_addresses(row.get("note", ""))
+        found = investigate(slug, dead)
         found["repo"] = slug
         found["worst_severity"] = row.get("worst_severity", "")
         rows.append(found)
-        detail = found["security_md_email"] or found["profile_email"] or found["commit_email"] or "—"
-        print(f"[{i}/{len(pending)}] {slug}\n      {found['best_route']:14} {detail}")
+        # Show the address for the route actually chosen. Falling through the
+        # three columns in order printed whichever address came first, which
+        # on a repo with a bounced SECURITY.md address is the dead one — the
+        # exact address the route selection had just rejected.
+        detail = ADDRESS_FOR_ROUTE.get(found["best_route"], "")
+        detail = found.get(detail, "") if detail else ""
+        print(f"[{i}/{len(pending)}] {slug}\n      {found['best_route']:14} {detail or '—'}")
+        if dead:
+            print(f"      {'':14} skipping {', '.join(sorted(dead))} — bounced")
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
