@@ -253,6 +253,51 @@ the piece to have one.
 mechanical fixes (`.gitignore` entries, moving a key to an env var reference)
 and leaves the judgement calls as review comments.
 
+## Publishing the writeup
+
+It goes on psychosecurity.io at `/posts/<slug>`, not on a platform. There is no
+audience anywhere else to lose: a Substack with no subscribers gives you what a
+page on your own domain gives you — nothing, until you post it somewhere — and
+takes the canonical URL, the ranking and the reader's next click in exchange.
+Distribution is Hacker News and Reddit either way. The venue only has to be a
+fast page that doesn't read as a funnel, and the guides pipeline already is one.
+
+    python3 scripts/fill_writeup.py                    # numbers from the scan
+    # read it end to end; trim the prose if it needs it
+    python3 scripts/render_post.py research/scanned-vibe-coded-apps.md \
+        --slug <slug> --title "..." --description "..."
+    # publication day only:
+    cp research/<slug>.html posts/ ; add the sitemap entry it printed ; commit
+
+`render_post.py` removes the last copy-and-paste between `aggregate.json` and
+the published URL, which is where a final number would drift. It renders the
+eight markdown constructs the writeup uses and raises on anything else rather
+than dropping it silently, and refuses outright on a surviving
+`{{PLACEHOLDER}}` — `fill_writeup` already guards that, but this reads whatever
+file it is handed, including one edited by hand after filling.
+
+The copy into `posts/` is deliberately last and deliberately manual: this
+repository is public, so committing the page is publishing it, and the
+disclosure window has to close first. `tests/test_site.py` checks posts the way
+it checks guides — sitemap, canonical, og:url, no placeholder, links out — and
+those checks lie dormant until the directory has a file in it, so the page
+cannot land unwired on the day. The dev server discovers `posts/*.html` rather
+than listing them, because a guide has been forgotten from that table before.
+
+Two things only showed up by rendering the real page and serving it. The
+sitemap check failed, which is the machinery working. And the self-scan
+dropped to grade B on one critical: the article names
+`dangerouslyAllowBrowser` in prose, `.html` counts as JavaScript to the
+extension gate, and so the piece about the finding became the finding.
+`posts/` joins `guides/` in `.vibecheckignore` for exactly the reason `guides/`
+is there.
+
+**Sequencing.** The research post is a link submission to Hacker News, not a
+Show HN: "I scanned 190 vibe-coded apps" is a story, Show HN is for "I built a
+thing". Post the research first — it travels further and carries the tool with
+it — then Show HN the scanner a week or two later, pointing at something that
+already has readers.
+
 ## Launch channels (in order)
 
 1. **Show HN / r/SideProject / r/nocode** with the free CLI + a writeup:

@@ -38,6 +38,13 @@ STATIC = {
 }
 
 
+# Posts are discovered rather than listed. The routing table above is hand
+# written and a guide has been forgotten from it before; there is no reason to
+# repeat that for a directory whose every .html file is a page.
+for _post in sorted(ROOT.glob("posts/*.html")):
+    STATIC[f"/posts/{_post.stem}"] = (f"posts/{_post.name}", "text/html; charset=utf-8")
+
+
 def _load(name: str, filename: str):
     spec = importlib.util.spec_from_file_location(name, ROOT / "api" / filename)
     module = importlib.util.module_from_spec(spec)
