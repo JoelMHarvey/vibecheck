@@ -385,3 +385,93 @@ class TestSlugInput(TrackerCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestBounces(TrackerCase):
+    """A bounce is not a non-response, and the tracker must not conflate them.
+
+    This is the failure the whole module is built to prevent, arriving by a
+    door nobody had covered. `prepare_disclosures.py` and this script both
+    only ever knew about *sending*. Three of the eleven critical repos were
+    marked reported on the strength of messages that bounced — one to a
+    domain that does not resolve — and the rows looked identical to the ones
+    that arrived: dropped out of find_contacts.py, counted toward the
+    disclosure window, and counted toward the writeup's claim that every
+    maintainer was contacted privately. Nobody had been told.
+    """
+
+    def test_a_bounce_clears_the_reported_mark(self):
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-21")])
+        code, _ = self.run_it("a/one", "--bounced", "--on", "2026-08-21")
+        self.assertEqual(code, 0)
+        row = self.read()["a/one"]
+        self.assertEqual(row["status"], "bounced")
+        self.assertEqual(row["reported_on"], "")
+
+    def test_the_bounce_is_recorded_in_the_note(self):
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-21")])
+        self.run_it("a/one", "--bounced", "--on", "2026-08-25")
+        self.assertIn("email bounced 2026-08-25", self.read()["a/one"]["note"])
+
+    def test_an_existing_note_survives_the_bounce(self):
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-21",
+                             note="contacted by email")])
+        self.run_it("a/one", "--bounced", "--on", "2026-08-25")
+        note = self.read()["a/one"]["note"]
+        self.assertIn("contacted by email", note)
+        self.assertIn("email bounced", note)
+
+    def test_a_bounced_repo_stops_counting_toward_the_window(self):
+        # The whole point. A window measured from a delivery that never
+        # happened is a promise made to nobody.
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-21"),
+                    self.row("b/two", status="reported", reported_on="2026-08-25")])
+        self.run_it("b/two", "--bounced", "--on", "2026-08-25")
+        self.assertEqual(mr.publication_date(self.read().values(), 14)[0],
+                         date(2026, 9, 4))
+
+    def test_the_last_real_contact_becomes_the_window_start(self):
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-21"),
+                    self.row("b/two", status="reported", reported_on="2026-08-22")])
+        self.run_it("b/two", "--bounced", "--on", "2026-08-22")
+        self.assertEqual(mr.publication_date(self.read().values(), 14)[1],
+                         date(2026, 8, 21))
+
+    def test_bouncing_every_contact_leaves_no_publication_date(self):
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-21")])
+        self.run_it("a/one", "--bounced", "--on", "2026-08-21")
+        self.assertEqual(mr.publication_date(self.read().values(), 14), (None, None))
+
+    def test_an_unknown_repo_still_aborts_the_whole_run(self):
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-21")])
+        code, _ = self.run_it("a/one", "a/typo", "--bounced")
+        self.assertEqual(code, 1)
+        self.assertEqual(self.read()["a/one"]["status"], "reported")
+
+    def test_bouncing_twice_is_a_no_op(self):
+        self.write([self.row("a/one", status="bounced")])
+        code, output = self.run_it("a/one", "--bounced")
+        self.assertEqual(code, 0)
+        self.assertIn("nothing to change", output)
+
+    def test_repos_not_named_are_untouched(self):
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-21"),
+                    self.row("b/two", status="reported", reported_on="2026-08-21")])
+        self.run_it("a/one", "--bounced")
+        self.assertEqual(self.read()["b/two"]["status"], "reported")
+        self.assertEqual(self.read()["b/two"]["reported_on"], "2026-08-21")
+
+    def test_the_run_does_not_describe_itself_as_marking_reported(self):
+        # The status line is the only feedback before the write. Printing
+        # "-> reported" on a run that clears the reported mark would be the
+        # opposite of what happened.
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-21")])
+        _, output = self.run_it("a/one", "--bounced")
+        self.assertIn("bounced", output)
+        self.assertNotIn("-> reported", output)
+
+    @unittest.skipIf(os.name == "nt", "Windows chmod only honours the read-only bit")
+    def test_the_tracker_stays_locked_down(self):
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-21")])
+        self.run_it("a/one", "--bounced")
+        self.assertEqual(os.stat(self.tracker).st_mode & 0o777, 0o600)

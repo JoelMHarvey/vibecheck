@@ -126,6 +126,15 @@ class TestSelection(unittest.TestCase):
         _, looked = self.run_it("--severity", "high")
         self.assertEqual(sorted(looked), ["a/crit", "b/high"])
 
+    def test_a_bounced_repo_is_handed_back(self):
+        # A bounce means nobody was told. If `bounced` were treated like
+        # `reported`, the repo would drop out of here permanently and the
+        # maintainer would never be reached by any route.
+        self.write_tracker([self.row("a/bounced", status="bounced"),
+                            self.row("b/done", status="reported")])
+        _, looked = self.run_it()
+        self.assertEqual(looked, ["a/bounced"])
+
     def test_repos_already_reported_are_left_alone(self):
         self.write_tracker([self.row("a/done", status="reported"), self.row("b/todo")])
         _, looked = self.run_it()

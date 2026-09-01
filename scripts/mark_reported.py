@@ -23,6 +23,21 @@ pass --yes.
 A repo already marked reported keeps its original date. The first time someone
 was told is the date the disclosure window runs from, and overwriting it would
 quietly restart the clock.
+
+## When the email bounced
+
+    python3 scripts/mark_reported.py owner/repo --bounced --on 2026-08-25
+
+Sending is not the same as arriving, and this script only ever knew about the
+sending. A row marked reported on the strength of a message that bounced is
+the exact failure the "why this asks for repositories by name" rule above is
+guarding against, arriving by a different door: the row looks done, the repo
+drops out of find_contacts.py, and the writeup's claim that every maintainer
+was contacted is false for someone who was never reached.
+
+--bounced puts the row back: status becomes `bounced`, reported_on is cleared,
+and the note records it. find_contacts.py counts `bounced` as still needing a
+route, and the publication window stops counting a date nobody received.
 """
 
 from __future__ import annotations
@@ -97,6 +112,35 @@ def publication_date(rows, window: int):
         return None, None
     latest = max(dates)
     return latest + timedelta(days=window), latest
+
+
+def plan_bounced(rows, wanted, on, note=""):
+    """Undo a reported mark, because the message never arrived.
+
+    Deliberately overrides the keep-the-original-date rule: that rule exists
+    so a second contact doesn't restart the clock, but there was no first
+    contact here. Clearing reported_on is the point — a window measured from
+    a delivery that didn't happen is worse than no window at all.
+
+    Returns (changes, skipped, missing) in the same shape as plan().
+    """
+    by_repo = {row["repo"]: row for row in rows}
+    changes, skipped, missing = [], [], []
+    stamped = append_note(f"email bounced {on.isoformat()}", note)
+    for slug in wanted:
+        row = by_repo.get(slug)
+        if row is None:
+            missing.append(slug)
+            continue
+        if row.get("status") == "bounced":
+            skipped.append((slug, ""))
+            continue
+        changes.append((slug, row.get("status", ""), {
+            "status": "bounced",
+            "reported_on": "",
+            "note": append_note(row.get("note", ""), stamped),
+        }))
+    return changes, skipped, missing
 
 
 def plan(rows, wanted, route, on, note=""):
@@ -177,6 +221,9 @@ def main(argv=None) -> int:
                         help="append to each repo's note, stamped with the date — "
                              "e.g. --note acknowledged. Works on repos already "
                              "marked reported, whose date is left alone.")
+    parser.add_argument("--bounced", action="store_true",
+                        help="the message never arrived: clear the reported mark "
+                             "and put these repos back in find_contacts.py's list")
     parser.add_argument("--yes", action="store_true", help="skip the confirmation")
     args = parser.parse_args(argv)
 
@@ -204,15 +251,24 @@ def main(argv=None) -> int:
         return 1
 
     rows = read_tracker(tracker_path)
-    changes, skipped, missing = plan(rows, wanted, args.route, on, args.note)
+    if args.bounced:
+        changes, skipped, missing = plan_bounced(rows, wanted, on, args.note)
+    else:
+        changes, skipped, missing = plan(rows, wanted, args.route, on, args.note)
 
     for slug, was, fields in changes:
         if was == "note":
             print(f"  {'note':20} +  {slug}\n  {'':20}    {fields['note']}")
         else:
-            print(f"  {was or 'unset':20} -> reported   {slug}")
+            # Print the status actually being written. Hard-coding "reported"
+            # here would have described a --bounced run as the opposite of
+            # what it does.
+            print(f"  {was or 'unset':20} -> {fields['status']:<10} {slug}")
     for slug, when in skipped:
-        print(f"  already reported{' on ' + when if when else '':<8} {slug}")
+        if args.bounced:
+            print(f"  already bounced{'':<9} {slug}")
+        else:
+            print(f"  already reported{' on ' + when if when else '':<8} {slug}")
     if missing:
         # A typo here means a repo silently never gets marked, and later never
         # gets chased. Refuse the whole run rather than do part of it.
@@ -229,7 +285,10 @@ def main(argv=None) -> int:
         marking = sum(1 for _, was, _ in changes if was != "note")
         annotating = len(changes) - marking
         parts = []
-        if marking:
+        if marking and args.bounced:
+            parts.append(f"clear the reported mark on {marking} "
+                         f"(bounced {on.isoformat()})")
+        elif marking:
             parts.append(f"mark {marking} reported on {on.isoformat()}")
         if annotating:
             parts.append(f"annotate {annotating}")
