@@ -139,18 +139,25 @@ A bounce is not a non-response, and it must not be treated as one. Nobody
 was told, so the disclosure window has not started for that repo and the
 writeup cannot claim they were contacted.
 
-Record it, so the tracker stops saying otherwise and `find_contacts.py`
-hands the repo back:
+Record it, with the address that died, so the tracker stops saying
+otherwise and `find_contacts.py` hands the repo back:
 
 ```
-python3 scripts/mark_reported.py owner/repo --bounced --on YYYY-MM-DD
+python3 scripts/mark_reported.py owner/repo --bounced \
+    --address the@address.that.bounced --on YYYY-MM-DD
 ```
 
-Then find another route, in the same order as always: GitHub private
-vulnerability reporting, a different address in `SECURITY.md`, the
-profile email, the commit author email. If nothing works, template 3's
-detail-free public issue is the last resort — it asks for a channel
-without publishing the finding.
+The address is not optional bookkeeping. Every route `find_contacts.py`
+knows is derived from the repository, so a repo put back in the queue
+gets the same address derived again and offered as the one to use — the
+first real run handed back a `SECURITY.md` address that had permanently
+failed four days earlier. Recording it is what makes the next lookup skip
+it and fall through.
+
+Then take the next route down: GitHub private vulnerability reporting, a
+different address in `SECURITY.md`, the profile email, the commit author
+email. If nothing works, template 3's detail-free public issue is the
+last resort — it asks for a channel without publishing the finding.
 
 Only when every route has failed is it defensible to publish the
 aggregate numbers without having reached that maintainer, and the

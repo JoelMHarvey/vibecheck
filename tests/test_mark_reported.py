@@ -400,9 +400,14 @@ class TestBounces(TrackerCase):
     maintainer was contacted privately. Nobody had been told.
     """
 
+    DEAD = "gone@example.com"
+
+    def bounce(self, *argv, address=None):
+        return self.run_it(*argv, "--bounced", "--address", address or self.DEAD)
+
     def test_a_bounce_clears_the_reported_mark(self):
         self.write([self.row("a/one", status="reported", reported_on="2026-08-21")])
-        code, _ = self.run_it("a/one", "--bounced", "--on", "2026-08-21")
+        code, _ = self.bounce("a/one", "--on", "2026-08-21")
         self.assertEqual(code, 0)
         row = self.read()["a/one"]
         self.assertEqual(row["status"], "bounced")
@@ -410,13 +415,13 @@ class TestBounces(TrackerCase):
 
     def test_the_bounce_is_recorded_in_the_note(self):
         self.write([self.row("a/one", status="reported", reported_on="2026-08-21")])
-        self.run_it("a/one", "--bounced", "--on", "2026-08-25")
+        self.bounce("a/one", "--on", "2026-08-25")
         self.assertIn("email bounced 2026-08-25", self.read()["a/one"]["note"])
 
     def test_an_existing_note_survives_the_bounce(self):
         self.write([self.row("a/one", status="reported", reported_on="2026-08-21",
                              note="contacted by email")])
-        self.run_it("a/one", "--bounced", "--on", "2026-08-25")
+        self.bounce("a/one", "--on", "2026-08-25")
         note = self.read()["a/one"]["note"]
         self.assertIn("contacted by email", note)
         self.assertIn("email bounced", note)
@@ -426,38 +431,51 @@ class TestBounces(TrackerCase):
         # happened is a promise made to nobody.
         self.write([self.row("a/one", status="reported", reported_on="2026-08-21"),
                     self.row("b/two", status="reported", reported_on="2026-08-25")])
-        self.run_it("b/two", "--bounced", "--on", "2026-08-25")
+        self.bounce("b/two", "--on", "2026-08-25")
         self.assertEqual(mr.publication_date(self.read().values(), 14)[0],
                          date(2026, 9, 4))
 
     def test_the_last_real_contact_becomes_the_window_start(self):
         self.write([self.row("a/one", status="reported", reported_on="2026-08-21"),
                     self.row("b/two", status="reported", reported_on="2026-08-22")])
-        self.run_it("b/two", "--bounced", "--on", "2026-08-22")
+        self.bounce("b/two", "--on", "2026-08-22")
         self.assertEqual(mr.publication_date(self.read().values(), 14)[1],
                          date(2026, 8, 21))
 
     def test_bouncing_every_contact_leaves_no_publication_date(self):
         self.write([self.row("a/one", status="reported", reported_on="2026-08-21")])
-        self.run_it("a/one", "--bounced", "--on", "2026-08-21")
+        self.bounce("a/one", "--on", "2026-08-21")
         self.assertEqual(mr.publication_date(self.read().values(), 14), (None, None))
 
     def test_an_unknown_repo_still_aborts_the_whole_run(self):
         self.write([self.row("a/one", status="reported", reported_on="2026-08-21")])
-        code, _ = self.run_it("a/one", "a/typo", "--bounced")
+        code, _ = self.bounce("a/one", "a/typo")
         self.assertEqual(code, 1)
         self.assertEqual(self.read()["a/one"]["status"], "reported")
 
-    def test_bouncing_twice_is_a_no_op(self):
-        self.write([self.row("a/one", status="bounced")])
-        code, output = self.run_it("a/one", "--bounced")
+    def test_recording_the_same_bounce_twice_is_a_no_op(self):
+        self.write([self.row("a/one", status="bounced",
+                             note=f"email bounced 2026-08-21 {self.DEAD}")])
+        code, output = self.bounce("a/one")
         self.assertEqual(code, 0)
         self.assertIn("nothing to change", output)
+
+    def test_a_second_address_bouncing_is_recorded_too(self):
+        # A repo can burn through more than one route. Keying the no-op on
+        # status would have swallowed the second one, and find_contacts.py
+        # would then propose the address that had just bounced.
+        self.write([self.row("a/one", status="bounced",
+                             note=f"email bounced 2026-08-21 {self.DEAD}")])
+        self.bounce("a/one", address="also-gone@example.com")
+        note = self.read()["a/one"]["note"]
+        self.assertIn(self.DEAD, note)
+        self.assertIn("also-gone@example.com", note)
+        self.assertEqual(len(mr.dead_addresses(note)), 2)
 
     def test_repos_not_named_are_untouched(self):
         self.write([self.row("a/one", status="reported", reported_on="2026-08-21"),
                     self.row("b/two", status="reported", reported_on="2026-08-21")])
-        self.run_it("a/one", "--bounced")
+        self.bounce("a/one")
         self.assertEqual(self.read()["b/two"]["status"], "reported")
         self.assertEqual(self.read()["b/two"]["reported_on"], "2026-08-21")
 
@@ -466,12 +484,63 @@ class TestBounces(TrackerCase):
         # "-> reported" on a run that clears the reported mark would be the
         # opposite of what happened.
         self.write([self.row("a/one", status="reported", reported_on="2026-08-21")])
-        _, output = self.run_it("a/one", "--bounced")
+        _, output = self.bounce("a/one")
         self.assertIn("bounced", output)
         self.assertNotIn("-> reported", output)
 
     @unittest.skipIf(os.name == "nt", "Windows chmod only honours the read-only bit")
     def test_the_tracker_stays_locked_down(self):
         self.write([self.row("a/one", status="reported", reported_on="2026-08-21")])
-        self.run_it("a/one", "--bounced")
+        self.bounce("a/one")
         self.assertEqual(os.stat(self.tracker).st_mode & 0o777, 0o600)
+
+
+class TestDeadAddresses(TrackerCase):
+    """The address that bounced has to be recorded, or the fix does nothing.
+
+    Un-marking the row puts the repo back in find_contacts.py, which derives
+    its routes from the repository — and derives the same dead address it
+    derived the first time, presented as the one to use. That is how one
+    bounce becomes two.
+    """
+
+    def test_bounced_without_an_address_is_refused(self):
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-21")])
+        code, _ = self.run_it("a/one", "--bounced")
+        self.assertEqual(code, 1)
+        self.assertEqual(self.read()["a/one"]["status"], "reported")
+
+    def test_the_refusal_says_what_to_pass(self):
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-21")])
+        _, output = self.run_it("a/one", "--bounced")
+        self.assertIn("--address", output)
+
+    def test_an_address_without_bounced_is_refused(self):
+        self.write([self.row("a/one")])
+        code, _ = self.run_it("a/one", "--address", "x@y.com")
+        self.assertEqual(code, 1)
+
+    def test_a_non_address_is_refused(self):
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-21")])
+        code, _ = self.run_it("a/one", "--bounced", "--address", "not-an-email")
+        self.assertEqual(code, 1)
+        self.assertEqual(self.read()["a/one"]["status"], "reported")
+
+    def test_the_address_is_parseable_back_out_of_the_note(self):
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-21")])
+        self.run_it("a/one", "--bounced", "--address", "gone@example.com",
+                    "--on", "2026-08-25")
+        self.assertEqual(mr.dead_addresses(self.read()["a/one"]["note"]),
+                         ["gone@example.com"])
+
+    def test_it_survives_an_existing_note_and_a_later_one(self):
+        self.write([self.row("a/one", status="reported", reported_on="2026-08-21",
+                             note="contacted by email")])
+        self.run_it("a/one", "--bounced", "--address", "gone@example.com",
+                    "--on", "2026-08-25", "--note", "tried the org page too")
+        self.assertEqual(mr.dead_addresses(self.read()["a/one"]["note"]),
+                         ["gone@example.com"])
+
+    def test_a_note_with_no_bounce_yields_nothing(self):
+        self.assertEqual(mr.dead_addresses("contacted by email"), [])
+        self.assertEqual(mr.dead_addresses(""), [])

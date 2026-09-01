@@ -38,6 +38,12 @@ was contacted is false for someone who was never reached.
 --bounced puts the row back: status becomes `bounced`, reported_on is cleared,
 and the note records it. find_contacts.py counts `bounced` as still needing a
 route, and the publication window stops counting a date nobody received.
+
+--address is required, and that is the point. Un-marking the row alone puts the
+repo back in find_contacts.py, which re-derives the route from the repository —
+and derives the same dead address it derived the first time, presented as the
+one to use. Recording which address died is what lets find_contacts.py skip it
+and fall through to the next route.
 """
 
 from __future__ import annotations
@@ -45,6 +51,7 @@ from __future__ import annotations
 import argparse
 import csv
 import os
+import re
 import sys
 from datetime import date, timedelta
 from pathlib import Path
@@ -114,7 +121,15 @@ def publication_date(rows, window: int):
     return latest + timedelta(days=window), latest
 
 
-def plan_bounced(rows, wanted, on, note=""):
+DEAD_ADDRESS_RE = re.compile(r"email bounced \d{4}-\d{2}-\d{2} (\S+@\S+)")
+
+
+def dead_addresses(note: str):
+    """Addresses recorded as bounced, for find_contacts.py to skip."""
+    return [match.lower() for match in DEAD_ADDRESS_RE.findall(note or "")]
+
+
+def plan_bounced(rows, wanted, on, address, note=""):
     """Undo a reported mark, because the message never arrived.
 
     Deliberately overrides the keep-the-original-date rule: that rule exists
@@ -126,13 +141,13 @@ def plan_bounced(rows, wanted, on, note=""):
     """
     by_repo = {row["repo"]: row for row in rows}
     changes, skipped, missing = [], [], []
-    stamped = append_note(f"email bounced {on.isoformat()}", note)
+    stamped = append_note(f"email bounced {on.isoformat()} {address}", note)
     for slug in wanted:
         row = by_repo.get(slug)
         if row is None:
             missing.append(slug)
             continue
-        if row.get("status") == "bounced":
+        if address.lower() in dead_addresses(row.get("note", "")):
             skipped.append((slug, ""))
             continue
         changes.append((slug, row.get("status", ""), {
@@ -224,6 +239,9 @@ def main(argv=None) -> int:
     parser.add_argument("--bounced", action="store_true",
                         help="the message never arrived: clear the reported mark "
                              "and put these repos back in find_contacts.py's list")
+    parser.add_argument("--address", default="",
+                        help="the address that bounced. Required with --bounced, so "
+                             "find_contacts.py can skip it instead of proposing it again.")
     parser.add_argument("--yes", action="store_true", help="skip the confirmation")
     args = parser.parse_args(argv)
 
@@ -245,6 +263,20 @@ def main(argv=None) -> int:
         print(f"--on {on.isoformat()} is in the future", file=sys.stderr)
         return 1
 
+    if args.address and not args.bounced:
+        print("--address only means something with --bounced", file=sys.stderr)
+        return 1
+    if args.bounced and not args.address:
+        # Without it the row goes back in the queue and find_contacts.py
+        # proposes the dead address all over again. That is the bug this
+        # flag exists to prevent, so it is refused rather than half-done.
+        print("--bounced needs --address: the address that bounced, so "
+              "find_contacts.py can skip it", file=sys.stderr)
+        return 1
+    if args.address and "@" not in args.address:
+        print(f"--address {args.address} is not an email address", file=sys.stderr)
+        return 1
+
     tracker_path = Path(args.tracker)
     if not tracker_path.exists():
         print(f"no tracker at {tracker_path} — run prepare_disclosures.py first", file=sys.stderr)
@@ -252,7 +284,7 @@ def main(argv=None) -> int:
 
     rows = read_tracker(tracker_path)
     if args.bounced:
-        changes, skipped, missing = plan_bounced(rows, wanted, on, args.note)
+        changes, skipped, missing = plan_bounced(rows, wanted, on, args.address, args.note)
     else:
         changes, skipped, missing = plan(rows, wanted, args.route, on, args.note)
 
@@ -266,7 +298,7 @@ def main(argv=None) -> int:
             print(f"  {was or 'unset':20} -> {fields['status']:<10} {slug}")
     for slug, when in skipped:
         if args.bounced:
-            print(f"  already bounced{'':<9} {slug}")
+            print(f"  already recorded  {args.address} bounced for {slug}")
         else:
             print(f"  already reported{' on ' + when if when else '':<8} {slug}")
     if missing:

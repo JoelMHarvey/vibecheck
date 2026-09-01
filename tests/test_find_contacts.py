@@ -13,6 +13,7 @@ import io
 import os
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
@@ -80,6 +81,81 @@ class TestRouteSelection(unittest.TestCase):
         self.assertIn("no details", note)
 
 
+class TestDeadAddressesAreNotRoutes(unittest.TestCase):
+    """An address known to bounce is not a route, however well-published.
+
+    The routes are all derived from the repository, so putting a bounced repo
+    back in the queue re-derives whatever was tried the first time. On the
+    real run this handed back security@wheelsandwins.com — the address that
+    had permanently failed four days earlier — under the heading of the route
+    to use. A dead lead presented as a live one is worse than none: it looks
+    actionable and silently isn't.
+    """
+
+    DEAD = frozenset({"s@x.com"})
+
+    def test_a_bounced_security_address_falls_through_to_the_profile(self):
+        route, _ = fc.route_for("s@x.com", "p@x.com", "c@x.com", True, self.DEAD)
+        self.assertEqual(route, "profile email")
+
+    def test_it_keeps_falling_through(self):
+        dead = frozenset({"s@x.com", "p@x.com"})
+        route, _ = fc.route_for("s@x.com", "p@x.com", "c@x.com", True, dead)
+        self.assertEqual(route, "commit email")
+
+    def test_every_address_dead_leaves_the_public_issue(self):
+        dead = frozenset({"s@x.com", "p@x.com", "c@x.com"})
+        route, _ = fc.route_for("s@x.com", "p@x.com", "c@x.com", True, dead)
+        self.assertEqual(route, "public issue")
+
+    def test_every_address_dead_and_issues_off_is_no_route(self):
+        dead = frozenset({"s@x.com", "p@x.com", "c@x.com"})
+        route, _ = fc.route_for("s@x.com", "p@x.com", "c@x.com", False, dead)
+        self.assertEqual(route, "none found")
+
+    def test_the_note_says_which_address_was_skipped(self):
+        # Otherwise the fallback looks arbitrary and someone "corrects" it
+        # back to the SECURITY.md address.
+        _, note = fc.route_for("s@x.com", "p@x.com", "", True, self.DEAD)
+        self.assertIn("s@x.com bounced", note)
+
+    def test_the_commit_warning_survives_the_skip(self):
+        dead = frozenset({"s@x.com", "p@x.com"})
+        _, note = fc.route_for("s@x.com", "p@x.com", "c@x.com", True, dead)
+        self.assertIn("this use only", note)
+        self.assertIn("bounced", note)
+
+    def test_matching_ignores_case(self):
+        route, _ = fc.route_for("S@X.com", "p@x.com", "", True, self.DEAD)
+        self.assertEqual(route, "profile email")
+
+    def test_no_dead_addresses_changes_nothing(self):
+        self.assertEqual(fc.route_for("s@x.com", "p@x.com", "c@x.com", True),
+                         fc.route_for("s@x.com", "p@x.com", "c@x.com", True, frozenset()))
+
+
+class TestReadingBouncesFromTheTracker(unittest.TestCase):
+    """mark_reported.py writes the note; this has to be able to read it back."""
+
+    def test_it_finds_the_address(self):
+        self.assertEqual(
+            fc.dead_addresses("contacted by email · email bounced 2026-08-25 s@x.com"),
+            {"s@x.com"})
+
+    def test_it_finds_more_than_one(self):
+        self.assertEqual(
+            fc.dead_addresses("email bounced 2026-08-21 a@x.com · "
+                              "email bounced 2026-08-25 b@x.com"),
+            {"a@x.com", "b@x.com"})
+
+    def test_an_ordinary_note_yields_nothing(self):
+        self.assertEqual(fc.dead_addresses("contacted by email"), set())
+        self.assertEqual(fc.dead_addresses(""), set())
+
+    def test_it_does_not_mistake_the_contact_note_for_a_bounce(self):
+        self.assertEqual(fc.dead_addresses("acknowledged 2026-08-22"), set())
+
+
 class TestSelection(unittest.TestCase):
     """Which rows get looked up at all."""
 
@@ -106,10 +182,11 @@ class TestSelection(unittest.TestCase):
     def run_it(self, *extra, investigate=None):
         looked_up = []
         original = fc.investigate
-        fc.investigate = investigate or (lambda slug: (looked_up.append(slug) or {
+        fc.investigate = investigate or (lambda slug, dead=frozenset(): (
+            looked_up.append((slug, dead) if dead else slug) or {
             "owner": "o", "owner_type": "User", "issues_enabled": "yes",
             "security_md_email": "", "profile_email": "p@x.com",
-            "commit_email": "", "best_route": "profile email", "note": ""}))
+                "commit_email": "", "best_route": "profile email", "note": ""}))
         self.addCleanup(setattr, fc, "investigate", original)
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             code = fc.main(["--tracker", str(self.tracker), "--out", str(self.out), *extra])
@@ -125,6 +202,14 @@ class TestSelection(unittest.TestCase):
         self.write_tracker([self.row("a/crit"), self.row("b/high", severity="high")])
         _, looked = self.run_it("--severity", "high")
         self.assertEqual(sorted(looked), ["a/crit", "b/high"])
+
+    def test_the_bounced_address_reaches_the_lookup(self):
+        # The seam that was missing entirely: the note is in the tracker and
+        # the route selection reads it, but nothing carried it between them.
+        self.write_tracker([dict(self.row("a/bounced", status="bounced"),
+                                 note="email bounced 2026-08-25 dead@x.com")])
+        _, looked = self.run_it()
+        self.assertEqual(looked, [("a/bounced", {"dead@x.com"})])
 
     def test_a_bounced_repo_is_handed_back(self):
         # A bounce means nobody was told. If `bounced` were treated like
@@ -153,7 +238,7 @@ class TestSelection(unittest.TestCase):
     def test_a_failed_lookup_still_produces_a_row(self):
         # Silently dropping a repo means nobody ever tells that maintainer.
         self.write_tracker([self.row("a/gone")])
-        self.run_it(investigate=lambda slug: {
+        self.run_it(investigate=lambda slug, dead=frozenset(): {
             "owner": "", "owner_type": "", "issues_enabled": "",
             "security_md_email": "", "profile_email": "", "commit_email": "",
             "best_route": "unreachable", "note": "repo not found"})
@@ -181,3 +266,41 @@ class TestSelection(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTheWriterAndTheReaderAgree(unittest.TestCase):
+    """One module writes the bounce note, another parses it back out.
+
+    Nothing but this test holds the format together, and a silent divergence
+    reads exactly like the original bug: find_contacts.py proposes an address
+    mark_reported.py has already recorded as dead.
+    """
+
+    def setUp(self):
+        spec = importlib.util.spec_from_file_location(
+            "mark_reported", SCRIPTS / "mark_reported.py")
+        self.mr = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.mr)
+
+    def note_from_mark_reported(self, address, on):
+        rows = [{"repo": "a/one", "status": "reported", "reported_on": "2026-08-21",
+                 "note": "contacted by email"}]
+        changes, _, _ = self.mr.plan_bounced(rows, ["a/one"], date.fromisoformat(on),
+                                             address)
+        return changes[0][2]["note"]
+
+    def test_find_contacts_reads_what_mark_reported_writes(self):
+        note = self.note_from_mark_reported("gone@example.com", "2026-08-25")
+        self.assertEqual(fc.dead_addresses(note), {"gone@example.com"})
+
+    def test_both_modules_parse_it_the_same_way(self):
+        note = self.note_from_mark_reported("gone@example.com", "2026-08-25")
+        self.assertEqual(set(self.mr.dead_addresses(note)), fc.dead_addresses(note))
+
+    def test_a_second_bounce_is_readable_too(self):
+        note = self.note_from_mark_reported("gone@example.com", "2026-08-25")
+        rows = [{"repo": "a/one", "status": "bounced", "reported_on": "", "note": note}]
+        changes, _, _ = self.mr.plan_bounced(rows, ["a/one"], date(2026, 8, 26),
+                                             "also@example.com")
+        self.assertEqual(fc.dead_addresses(changes[0][2]["note"]),
+                         {"gone@example.com", "also@example.com"})
