@@ -9,6 +9,7 @@ about refusing as filling.
 """
 
 import contextlib
+import csv
 import importlib.util
 import io
 import json
@@ -327,9 +328,24 @@ class TestEndToEnd(unittest.TestCase):
         self.agg = self.root / "aggregate.json"
         self.out = self.root / "post.md"
 
-    def run_it(self, agg, template=None):
+    def tracker(self, reported=11, bounced=0, other=0, severity="critical"):
+        """A tracker whose critical rows add up to the scan's count."""
+        path = self.root / "tracker.csv"
+        rows = ([("reported", i) for i in range(reported)]
+                + [("bounced", 100 + i) for i in range(bounced)]
+                + [("drafted", 200 + i) for i in range(other)])
+        with open(path, "w", newline="", encoding="utf-8") as fh:
+            writer = csv.writer(fh)
+            writer.writerow(["repo", "worst_severity", "findings", "status",
+                             "reported_on", "advisory_url", "note"])
+            for status, i in rows:
+                writer.writerow([f"o/r{i}", severity, 1, status, "", "", ""])
+        return path
+
+    def run_it(self, agg, template=None, tracker=None, **tracker_kw):
         self.agg.write_text(json.dumps(agg), encoding="utf-8")
-        argv = ["--aggregate", str(self.agg), "--out", str(self.out)]
+        argv = ["--aggregate", str(self.agg), "--out", str(self.out),
+                "--tracker", str(tracker or self.tracker(**tracker_kw))]
         if template:
             path = self.root / "t.md"
             path.write_text(template, encoding="utf-8")
@@ -375,3 +391,195 @@ class TestEndToEnd(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestContactCounts(unittest.TestCase):
+    """Who was actually told, read from the tracker rather than asserted.
+
+    The post said "i contacted those maintainers privately" for five days while
+    three of eleven messages had bounced — two addresses that don't exist and a
+    domain that doesn't resolve. Nothing caught it because the claim was prose,
+    and prose isn't checked against anything. So it is a number now.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.path = Path(self.tmp.name) / "tracker.csv"
+
+    def write(self, rows, severity="critical"):
+        with open(self.path, "w", newline="", encoding="utf-8") as fh:
+            writer = csv.writer(fh)
+            writer.writerow(["repo", "worst_severity", "findings", "status",
+                             "reported_on", "advisory_url", "note"])
+            for i, (status, sev) in enumerate(rows):
+                writer.writerow([f"o/r{i}", sev or severity, 1, status, "", "", ""])
+
+    def test_reported_rows_are_the_contacted_ones(self):
+        self.write([("reported", None), ("reported", None), ("drafted", None)])
+        self.assertEqual(fw.contact_counts(self.path)["N_CONTACTED"], 2)
+
+    def test_bounced_rows_are_counted_as_unreachable(self):
+        self.write([("reported", None), ("bounced", None), ("bounced", None)])
+        counts = fw.contact_counts(self.path)
+        self.assertEqual(counts["N_CONTACTED"], 1)
+        self.assertEqual(counts["N_UNREACHABLE"], 2)
+
+    def test_a_bounced_row_is_never_counted_as_contacted(self):
+        # The whole bug, in one assertion.
+        self.write([("bounced", None)])
+        self.assertEqual(fw.contact_counts(self.path)["N_CONTACTED"], 0)
+
+    def test_a_repo_with_no_route_is_unreachable_too(self):
+        self.write([("unreachable", None)])
+        self.assertEqual(fw.contact_counts(self.path)["N_UNREACHABLE"], 1)
+
+    def test_drafted_is_neither(self):
+        # Prepared and not sent. Counting it either way would be a claim.
+        self.write([("drafted", None)])
+        counts = fw.contact_counts(self.path)
+        self.assertEqual((counts["N_CONTACTED"], counts["N_UNREACHABLE"]), (0, 0))
+
+    def test_rows_below_critical_are_out_of_scope(self):
+        self.write([("reported", "critical"), ("reported", "high")])
+        self.assertEqual(fw.contact_counts(self.path)["N_CONTACTED"], 1)
+
+    def test_a_missing_tracker_yields_nothing_not_zero(self):
+        # Zero contacted would be a claim about the world. No tracker is an
+        # absence of evidence, and it must stop the post rather than fill it.
+        self.assertEqual(fw.contact_counts(Path("/nonexistent/tracker.csv")), {})
+
+    def test_a_tracker_with_no_criticals_yields_nothing(self):
+        self.write([("reported", "high")])
+        self.assertEqual(fw.contact_counts(self.path), {})
+
+
+class TestTheDenominatorComesFromTheScan(unittest.TestCase):
+    """A critical repo the tracker never heard of must not vanish.
+
+    Counting the tracker's own rows as the denominator would let a repo missing
+    from it disappear from both halves of the fraction, and the post would
+    claim complete coverage of a smaller world than the one it scanned.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.path = Path(self.tmp.name) / "tracker.csv"
+
+    def counts(self, reported, unreachable):
+        return {"N_CONTACTED": reported, "N_UNREACHABLE": unreachable}
+
+    def test_everyone_accounted_for_leaves_nothing_outstanding(self):
+        v = fw.values_from(aggregate(), contacts=self.counts(8, 3))
+        self.assertEqual(v["N_UNCONTACTED"], 0)
+
+    def test_a_repo_the_tracker_does_not_know_about_is_uncontacted(self):
+        # Scan found 11; tracker accounts for 10.
+        v = fw.values_from(aggregate(), contacts=self.counts(8, 2))
+        self.assertEqual(v["N_UNCONTACTED"], 1)
+
+    def test_a_tracker_from_another_scan_shows_up_as_negative(self):
+        v = fw.values_from(aggregate(), contacts=self.counts(11, 3))
+        self.assertEqual(v["N_UNCONTACTED"], -3)
+
+    def test_no_tracker_means_no_verdict_either_way(self):
+        self.assertIsNone(fw.values_from(aggregate()).get("N_UNCONTACTED"))
+
+
+class TestConditionalBlocks(unittest.TestCase):
+    """The post has to be true under outcomes that need different sentences."""
+
+    def test_a_zero_drops_the_block(self):
+        # "0 i could not reach at all" is not a sentence anyone writes.
+        out = fw.resolve_blocks("a{{?N}}b{{/N}}c", {"N": 0})
+        self.assertEqual(out, "ac")
+
+    def test_a_number_keeps_it(self):
+        self.assertEqual(fw.resolve_blocks("a{{?N}}b{{/N}}c", {"N": 3}), "abc")
+
+    def test_an_absent_value_drops_it(self):
+        # It cannot be asserted, so it isn't.
+        self.assertEqual(fw.resolve_blocks("a{{?N}}b{{/N}}c", {}), "ac")
+
+    def test_placeholders_inside_a_kept_block_still_fill(self):
+        text, missing = fw.fill("{{?N}}{{N}} unreachable{{/N}}", {"N": 3})
+        self.assertEqual((text, missing), ("3 unreachable", []))
+
+    def test_a_dropped_block_does_not_report_its_contents_as_missing(self):
+        # Otherwise switching the block off would refuse to write the post.
+        text, missing = fw.fill("{{?N}}{{N}} unreachable{{/N}}done", {"N": 0})
+        self.assertEqual((text, missing), ("done", []))
+
+    def test_the_real_template_says_nothing_about_unreachable_when_there_are_none(self):
+        template = (ROOT / "content" / "scanned-vibe-coded-apps.md").read_text(
+            encoding="utf-8")
+        kept = fw.resolve_blocks(template, {"N_UNREACHABLE": 2})
+        dropped = fw.resolve_blocks(template, {"N_UNREACHABLE": 0})
+        self.assertIn("could not reach", kept)
+        self.assertNotIn("could not reach", dropped)
+
+
+class TestRefusingToOverclaim(unittest.TestCase):
+    """The refusals that stop the post asserting a disclosure that didn't happen."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.agg = self.root / "aggregate.json"
+        self.out = self.root / "post.md"
+
+    def run_it(self, rows=None, tracker_path=None):
+        self.agg.write_text(json.dumps(aggregate()), encoding="utf-8")
+        path = tracker_path
+        if path is None:
+            path = self.root / "tracker.csv"
+            with open(path, "w", newline="", encoding="utf-8") as fh:
+                writer = csv.writer(fh)
+                writer.writerow(["repo", "worst_severity", "findings", "status",
+                                 "reported_on", "advisory_url", "note"])
+                for i, status in enumerate(rows or []):
+                    writer.writerow([f"o/r{i}", "critical", 1, status, "", "", ""])
+        buf, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(err):
+            code = fw.main(["--aggregate", str(self.agg), "--out", str(self.out),
+                            "--tracker", str(path)])
+        return code, buf.getvalue() + err.getvalue()
+
+    def test_someone_untold_stops_the_post(self):
+        code, output = self.run_it(["reported"] * 8 + ["bounced"] * 2)
+        self.assertEqual(code, 1)
+        self.assertIn("1", output)
+        self.assertFalse(self.out.exists(), "published while someone was untold")
+
+    def test_the_refusal_says_how_to_resolve_it(self):
+        _, output = self.run_it(["reported"] * 8 + ["bounced"] * 2)
+        self.assertIn("mark_reported.py --bounced", output)
+
+    def test_a_tracker_from_a_different_scan_stops_the_post(self):
+        code, output = self.run_it(["reported"] * 14)
+        self.assertEqual(code, 1)
+        self.assertIn("different run", output)
+        self.assertFalse(self.out.exists())
+
+    def test_no_tracker_at_all_stops_the_post(self):
+        # Not a zero, not a pass. A disclosure claim needs something behind it.
+        code, output = self.run_it(tracker_path=self.root / "absent.csv")
+        self.assertEqual(code, 1)
+        self.assertIn("N_CONTACTED", output)
+        self.assertFalse(self.out.exists())
+
+    def test_everyone_accounted_for_writes_the_post(self):
+        code, output = self.run_it(["reported"] * 8 + ["bounced"] * 3)
+        self.assertEqual(code, 0, output)
+        text = self.out.read_text(encoding="utf-8")
+        self.assertIn("i contacted 8 of", text)
+        self.assertIn("3 i could not reach", text)
+
+    def test_everyone_reached_leaves_the_caveat_out(self):
+        code, output = self.run_it(["reported"] * 11)
+        self.assertEqual(code, 0, output)
+        text = self.out.read_text(encoding="utf-8")
+        self.assertIn("i contacted 11 of", text)
+        self.assertNotIn("could not reach", text)
