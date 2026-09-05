@@ -103,8 +103,18 @@ left the door open isn't an invitation.
 {{N_ANY_CRITICAL}} repos had something critical: a committed private key, a
 Supabase service_role key, an LLM key being shipped to the browser, or — in one
 case — a live Stripe key. those are the ones where the worst case is someone
-else's money or someone else's entire database. i contacted those maintainers privately and gave them
-time to rotate before publishing this.
+else's money or someone else's entire database. i contacted {{N_CONTACTED}} of
+those maintainers privately, before publishing this, and left them a fortnight
+to rotate.
+{{?N_UNREACHABLE}}
+
+{{N_UNREACHABLE}} i could not reach at all. the address published in the
+repository bounced — a mailbox that doesn't exist, a domain that doesn't
+resolve — and no other route worked either. that isn't the same as deciding
+not to tell someone, but it isn't the same as telling them, and you should
+know which one you're reading. those keys are public whether or not this post
+exists; waiting longer wouldn't have made them safer, only later.
+{{/N_UNREACHABLE}}
 
 {{N_ANY_HIGH}} had at least one high-severity finding, and i want to be straight
 about what that covers: plenty of them are live credentials too — database
