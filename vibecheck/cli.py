@@ -27,8 +27,14 @@ def main(argv=None) -> int:
         metavar="URL",
         help="scan a DEPLOYED site instead of a directory (checks for exposed .env, source maps, missing security headers, open CORS, robots.txt leaks)",
     )
+    parser.add_argument(
+        "--visibility",
+        metavar="URL",
+        help="check how a DEPLOYED site looks to search engines and AI crawlers (rendering, robots.txt, sitemap, llms.txt, structured data, titles, link previews)",
+    )
     parser.add_argument("--markdown", metavar="FILE", help="also write a Markdown report to FILE")
-    parser.add_argument("--json", metavar="FILE", help="also write a JSON report to FILE")
+    parser.add_argument("--json", metavar="FILE", nargs="?", const="-",
+                        help="also write a JSON report to FILE (no FILE: print JSON instead of the terminal report)")
     parser.add_argument(
         "--min-severity",
         choices=list(SEVERITY_ORDER),
@@ -52,6 +58,9 @@ def main(argv=None) -> int:
     parser.add_argument("--version", action="version", version=f"vibecheck {__version__}")
     args = parser.parse_args(argv)
 
+    if args.visibility:
+        return _visibility(args)
+
     if args.url:
         from .urlscan import build_default_fetcher, scan_url
 
@@ -66,12 +75,15 @@ def main(argv=None) -> int:
     result.findings = [f for f in result.findings if SEVERITY_ORDER[f.severity] <= threshold]
 
     use_color = not args.no_color and sys.stdout.isatty()
-    print(render_terminal(result, use_color=use_color))
+    if args.json != "-":
+        print(render_terminal(result, use_color=use_color))
 
     if args.markdown:
         Path(args.markdown).write_text(render_markdown(result), encoding="utf-8")
         print(f"  Markdown report written to {args.markdown}")
-    if args.json:
+    if args.json == "-":
+        print(render_json(result), end="")
+    elif args.json:
         Path(args.json).write_text(render_json(result), encoding="utf-8")
         print(f"  JSON report written to {args.json}")
 
@@ -79,6 +91,35 @@ def main(argv=None) -> int:
         fail_threshold = SEVERITY_ORDER[args.fail_on]
         if any(SEVERITY_ORDER[f.severity] <= fail_threshold for f in result.findings):
             return 1
+    return 0
+
+
+def _visibility(args) -> int:
+    from .visibility import report as vreport
+    from .visibility import scan_visibility
+    from .visibility.fetch import build_fetcher
+
+    # Unguarded, like --url: checking your own staging box from your own
+    # machine is a fair use. The hosted endpoint always guards.
+    result = scan_visibility(args.visibility, build_fetcher(guard=False))
+    threshold = SEVERITY_ORDER[args.min_severity]
+    result.findings = [f for f in result.findings if SEVERITY_ORDER[f.severity] <= threshold]
+
+    if args.json == "-":
+        print(vreport.render_json(result), end="")
+    else:
+        use_color = not args.no_color and sys.stdout.isatty()
+        print(vreport.render_terminal(result, use_color=use_color))
+    if args.markdown:
+        Path(args.markdown).write_text(vreport.render_markdown(result), encoding="utf-8")
+        if args.json != "-":
+            print(f"  Markdown report written to {args.markdown}")
+    if args.json and args.json != "-":
+        Path(args.json).write_text(vreport.render_json(result), encoding="utf-8")
+        print(f"  JSON report written to {args.json}")
+
+    if args.fail_on != "never" and vreport.fails(result, args.fail_on):
+        return 1
     return 0
 
 

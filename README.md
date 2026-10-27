@@ -93,6 +93,40 @@ code), missing security headers (HSTS, CSP, `X-Content-Type-Options`,
 and sensitive paths advertised in `robots.txt`. Same scoring, same
 copy-paste fix prompts.
 
+## Is anyone finding it? (visibility)
+
+A third mode checks how a deployed site looks to search engines and to AI
+assistants like ChatGPT, Claude and Perplexity. Try it at
+**[psychosecurity.io/visibility](https://psychosecurity.io/visibility)** or:
+
+```bash
+vibecheck --visibility https://myapp.com
+vibecheck --visibility https://myapp.com --markdown report.md
+vibecheck --visibility https://myapp.com --json        # JSON to stdout
+```
+
+It reads robots.txt, the sitemap, llms.txt, the home page and up to 20 more
+pages, and reports on: text missing from the raw HTML (the blank page most
+Lovable, Bolt and Vite apps serve to crawlers), robots.txt blocks, sitemap
+gaps and stale dates, titles and descriptions, H1s, link previews, sections
+that only exist as `#fragments`, www against bare, HTTP against HTTPS,
+redirect chains, structured data (Organization, Offer, FAQPage), llms.txt,
+alt text, heavy images and trust details. Which AI crawlers you block is
+reported, never scored.
+
+Each finding says why it matters, gives a fix prompt and says how to check
+the fix worked. Scores run 0 to 10 in six categories (Technical, AI
+readiness, Content & keywords, Positioning, Off-site, Brand clarity) plus a
+weighted total; phase 1 fills the first three. Weights and limits live in
+`vibecheck/visibility/config.py`. Exit code is 1 on any high or critical.
+
+The hosted crawl identifies itself as
+`vibecheck-visibility/1.0 (+https://psychosecurity.io/visibility)`, obeys
+robots.txt, vets every request and redirect against private addresses and
+connects only to the address it vetted. It allows 10 scans an hour per visitor
+and one a minute per site, and keeps results for 24 hours. Design notes:
+[`docs/visibility-design.md`](docs/visibility-design.md).
+
 ## Usage
 
 ```bash

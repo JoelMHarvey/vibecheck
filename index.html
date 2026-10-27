@@ -48,6 +48,8 @@
   .tab { font: 600 14px/1 inherit; background: transparent; color: var(--muted); border: 1px solid var(--border);
          border-radius: 8px; padding: 10px 18px; cursor: pointer; }
   .tab[aria-selected="true"] { background: var(--panel2); color: var(--text); border-color: var(--accent); }
+  a.tab { text-decoration: none; display: inline-block; }
+  .tabs { flex-wrap: wrap; }
   .drop { margin: 16px auto 8px; border: 2px dashed var(--border); border-radius: 14px; background: var(--panel);
           padding: 44px 24px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
   .drop.hover { border-color: var(--accent); background: var(--panel2); }
@@ -143,6 +145,7 @@
     <div class="tabs" role="tablist">
       <button class="tab" id="tabFolder" role="tab" aria-selected="true">Scan my code</button>
       <button class="tab" id="tabUrl" role="tab" aria-selected="false">Scan a live site</button>
+      <a class="tab" href="/visibility">Is anyone finding it?</a>
     </div>
 
     <div id="panelFolder">
@@ -203,6 +206,7 @@
       <div class="card"><h3>Vibe-coding mistakes</h3><p>dangerouslyAllowBrowser, LLM APIs called from the frontend, secrets in VITE_/NEXT_PUBLIC_ variables, .env not gitignored.</p></div>
       <div class="card"><h3>Classic vulnerabilities</h3><p>SQL built by string interpolation, shell injection, XSS via innerHTML, eval, CORS open to every origin, debug mode left on.</p></div>
       <div class="card"><h3>Your deployed site</h3><p>Publicly readable .env or .git, published source maps that rebuild your source, missing security headers, plain HTTP, and robots.txt that signposts your admin pages.</p></div>
+      <a class="card" href="/visibility"><h3>Is anyone finding it? →</h3><p>A free check of how your site looks to Google and to AI assistants: blank pages, robots.txt, sitemap, llms.txt, structured data.</p></a>
       <div class="card"><h3>Fix prompts, not jargon</h3><p>Every finding ends with a prompt written for your AI tool — paste it into Cursor, Claude Code, Lovable or Bolt and let it do the fix.</p></div>
     </div>
   </section>
@@ -220,6 +224,8 @@
       <a class="card" href="/guides/supabase-service-role-key-exposed"><h3>My Supabase service_role key is exposed →</h3><p>It bypasses every RLS policy you have. Tell it apart from the harmless anon key, rotate without logging out your users, and check what was reachable.</p></a>
       <a class="card" href="/guides/stripe-secret-key-exposed"><h3>My Stripe secret key is exposed →</h3><p>The one that can move money, not just read it. Live vs test keys, rolling without dropping payments, and reading the audit log.</p></a>
       <a class="card" href="/guides/openai-api-key-exposed"><h3>My OpenAI API key is exposed →</h3><p>A bill, not a breach — revoking is free. The part that matters is why the browser had the key in the first place.</p></a>
+      <a class="card" href="/guides/lovable-app-invisible-to-google"><h3>Is my Lovable app invisible to Google? →</h3><p>Why a fresh Lovable or Bolt app is a blank page to most crawlers, and the fix that keeps your app as it is.</p></a>
+      <a class="card" href="/guides/llms-txt"><h3>What llms.txt is, and whether you need one →</h3><p>A plain-text summary for AI assistants. What goes in it, what it does and doesn't do, and a template.</p></a>
     </div>
   </section>
 
@@ -227,7 +233,8 @@
     <h2>Prefer the command line?</h2>
     <p style="color:var(--muted); margin-bottom:12px">The same scanner, fully offline, zero dependencies (Python 3.9+). Drop it into CI — it exits 1 on high/critical findings.</p>
     <pre class="cli">python3 -m vibecheck /path/to/your/app --markdown report.md
-python3 -m vibecheck --url https://myapp.com</pre>
+python3 -m vibecheck --url https://myapp.com
+python3 -m vibecheck --visibility https://myapp.com</pre>
   </section>
 
   <footer>
@@ -593,6 +600,7 @@ $("demoBtn").addEventListener("click", () => {
 
 (async function boot() {
   const hash = location.hash;
+  if (hash === "#url") { selectTab("url"); return; }  // linked from /visibility
   if (!hash.startsWith("#r=")) return;
   try {
     statusEl.textContent = "Loading shared report…";

@@ -11,7 +11,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from generate_rules_manifest import MANIFEST_PATH, build_manifest, render  # noqa: E402
+from generate_rules_manifest import (  # noqa: E402
+    MANIFEST_PATH, VIS_MANIFEST_PATH, build_manifest, build_visibility_manifest, render, render_visibility,
+)
 
 from vibecheck.rules import RULES  # noqa: E402
 from vibecheck.urlscan import iter_url_rules  # noqa: E402
@@ -52,6 +54,27 @@ class RulesManifestTest(unittest.TestCase):
             self.assertIn(rule_id, ids)
         self.assertIn("exposed-env-file", ids)
         self.assertIn("missing-csp", ids)
+
+
+class VisibilityManifestTest(unittest.TestCase):
+    """/visibility rehydrates shared reports from visibility-rules.json."""
+
+    def test_committed_and_current(self):
+        self.assertTrue(VIS_MANIFEST_PATH.exists(),
+                        "visibility-rules.json is missing — run python3 scripts/generate_rules_manifest.py")
+        self.assertEqual(VIS_MANIFEST_PATH.read_text(encoding="utf-8"), render_visibility(),
+                         "visibility-rules.json is out of date — run python3 scripts/generate_rules_manifest.py")
+
+    def test_carries_what_the_page_needs(self):
+        from vibecheck.visibility.rules import PASSES, RULES
+
+        manifest = build_visibility_manifest()
+        self.assertEqual(set(manifest["rules"]), set(RULES))
+        self.assertEqual(set(manifest["passes"]), set(PASSES))
+        self.assertEqual(len(manifest["categories"]), 6)
+        for rule_id, entry in manifest["rules"].items():
+            for key in ("t", "s", "c", "d", "v"):
+                self.assertTrue(entry.get(key), f"{rule_id} has no {key}")
 
 
 if __name__ == "__main__":

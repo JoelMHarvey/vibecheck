@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Is my Lovable app invisible to Google? — vibecheck</title>
+<meta name="description" content="Why a Lovable or Bolt app is a blank page to most crawlers and to ChatGPT, how to check yours in ten seconds, and the fixes that keep your app as it is.">
+<link rel="canonical" href="https://psychosecurity.io/guides/lovable-app-invisible-to-google">
+<meta name="theme-color" content="#0b0e14">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="vibecheck">
+<meta property="og:url" content="https://psychosecurity.io/guides/lovable-app-invisible-to-google">
+<meta property="og:title" content="Is my Lovable app invisible to Google?">
+<meta property="og:description" content="Why a Lovable or Bolt app is a blank page to most crawlers, and the fixes that keep your app as it is.">
+<meta property="og:image" content="https://psychosecurity.io/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://psychosecurity.io/og.png">
+<link rel="stylesheet" href="/guide.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="logo" href="/">vibe<span>check</span> 🔒</a>
+    <div class="byline">a psychosecurity.io tool</div>
+  </div>
+</header>
+
+<div class="wrap">
+<article>
+  <h1>Is my Lovable app invisible to Google?</h1>
+  <p class="standfirst">Probably not invisible to Google. Very likely invisible to
+  ChatGPT, Claude, Perplexity and every link preview. The reason is one empty
+  <code>&lt;div&gt;</code>, and you can check for it in ten seconds.</p>
+
+  <p>Lovable, Bolt and most AI app builders make the same kind of app: a
+  single-page React app built with Vite. It's a sensible choice for the thing
+  you're building, which is an app. It's a poor one for the thing that has to
+  get found, which is the page that says what the app is.</p>
+
+  <h2>What a crawler actually gets</h2>
+
+  <p>When a browser asks for your home page, your host sends back something
+  like this, whatever is on the screen a second later:</p>
+
+<pre><code>&lt;!doctype html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;title&gt;my-app&lt;/title&gt;
+    &lt;meta name="description" content="Lovable Generated Project" /&gt;
+    &lt;script type=&quot;module&quot; src=&quot;/assets/index-DxQ1v3Zk.js&quot;&gt;&lt;/script&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;div id="root"&gt;&lt;/div&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+  <p>Everything you wrote, the headline, the pricing, the reasons to sign up,
+  is inside that JavaScript file. Your browser runs it and fills in the
+  <code>root</code>. Anything that doesn't run JavaScript sees an empty page
+  with the title "my-app".</p>
+
+  <h2>Who runs the JavaScript and who doesn't</h2>
+
+  <table>
+    <tr><th>Reader</th><th>Runs JavaScript?</th><th>What it sees</th></tr>
+    <tr><td>Google</td><td>Yes, later</td><td>Your page, usually, after a delay. It fetches the HTML first and renders it when it gets round to it.</td></tr>
+    <tr><td>Bing</td><td>Sometimes</td><td>Less reliable than Google.</td></tr>
+    <tr><td>ChatGPT, Claude, Perplexity crawlers</td><td>No, as far as anyone has measured</td><td>The empty page.</td></tr>
+    <tr><td>Link previews (Slack, LinkedIn, WhatsApp, iMessage, X)</td><td>No</td><td>Whatever is in the raw <code>&lt;head&gt;</code>: often the builder's default title and picture.</td></tr>
+  </table>
+
+  <p>So Google can find you, a bit slower than it would otherwise. But when
+  someone asks an AI assistant for "booking software for dog groomers", the
+  assistant can only recommend what it could read, and it couldn't read you.
+  It will describe you from other people's pages, or not at all.</p>
+
+  <p>There's a second, quieter problem. Every route in the app is served the
+  same HTML, so every page has the same title and description unless
+  something sets them in JavaScript. To a crawler, your pricing page and
+  your home page are the same page.</p>
+
+  <h2>Check yours</h2>
+
+  <p>Open your site, then use <strong>View Page Source</strong> (not Inspect;
+  Inspect shows the page after JavaScript has run). Search for a sentence from
+  your headline. If it isn't there, crawlers don't see it either.</p>
+
+  <p>Or from a terminal:</p>
+<pre><code>curl -s https://yourapp.com/ | grep -c "&lt;p"</code></pre>
+  <p>A count of 0 means no paragraphs in the HTML a crawler receives.</p>
+
+  <div class="callout">
+    <p>The <a href="/visibility">visibility check</a> does this for you, names
+    the builder it thinks made the page, and gives a fix prompt written for
+    it.</p>
+  </div>
+
+  <h2>Fixes, smallest first</h2>
+
+  <ol class="steps">
+    <li><strong>Fix the head of index.html</strong>
+    Five minutes, no rebuild of anything. Give <code>index.html</code> a real
+    title, a description that says who it's for and what it does, and your own
+    Open Graph image. It won't put your copy in front of crawlers, but every
+    link preview and every search result stops saying "Lovable Generated
+    Project".</li>
+
+    <li><strong>Prerender the public pages</strong>
+    Have the build produce real HTML for the pages that need finding (home,
+    pricing, about, each feature page) while the logged-in app stays as it is.
+    In a Vite app that's a prerender step in the build; ask your AI tool to add
+    one and to give each prerendered route its own title and description. This
+    is the fix that keeps your app's code almost untouched.</li>
+
+    <li><strong>Put the marketing site somewhere else</strong>
+    Build the public pages as a plain static site (hand-written HTML, Astro, or
+    whatever your builder exports) at your main domain, and move the app to
+    <code>app.yourdomain.com</code>. More work once, and the cleanest split:
+    pages for being found, an app for being used.</li>
+
+    <li><strong>Move to a framework that renders on the server</strong>
+    Next.js, Remix and similar send real HTML by default. It's the biggest
+    job here and worth it only if the app itself has pages that need to rank,
+    like listings or profiles.</li>
+  </ol>
+
+  <p>Whichever you choose, add a <code>public/sitemap.xml</code> and a
+  <code>public/robots.txt</code>. An SPA host answers every unknown address
+  with your app's HTML, so without real files at those paths a crawler asking
+  for your sitemap gets your home page instead.</p>
+
+  <h2>A prompt to paste</h2>
+
+<pre><code>My site is a client-side Vite + React app, so crawlers and AI bots get an
+empty &lt;div id="root"&gt; with no text. Make the public pages (home, pricing,
+about, each feature page) render real HTML at build time by adding a
+prerender step, and keep the logged-in app as it is. Every public page
+should have its own &lt;title&gt;, meta description, Open Graph tags and
+visible text in the HTML that's served. Add public/sitemap.xml listing
+those pages and public/robots.txt pointing to it.</code></pre>
+
+  <p>Then view source again. If your headline is there, so is everyone
+  else's ability to read it.</p>
+
+  <h2>One more trap: #sections</h2>
+
+  <p>Builders like one long page with the navigation jumping to
+  <code>#pricing</code>, <code>#features</code> and so on. Search engines
+  ignore everything after the <code>#</code>, so all of that is one URL, and
+  one URL can only rank once. If a section is worth finding on its own, give
+  it a page of its own.</p>
+
+  <div class="cta">
+    <h2>Is anyone finding yours?</h2>
+    <p>The visibility check reads your site the way a crawler does and tells
+    you what it couldn't see, with a fix prompt for each finding.</p>
+    <a class="btn" href="/visibility">Check my site, free</a>
+  </div>
+
+  <div class="related">
+    <h2>Related</h2>
+    <ul>
+      <li><a href="/guides/llms-txt">What llms.txt is, and whether you need one</a>: the file AI assistants may look for</li>
+      <li><a href="/guides/lovable-app-security">Is my Lovable app secure?</a>: the other thing to check before you share the link</li>
+      <li><a href="/guides/bolt-app-security">Is my Bolt app secure?</a>: same kind of app, same kind of mistakes</li>
+    </ul>
+  </div>
+</article>
+
+<footer>
+  <p>vibecheck · a <strong>psychosecurity.io</strong> tool · <a href="/visibility">visibility check</a> · <a href="/">security scan</a></p>
+</footer>
+</div>
+
+</body>
+</html>

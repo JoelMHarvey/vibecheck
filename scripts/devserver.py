@@ -1,7 +1,8 @@
 """Local dev server that mirrors the Vercel routing.
 
-Serves index.html and rules.json statically, and routes /api/scan,
-/api/scan-url and /api/badge to the same handler classes Vercel runs.
+Serves index.html, visibility.html and the rule manifests statically, and
+routes /api/scan, /api/scan-url, /api/visibility and /api/badge to the same
+handler classes Vercel runs.
 
     python3 scripts/devserver.py [port]
 """
@@ -20,6 +21,8 @@ STATIC = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/index.html": ("index.html", "text/html; charset=utf-8"),
     "/rules.json": ("rules.json", "application/json; charset=utf-8"),
+    "/visibility": ("visibility.html", "text/html; charset=utf-8"),
+    "/visibility-rules.json": ("visibility-rules.json", "application/json; charset=utf-8"),
     "/guide.css": ("guide.css", "text/css; charset=utf-8"),
     "/og.png": ("og.png", "image/png"),
     "/robots.txt": ("robots.txt", "text/plain; charset=utf-8"),
@@ -35,6 +38,8 @@ STATIC = {
     "/guides/supabase-service-role-key-exposed": ("guides/supabase-service-role-key-exposed.html", "text/html; charset=utf-8"),
     "/guides/stripe-secret-key-exposed": ("guides/stripe-secret-key-exposed.html", "text/html; charset=utf-8"),
     "/guides/openai-api-key-exposed": ("guides/openai-api-key-exposed.html", "text/html; charset=utf-8"),
+    "/guides/lovable-app-invisible-to-google": ("guides/lovable-app-invisible-to-google.html", "text/html; charset=utf-8"),
+    "/guides/llms-txt": ("guides/llms-txt.html", "text/html; charset=utf-8"),
 }
 
 
@@ -56,6 +61,7 @@ API = {
     "/api/scan": _load("scan_api", "scan.py"),
     "/api/scan-url": _load("scan_url_api", "scan-url.py"),
     "/api/badge": _load("badge_api", "badge.py"),
+    "/api/visibility": _load("visibility_api", "visibility.py"),
 }
 
 

@@ -37,6 +37,44 @@ def tag(html: str, pattern: str) -> str:
     return found.group(1).strip() if found else ""
 
 
+class TestVisibilityPageIsWiredIn(unittest.TestCase):
+    """/visibility is a page in its own right: its own URL, in the sitemap,
+    routed locally, linked from the home page, and the address our crawler's
+    user agent points at."""
+
+    PAGE = ROOT / "visibility.html"
+
+    def test_in_the_sitemap_and_routed(self):
+        self.assertIn(f"{SITE}/visibility<", SITEMAP)
+        self.assertIn('"/visibility": ("visibility.html"', DEVSERVER)
+        self.assertIn('"/visibility-rules.json"', DEVSERVER)
+        self.assertIn('"/api/visibility"', DEVSERVER)
+
+    def test_linked_from_the_home_page(self):
+        self.assertIn('href="/visibility"', INDEX)
+
+    def test_canonical_and_open_graph(self):
+        html = text(self.PAGE)
+        self.assertEqual(tag(html, r'<link rel="canonical" href="([^"]+)"'), f"{SITE}/visibility")
+        self.assertEqual(tag(html, r'<meta property="og:url" content="([^"]+)"'), f"{SITE}/visibility")
+
+    def test_explains_the_crawler_its_user_agent_names(self):
+        from vibecheck.visibility.config import ROBOTS_AGENT, USER_AGENT
+
+        self.assertIn("+https://psychosecurity.io/visibility", USER_AGENT)
+        html = text(self.PAGE)
+        self.assertIn('id="crawler"', html)
+        self.assertIn(f"User-agent: {ROBOTS_AGENT}", html)
+
+    def test_links_every_visibility_guide(self):
+        from vibecheck.visibility.rules import RULES
+
+        html = text(self.PAGE)
+        for guide in {r.guide for r in RULES.values() if r.guide}:
+            with self.subTest(guide):
+                self.assertIn(f'href="{guide}"', html)
+
+
 class TestGuidesAreWiredIn(unittest.TestCase):
     def test_there_are_guides_to_check(self):
         # Guards against the glob silently matching nothing and every test
@@ -151,7 +189,7 @@ class TestInternalLinks(unittest.TestCase):
         known = {f"/guides/{g.stem}" for g in GUIDES}
         known |= {f"/posts/{p.stem}" for p in POSTS}
         known |= {"/", "/guide.css", "/og.png", "/robots.txt", "/sitemap.xml",
-                  "/rules.json", "/index.html"}
+                  "/rules.json", "/index.html", "/visibility", "/visibility-rules.json"}
         return known
 
     def test_no_guide_links_to_a_page_that_does_not_exist(self):
