@@ -59,7 +59,7 @@ class TestVisibilityPageIsWiredIn(unittest.TestCase):
         self.assertEqual(tag(html, r'<meta property="og:url" content="([^"]+)"'), f"{SITE}/visibility")
 
     def test_explains_the_crawler_its_user_agent_names(self):
-        from vibecheck.visibility.config import ROBOTS_AGENT, USER_AGENT
+        from vibecheck.checks.visibility.config import ROBOTS_AGENT, USER_AGENT
 
         self.assertIn("+https://psychosecurity.io/visibility", USER_AGENT)
         html = text(self.PAGE)
@@ -67,7 +67,7 @@ class TestVisibilityPageIsWiredIn(unittest.TestCase):
         self.assertIn(f"User-agent: {ROBOTS_AGENT}", html)
 
     def test_links_every_visibility_guide(self):
-        from vibecheck.visibility.rules import RULES
+        from vibecheck.checks.visibility.rules import RULES
 
         html = text(self.PAGE)
         for guide in {r.guide for r in RULES.values() if r.guide}:
@@ -189,7 +189,8 @@ class TestInternalLinks(unittest.TestCase):
         known = {f"/guides/{g.stem}" for g in GUIDES}
         known |= {f"/posts/{p.stem}" for p in POSTS}
         known |= {"/", "/guide.css", "/og.png", "/robots.txt", "/sitemap.xml",
-                  "/rules.json", "/index.html", "/visibility", "/visibility-rules.json"}
+                  "/rules.json", "/index.html", "/visibility", "/visibility-rules.json",
+                  "/check", "/report.js", "/report.css"}
         return known
 
     def test_no_guide_links_to_a_page_that_does_not_exist(self):

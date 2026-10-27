@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from vibecheck.visibility.fetch import Fetched
+from vibecheck.core.fetcher import Fetched
 
 NOW = dt.datetime(2026, 10, 27, 12, 0, tzinfo=dt.timezone.utc)
 

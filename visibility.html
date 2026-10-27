@@ -19,6 +19,7 @@
 <meta name="twitter:title" content="Is anyone finding it? A free visibility check for AI-built apps">
 <meta name="twitter:description" content="How your site looks to Google and to ChatGPT, Claude and Perplexity, with a fix prompt for every finding.">
 <meta name="twitter:image" content="https://psychosecurity.io/og.png">
+<link rel="stylesheet" href="/report.css">
 <style>
   :root {
     --bg: #0b0e14; --panel: #12161f; --panel2: #171c27; --border: #232a38;
@@ -54,66 +55,6 @@
   .privacy { text-align: center; color: var(--muted); font-size: 13px; margin: 14px auto 0; max-width: 640px; }
   .status { text-align: center; color: var(--accent); font-family: var(--mono); font-size: 14px; min-height: 22px; margin-top: 16px; }
   #report { display: none; margin-top: 28px; }
-  .banner { background: var(--panel2); border: 1px solid var(--accent2); border-radius: 10px; padding: 12px 16px;
-            margin-bottom: 16px; font-size: 14px; display: none; }
-  .scorecard { display: flex; gap: 24px; align-items: center; background: var(--panel); border: 1px solid var(--border);
-               border-radius: 14px; padding: 24px; flex-wrap: wrap; }
-  .dial { width: 110px; height: 110px; border-radius: 50%; display: grid; place-items: center; flex: 0 0 auto;
-          background: conic-gradient(var(--dialcolor, var(--accent)) calc(var(--pct, 0) * 1%), var(--border) 0); }
-  .dial .inner { width: 86px; height: 86px; border-radius: 50%; background: var(--panel); display: grid; place-items: center; text-align: center; }
-  .dial .num { font: 700 26px/1 var(--mono); }
-  .dial .gr { color: var(--muted); font-size: 12px; }
-  .scoremeta { flex: 1 1 280px; min-width: 0; }
-  .scoremeta h2 { font-size: 22px; overflow-wrap: anywhere; }
-  .scoremeta p { color: var(--muted); }
-  .countrow { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-  .pill { font: 600 12px/1 var(--mono); padding: 6px 10px; border-radius: 99px; border: 1px solid var(--border); }
-  .pill.critical { color: var(--critical); border-color: var(--critical); }
-  .pill.high { color: var(--high); border-color: var(--high); }
-  .pill.medium { color: var(--medium); border-color: var(--medium); }
-  .pill.low { color: var(--low); border-color: var(--low); }
-  .pill.info { color: var(--info); border-color: var(--info); }
-  .cats { margin-top: 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
-  .cat { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
-  .cat .top { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; }
-  .cat .val { font: 700 14px/1.6 var(--mono); }
-  .cat .top > span:first-child { white-space: nowrap; }
-  .cat .val.none { font: 13px/1.6 system-ui, sans-serif; color: var(--muted); text-align: right; }
-  .bar { height: 6px; border-radius: 3px; background: var(--border); margin-top: 8px; overflow: hidden; }
-  .bar span { display: block; height: 100%; background: var(--accent); }
-  .sharepanel { margin-top: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
-  .sharepanel h3 { font-size: 15px; margin-bottom: 4px; }
-  .sharepanel .note { color: var(--muted); font-size: 13px; }
-  .sharerow { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-  h2.section { font-size: 18px; margin: 28px 0 0; }
-  .findings { margin-top: 14px; display: flex; flex-direction: column; gap: 14px; }
-  .finding { background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--border); border-radius: 10px; padding: 18px; min-width: 0; }
-  .finding.critical { border-left-color: var(--critical); }
-  .finding.high { border-left-color: var(--high); }
-  .finding.medium { border-left-color: var(--medium); }
-  .finding.low { border-left-color: var(--low); }
-  .finding.info { border-left-color: var(--info); }
-  .frow { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
-  .frow h3 { font-size: 16px; }
-  .sev { font: 700 11px/1 var(--mono); letter-spacing: .08em; }
-  .sev.critical { color: var(--critical); } .sev.high { color: var(--high); } .sev.medium { color: var(--medium); }
-  .sev.low { color: var(--low); } .sev.info { color: var(--info); }
-  .loc { font-family: var(--mono); font-size: 13px; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
-  .excerpt { font-family: var(--mono); font-size: 13px; background: var(--bg); border-radius: 6px; padding: 10px 12px;
-             margin: 10px 0; color: #c9d1e0; white-space: pre-wrap; overflow-wrap: anywhere; }
-  .label { font: 600 11px/1 var(--mono); letter-spacing: .08em; color: var(--muted); margin-top: 12px; }
-  .finding p { font-size: 14.5px; margin-top: 6px; }
-  .finding p.desc { color: var(--muted); }
-  .fixwrap { margin-top: 12px; background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
-  .fixwrap .label { color: var(--accent2); margin-top: 0; }
-  .copy { margin-top: 10px; background: var(--accent2); font-size: 13px; padding: 8px 14px; }
-  .copy.done { background: var(--accent); }
-  .passes { margin-top: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 8px 18px; list-style: none; }
-  .passes li { padding: 10px 0; border-bottom: 1px solid var(--border); display: flex; gap: 10px; }
-  .passes li:last-child { border-bottom: 0; }
-  .passes .tick { color: var(--accent); font-weight: 700; }
-  .passes .ev { display: block; color: var(--muted); font-size: 13.5px; overflow-wrap: anywhere; }
-  .gsc { color: var(--muted); font-size: 13.5px; margin-top: 18px; }
   section.info { padding: 56px 0 8px; }
   section.info h2 { font-size: 24px; margin-bottom: 14px; }
   section.info p { color: var(--muted); margin-bottom: 12px; }
@@ -132,7 +73,6 @@
   .hidden { display: none !important; }
   @media (max-width: 520px) {
     .urlbox { flex-direction: column; }
-    .scorecard { padding: 18px; }
   }
 </style>
 </head>
@@ -155,6 +95,7 @@
       <a class="tab" href="/">Scan my code</a>
       <a class="tab" href="/#url">Scan a live site</a>
       <a class="tab" href="/visibility" aria-current="page">Is anyone finding it?</a>
+      <a class="tab" href="/check">Check everything</a>
     </nav>
 
     <form class="urlbox" id="urlForm">
@@ -167,39 +108,8 @@
     <div class="status" id="status" role="status"></div>
   </div>
 
-  <div id="report">
-    <div class="banner" id="sharedBanner">📄 You're viewing a <strong>shared report</strong>. The findings are encoded in this link; nothing was stored on a server. <a href="#" id="startOwn">Check your own site →</a></div>
-    <div class="scorecard">
-      <div class="dial" id="dial"><div class="inner"><div><div class="num" id="scoreNum">–</div><div class="gr" id="scoreGrade"></div></div></div></div>
-      <div class="scoremeta">
-        <h2 id="siteName"></h2>
-        <p id="verdict"></p>
-        <p id="scanmeta"></p>
-        <div class="countrow" id="countrow"></div>
-      </div>
-    </div>
-
-    <div class="cats" id="cats"></div>
-
-    <div class="sharepanel" id="sharePanel">
-      <h3>Share this report</h3>
-      <p class="note">The link carries the whole report inside the URL. We store nothing.</p>
-      <div class="sharerow">
-        <button id="shareBtn">Copy share link</button>
-        <button class="ghost" id="badgeBtn">Copy badge (Markdown)</button>
-        <button class="ghost" id="downloadBtn">Download report (Markdown)</button>
-        <button class="ghost" id="freshBtn">Check again now</button>
-      </div>
-    </div>
-
-    <h2 class="section" id="findingsHead">To fix</h2>
-    <div class="findings" id="findings"></div>
-
-    <h2 class="section" id="passesHead">Working</h2>
-    <ul class="passes" id="passes"></ul>
-
-    <p class="gsc">Rankings, search terms and backlinks aren't in this check. <a href="https://search.google.com/search-console">Google Search Console</a> shows those for your own site, free.</p>
-  </div>
+  <!-- Drawn by report.js, the same component every check's results use. -->
+  <div id="report"></div>
 
   <section class="info">
     <h2>What it checks</h2>
@@ -248,36 +158,20 @@ python3 -m vibecheck --visibility https://myapp.com --json</pre>
   </footer>
 </div>
 
+<script src="/report.js"></script>
 <script>
-const SEV_ORDER = ["critical","high","medium","low","info"];
-const VERDICTS = {
-  A: "Easy to find. Fix anything below and keep it that way.",
-  B: "Mostly findable. A few fixes will help search engines and AI read you right.",
-  C: "Findable, with gaps. Work through the list, top first.",
-  D: "Hard to find. Fix the high and medium items before anything else.",
-  F: "Close to invisible. Start with the first finding.",
-  "–": "We couldn't check this site.",
-};
-const DEEPER = "deeper check coming soon";
-const FIX_LABEL = "FIX PROMPT — PASTE INTO CURSOR / CLAUDE CODE / LOVABLE / BOLT";
-
 const $ = id => document.getElementById(id);
 const statusEl = $("status");
-let lastResult = null;
-let manifest = null;
+let lastUrl = null;
 
-/* ---------- running a check ---------- */
 $("urlForm").addEventListener("submit", e => {
   e.preventDefault();
   const url = $("urlInput").value.trim();
   if (url) check(url, false);
 });
-$("freshBtn").addEventListener("click", () => {
-  if (lastResult) check(lastResult.root, true);
-});
 
 async function check(url, fresh) {
-  $("urlBtn").disabled = true; $("freshBtn").disabled = true;
+  $("urlBtn").disabled = true;
   statusEl.textContent = `Reading ${url} the way a crawler does… this takes up to a minute.`;
   try {
     const res = await fetch("/api/visibility", {
@@ -289,262 +183,16 @@ async function check(url, fresh) {
     if (!res.ok) throw new Error(data.error || "The check failed.");
     statusEl.textContent = data.cached ? "From a check in the last 24 hours. Fixed something? Use “Check again now”." : "";
     history.replaceState(null, "", location.pathname);
-    render(data, false);
+    lastUrl = data.target.url || url;
+    await VibeReport.render($("report"), [data], { onRecheck: () => check(lastUrl, true) });
   } catch (err) {
     statusEl.textContent = "⚠ " + err.message;
   } finally {
-    $("urlBtn").disabled = false; $("freshBtn").disabled = false;
+    $("urlBtn").disabled = false;
   }
 }
 
-/* ---------- rendering ---------- */
-function el(tag, cls, text) {
-  const n = document.createElement(tag);
-  if (cls) n.className = cls;
-  if (text !== undefined) n.textContent = text;
-  return n;
-}
-
-function when(iso) {
-  const d = new Date(iso);
-  return isNaN(d) ? "" : d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-}
-
-function render(data, isShared) {
-  lastResult = data;
-  $("report").style.display = "block";
-  $("sharedBanner").style.display = isShared ? "block" : "none";
-  $("sharePanel").classList.toggle("hidden", isShared);
-
-  const score = data.score;
-  const dial = $("dial");
-  dial.style.setProperty("--pct", score || 0);
-  dial.style.setProperty("--dialcolor", score >= 90 ? "var(--accent)" : score >= 60 ? "var(--medium)" : "var(--critical)");
-  $("scoreNum").textContent = score === null || score === undefined ? "–" : score;
-  $("scoreGrade").textContent = data.grade === "–" ? "" : "grade " + data.grade;
-  $("siteName").textContent = data.root.replace(/^https?:\/\//, "");
-  $("verdict").textContent = VERDICTS[data.grade] || "";
-  const pages = `${data.pages_crawled} page${data.pages_crawled === 1 ? "" : "s"} crawled`;
-  const basis = `score based on ${data.categories_scored} of ${data.categories.length} categories`;
-  $("scanmeta").textContent = [pages, basis, when(data.scanned_at)].filter(Boolean).join(" · ");
-
-  const row = $("countrow"); row.replaceChildren();
-  for (const sev of SEV_ORDER) {
-    if (data.counts[sev]) row.appendChild(el("span", "pill " + sev, `${data.counts[sev]} ${sev}`));
-  }
-
-  const cats = $("cats"); cats.replaceChildren();
-  for (const c of data.categories) {
-    const box = el("div", "cat");
-    const top = el("div", "top");
-    top.append(el("span", "", c.label), el("span", c.score === null ? "val none" : "val", c.score === null ? DEEPER : `${c.score}/10`));
-    const bar = el("div", "bar"); const fill = el("span");
-    fill.style.width = (c.score === null ? 0 : c.score * 10) + "%";
-    bar.appendChild(fill);
-    box.append(top, bar);
-    cats.appendChild(box);
-  }
-
-  const list = $("findings"); list.replaceChildren();
-  $("findingsHead").classList.toggle("hidden", !data.findings.length);
-  for (const f of data.findings) list.appendChild(findingCard(f));
-
-  const passes = $("passes"); passes.replaceChildren();
-  $("passesHead").classList.toggle("hidden", !data.passes.length);
-  passes.classList.toggle("hidden", !data.passes.length);
-  for (const p of data.passes) {
-    const li = el("li");
-    const body = el("span");
-    body.append(el("strong", "", p.title), el("span", "ev", p.evidence));
-    li.append(el("span", "tick", "✓"), body);
-    passes.appendChild(li);
-  }
-  $("report").scrollIntoView({ behavior: isShared ? "auto" : "smooth" });
-}
-
-function findingCard(f) {
-  const div = el("div", "finding " + f.severity);
-  const frow = el("div", "frow");
-  frow.append(el("h3", "", f.title), el("span", "sev " + f.severity, f.severity.toUpperCase()));
-  div.append(frow, el("div", "loc", f.path), el("div", "excerpt", f.excerpt));
-  div.append(el("div", "label", "WHY IT MATTERS"), el("p", "desc", f.description));
-  if (f.fix_prompt) {
-    const fix = el("div", "fixwrap");
-    const btn = el("button", "copy", "Copy fix prompt");
-    btn.addEventListener("click", () => copy(btn, f.fix_prompt, "Copy fix prompt"));
-    fix.append(el("div", "label", FIX_LABEL), el("p", "", f.fix_prompt), btn);
-    div.append(fix);
-  }
-  if (f.verify) div.append(el("div", "label", "HOW TO CHECK IT WORKED"), el("p", "", f.verify));
-  if (f.guide) {
-    const p = el("p"); const a = el("a", "", "Read the guide →"); a.href = f.guide;
-    p.appendChild(a); div.append(p);
-  }
-  return div;
-}
-
-async function copy(btn, text, original) {
-  try {
-    await navigator.clipboard.writeText(text);
-    btn.textContent = "Copied ✓"; btn.classList.add("done");
-  } catch {
-    btn.textContent = "Press ⌘C to copy";
-    window.prompt("Copy:", text);
-  }
-  setTimeout(() => { btn.textContent = original; btn.classList.remove("done"); }, 1800);
-}
-
-/* ---------- share links ----------
-   The report is compressed into the URL fragment, which browsers never send
-   to a server. Only the facts travel; prose comes from visibility-rules.json. */
-function b64url(bytes) {
-  let s = "";
-  for (const b of bytes) s += String.fromCharCode(b);
-  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-function unb64url(str) {
-  let s = str.replace(/-/g, "+").replace(/_/g, "/");
-  while (s.length % 4) s += "=";
-  const bin = atob(s);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-async function pipe(bytes, stream) {
-  return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer());
-}
-
-async function encodeReport(d) {
-  const payload = {
-    v: 1, k: "vis", u: d.root, t: d.scanned_at, n: d.pages_crawled, s: d.score, g: d.grade,
-    c: d.categories.map(c => c.score),
-    f: d.findings.map(f => [f.rule_id, f.path, f.excerpt]),
-    p: d.passes.map(p => [p.check_id, p.evidence]),
-  };
-  const bytes = new TextEncoder().encode(JSON.stringify(payload));
-  if (window.CompressionStream) return "z" + b64url(await pipe(bytes, new CompressionStream("gzip")));
-  return "j" + b64url(bytes);
-}
-
-async function decodeReport(str) {
-  let bytes = unb64url(str.slice(1));
-  if (str[0] === "z") bytes = await pipe(bytes, new DecompressionStream("gzip"));
-  else if (str[0] !== "j") throw new Error("unrecognised link format");
-  return JSON.parse(new TextDecoder().decode(bytes));
-}
-
-function fill(tpl, path, excerpt) {
-  // Mirrors Python str.format with {path} and {excerpt}, then unescapes {{ }}.
-  return String(tpl || "")
-    .split("{path}").join(path)
-    .split("{excerpt}").join(excerpt)
-    .split("{line}").join("0")
-    .split("{{").join("{")
-    .split("}}").join("}");
-}
-
-async function getManifest() {
-  if (!manifest) {
-    const res = await fetch("/visibility-rules.json");
-    if (!res.ok) throw new Error("couldn't load the rule descriptions");
-    manifest = await res.json();
-  }
-  return manifest;
-}
-
-async function hydrate(p) {
-  const m = await getManifest();
-  const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
-  const findings = p.f.map(([rule_id, path, excerpt]) => {
-    const r = m.rules[rule_id] || {};
-    const severity = r.s || "info";
-    counts[severity] += 1;
-    return {
-      rule_id, severity, path, excerpt, category: r.c,
-      title: r.t || rule_id,
-      description: fill(r.d, path, excerpt),
-      fix_prompt: r.f ? fill(r.f, path, excerpt) : "",
-      verify: r.v || "", guide: r.g || null,
-    };
-  });
-  const categories = m.categories.map(([key, label], i) => ({ key, label, score: p.c[i] ?? null }));
-  return {
-    kind: "visibility", root: p.u, scanned_at: p.t, pages_crawled: p.n, score: p.s, grade: p.g,
-    categories, categories_scored: categories.filter(c => c.score !== null).length, counts, findings,
-    passes: p.p.map(([check_id, evidence]) => ({ check_id, evidence, title: m.passes[check_id] || check_id })),
-  };
-}
-
-$("shareBtn").addEventListener("click", async () => {
-  if (!lastResult) return;
-  try {
-    const encoded = await encodeReport(lastResult);
-    const url = `${location.origin}${location.pathname}#r=${encoded}`;
-    if (url.length > 30000) { statusEl.textContent = "⚠ This report is too big for a link. Use the Markdown download."; return; }
-    history.replaceState(null, "", `#r=${encoded}`);
-    await copy($("shareBtn"), url, "Copy share link");
-  } catch (err) {
-    statusEl.textContent = "⚠ " + err.message;
-  }
-});
-
-$("badgeBtn").addEventListener("click", () => {
-  if (!lastResult || lastResult.score === null) return;
-  const md = `[![visibility](${location.origin}/api/badge?score=${lastResult.score}&label=visibility)](${location.origin}/visibility)`;
-  copy($("badgeBtn"), md, "Copy badge (Markdown)");
-});
-
-function toMarkdown(d) {
-  let md = `# vibecheck visibility report\n\n**Site:** ${d.root} (${d.pages_crawled} pages crawled, ${d.scanned_at})\n\n`;
-  md += d.score === null ? "## Visibility: not checked\n\n" : `## Visibility: ${d.score}/100 (grade ${d.grade})\n\n`;
-  md += "| Category | Score |\n|---|---|\n";
-  for (const c of d.categories) md += `| ${c.label} | ${c.score === null ? "_" + DEEPER + "_" : c.score + "/10"} |\n`;
-  md += "\n";
-  let sev = null;
-  for (const f of d.findings) {
-    if (f.severity !== sev) { sev = f.severity; md += `## ${sev.toUpperCase()}\n\n`; }
-    md += `### ${f.title}\n\n\`${f.path}\`\n\n> ${f.excerpt}\n\n**Why it matters:** ${f.description}\n\n`;
-    if (f.fix_prompt) md += `**Fix prompt:**\n\n\`\`\`text\n${f.fix_prompt}\n\`\`\`\n\n`;
-    if (f.verify) md += `**Check it worked:** ${f.verify}\n\n`;
-    if (f.guide) md += `More: ${location.origin}${f.guide}\n\n`;
-  }
-  if (d.passes.length) {
-    md += "## Working\n\n";
-    for (const p of d.passes) md += `- ✓ **${p.title}** — ${p.evidence}\n`;
-    md += "\n";
-  }
-  return md + "---\n_Generated by vibecheck · psychosecurity.io/visibility_\n";
-}
-
-$("downloadBtn").addEventListener("click", () => {
-  if (!lastResult) return;
-  const blob = new Blob([toMarkdown(lastResult)], { type: "text/markdown" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "vibecheck-visibility.md";
-  a.click();
-  URL.revokeObjectURL(a.href);
-});
-
-$("startOwn").addEventListener("click", e => {
-  e.preventDefault();
-  history.replaceState(null, "", location.pathname);
-  $("report").style.display = "none";
-  window.scrollTo({ top: 0, behavior: "smooth" });
-  $("urlInput").focus();
-});
-
-(async function boot() {
-  const hash = location.hash;
-  if (!hash.startsWith("#r=")) return;
-  try {
-    statusEl.textContent = "Loading shared report…";
-    render(await hydrate(await decodeReport(hash.slice(3))), true);
-    statusEl.textContent = "";
-  } catch (err) {
-    statusEl.textContent = "⚠ That shared link couldn't be read (" + err.message + ")";
-  }
-})();
+VibeReport.boot($("report"), statusEl);
 </script>
 </body>
 </html>

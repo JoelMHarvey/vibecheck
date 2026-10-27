@@ -2,3 +2,4 @@ tests/
 PLAN.md
 .gitignore
 pyproject.toml
+vibecheck/checks/*/fixtures/

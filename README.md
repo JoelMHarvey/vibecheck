@@ -127,6 +127,21 @@ connects only to the address it vetted. It allows 10 scans an hour per visitor
 and one a minute per site, and keeps results for 24 hours. Design notes:
 [`docs/visibility-design.md`](docs/visibility-design.md).
 
+## Several checks, one report
+
+Security and visibility run on one framework (`vibecheck/core`, see
+[`docs/framework-design.md`](docs/framework-design.md)), so you can run them
+together and get one report and one exit code:
+
+```bash
+vibecheck https://myapp.com                                   # every check that takes a URL
+vibecheck ./app --url https://myapp.com --checks security,visibility
+vibecheck ./app --checks security --json                      # the common result model, to stdout
+```
+
+On the web, [psychosecurity.io/check](https://psychosecurity.io/check) runs
+both against a live site side by side.
+
 ## Usage
 
 ```bash

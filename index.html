@@ -24,6 +24,7 @@
 <meta name="twitter:title" content="You vibe-coded it. Now vibecheck it.">
 <meta name="twitter:description" content="Free security scan for apps built with Lovable, Bolt, Cursor or v0 — every finding comes with a fix prompt you paste back into your AI tool.">
 <meta name="twitter:image" content="https://psychosecurity.io/og.png">
+<link rel="stylesheet" href="/report.css">
 <style>
   :root {
     --bg: #0b0e14; --panel: #12161f; --panel2: #171c27; --border: #232a38;
@@ -45,7 +46,7 @@
   .hero h1 em { font-style: normal; color: var(--accent); }
   .hero p.sub { color: var(--muted); max-width: 620px; margin: 18px auto 0; font-size: 18px; }
   .tabs { display: flex; gap: 6px; justify-content: center; margin: 32px 0 0; }
-  .tab { font: 600 14px/1 inherit; background: transparent; color: var(--muted); border: 1px solid var(--border);
+  .tab { font: 600 14px/1 system-ui, -apple-system, "Segoe UI", sans-serif; background: transparent; color: var(--muted); border: 1px solid var(--border);
          border-radius: 8px; padding: 10px 18px; cursor: pointer; }
   .tab[aria-selected="true"] { background: var(--panel2); color: var(--text); border-color: var(--accent); }
   a.tab { text-decoration: none; display: inline-block; }
@@ -67,50 +68,6 @@
   .privacy { text-align: center; color: var(--muted); font-size: 13px; margin: 14px 0 0; }
   .status { text-align: center; color: var(--accent); font-family: var(--mono); font-size: 14px; min-height: 22px; margin-top: 16px; }
   #report { display: none; margin-top: 36px; }
-  .scorecard { display: flex; gap: 24px; align-items: center; background: var(--panel); border: 1px solid var(--border);
-               border-radius: 14px; padding: 24px; flex-wrap: wrap; }
-  .dial { width: 110px; height: 110px; border-radius: 50%; display: grid; place-items: center; flex: 0 0 auto;
-          background: conic-gradient(var(--dialcolor, var(--accent)) calc(var(--pct, 0) * 1%), var(--border) 0); }
-  .dial .inner { width: 86px; height: 86px; border-radius: 50%; background: var(--panel); display: grid; place-items: center; text-align: center; }
-  .dial .num { font: 700 26px/1 var(--mono); }
-  .dial .gr { color: var(--muted); font-size: 12px; }
-  .scoremeta h2 { font-size: 22px; }
-  .scoremeta p { color: var(--muted); }
-  .countrow { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-  .pill { font: 600 12px/1 var(--mono); padding: 6px 10px; border-radius: 99px; border: 1px solid var(--border); }
-  .pill.critical { color: var(--critical); border-color: var(--critical); }
-  .pill.high { color: var(--high); border-color: var(--high); }
-  .pill.medium { color: var(--medium); border-color: var(--medium); }
-  .pill.low { color: var(--low); border-color: var(--low); }
-  .pill.info { color: var(--info); border-color: var(--info); }
-  .sharepanel { margin-top: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
-  .sharepanel h3 { font-size: 15px; margin-bottom: 4px; }
-  .sharepanel .note { color: var(--muted); font-size: 13px; }
-  .sharerow { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-  .findings { margin-top: 20px; display: flex; flex-direction: column; gap: 14px; }
-  .finding { background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--border); border-radius: 10px; padding: 18px; }
-  .finding.critical { border-left-color: var(--critical); }
-  .finding.high { border-left-color: var(--high); }
-  .finding.medium { border-left-color: var(--medium); }
-  .finding.low { border-left-color: var(--low); }
-  .finding.info { border-left-color: var(--info); }
-  .frow { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
-  .frow h3 { font-size: 16px; }
-  .sev { font: 700 11px/1 var(--mono); letter-spacing: .08em; }
-  .sev.critical { color: var(--critical); } .sev.high { color: var(--high); } .sev.medium { color: var(--medium); }
-  .sev.low { color: var(--low); } .sev.info { color: var(--info); }
-  .loc { font-family: var(--mono); font-size: 13px; color: var(--muted); margin-top: 2px; }
-  .excerpt { font-family: var(--mono); font-size: 13px; background: var(--bg); border-radius: 6px; padding: 10px 12px;
-             margin: 10px 0; overflow-x: auto; white-space: pre; color: #c9d1e0; }
-  .finding p.desc { color: var(--muted); font-size: 14.5px; }
-  .fixwrap { margin-top: 12px; background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
-  .fixwrap .label { font: 600 11px/1 var(--mono); letter-spacing: .08em; color: var(--accent2); }
-  .fixwrap p { font-size: 14px; margin-top: 6px; color: var(--text); }
-  .copy { margin-top: 10px; background: var(--accent2); font-size: 13px; padding: 8px 14px; }
-  .copy.done { background: var(--accent); }
-  .reportactions { margin: 14px 0 0; display: flex; gap: 10px; flex-wrap: wrap; }
-  .banner { background: var(--panel2); border: 1px solid var(--accent2); border-radius: 10px; padding: 12px 16px;
-            margin-bottom: 16px; font-size: 14px; display: none; }
   section.info { padding: 56px 0 8px; }
   section.info h2 { font-size: 24px; margin-bottom: 14px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
@@ -146,6 +103,7 @@
       <button class="tab" id="tabFolder" role="tab" aria-selected="true">Scan my code</button>
       <button class="tab" id="tabUrl" role="tab" aria-selected="false">Scan a live site</button>
       <a class="tab" href="/visibility">Is anyone finding it?</a>
+      <a class="tab" href="/check">Check everything</a>
     </div>
 
     <div id="panelFolder">
@@ -172,31 +130,8 @@
     <input type="file" id="picker" webkitdirectory multiple hidden>
   </div>
 
-  <div id="report">
-    <div class="banner" id="sharedBanner">📄 You're viewing a <strong>shared report</strong>. The findings are encoded in this link — nothing was uploaded to a server. <a href="#" id="startOwn">Run your own scan →</a></div>
-    <div class="scorecard">
-      <div class="dial" id="dial"><div class="inner"><div><div class="num" id="scoreNum">–</div><div class="gr" id="scoreGrade"></div></div></div></div>
-      <div class="scoremeta">
-        <h2 id="verdict"></h2>
-        <p id="scanmeta"></p>
-        <div class="countrow" id="countrow"></div>
-      </div>
-    </div>
-
-    <div class="sharepanel" id="sharePanel">
-      <h3>Share this report</h3>
-      <p class="note">The link carries the whole report inside the URL itself — we store nothing. Heads up: that means
-      it contains your file paths and code excerpts (secrets are redacted), so only send it to people you'd show your code to.</p>
-      <div class="sharerow">
-        <button id="shareBtn">Copy share link</button>
-        <button class="ghost" id="badgeBtn">Copy score badge (Markdown)</button>
-        <button class="ghost" id="downloadBtn">Download report (Markdown)</button>
-        <button class="ghost" id="rescanBtn">Scan something else</button>
-      </div>
-    </div>
-
-    <div class="findings" id="findings"></div>
-  </div>
+  <!-- Drawn by report.js, the same component every check's results use. -->
+  <div id="report"></div>
 
   <section class="info">
     <h2>What it checks</h2>
@@ -245,20 +180,18 @@ python3 -m vibecheck --visibility https://myapp.com</pre>
   </footer>
 </div>
 
+<script src="/report.js"></script>
 <script>
 const SKIP_DIRS = new Set([".git",".hg",".svn","node_modules",".venv","venv","env","__pycache__",".pytest_cache",".mypy_cache",".ruff_cache","dist","build",".next",".nuxt",".svelte-kit","out","coverage",".turbo",".cache","vendor","site-packages",".idea",".vscode"]);
 const SKIP_FILES = new Set(["package-lock.json","yarn.lock","pnpm-lock.yaml","poetry.lock","uv.lock","Cargo.lock","composer.lock","Gemfile.lock"]);
 const BINARY_EXT = new Set(["png","jpg","jpeg","gif","webp","ico","svg","pdf","zip","gz","tar","bz2","7z","woff","woff2","ttf","otf","eot","mp3","mp4","mov","avi","wav","ogg","pyc","so","dylib","dll","exe","bin","sqlite","db","pkl","npy","parquet","doc","docx","xls","xlsx","ppt","pptx"]);
 const MAX_FILE = 500 * 1024;
 const MAX_TOTAL = 3.5 * 1024 * 1024;
-const SEV_ORDER = ["critical","high","medium","low","info"];
-const SEV_WEIGHT = {critical:25, high:15, medium:7, low:3, info:0};
-const VERDICTS = {A:"Looking good. Fix anything below and ship it.",B:"Nearly there — a few things need attention before launch.",C:"Some real risks here. Work through the list before sharing your app.",D:"Serious problems. Fix the critical/high items before anything else.",F:"Stop — do not launch this yet. Fix the critical items first."};
 
 const $ = id => document.getElementById(id);
 const drop = $("drop"), picker = $("picker"), statusEl = $("status");
-let lastResult = null;
-let rulesManifest = null;
+const CODE_SHARE_NOTE = "The link carries the whole report inside the URL itself; we store nothing. That means " +
+  "it contains your file paths and code excerpts (secrets are redacted), so only send it to people you'd show your code to.";
 
 /* ---------- tabs ---------- */
 function selectTab(which) {
@@ -363,225 +296,12 @@ async function post(endpoint, body) {
     if (!res.ok) throw new Error(data.error || "Scan failed.");
     statusEl.textContent = "";
     history.replaceState(null, "", location.pathname);  // drop any stale share hash
-    render(data, false);
+    await VibeReport.render($("report"), [data.result],
+      { shareNote: endpoint === "/api/scan" ? CODE_SHARE_NOTE : undefined });
   } catch (err) {
     statusEl.textContent = "⚠ " + err.message;
   }
 }
-
-/* ---------- rendering ---------- */
-function render(data, isShared) {
-  lastResult = data;
-  const report = $("report");
-  report.style.display = "block";
-  $("sharedBanner").style.display = isShared ? "block" : "none";
-  $("sharePanel").classList.toggle("hidden", isShared);
-
-  const dial = $("dial");
-  dial.style.setProperty("--pct", data.score);
-  dial.style.setProperty("--dialcolor", data.score >= 90 ? "var(--accent)" : data.score >= 60 ? "var(--medium)" : "var(--critical)");
-  $("scoreNum").textContent = data.score;
-  $("scoreGrade").textContent = "grade " + data.grade;
-  $("verdict").textContent = VERDICTS[data.grade];
-  const unit = data.kind === "url" ? "site checked" : `${data.files_scanned} files scanned`;
-  $("scanmeta").textContent = `${unit} · ${data.findings.length} finding${data.findings.length === 1 ? "" : "s"}`;
-
-  const row = $("countrow");
-  row.innerHTML = "";
-  for (const sev of SEV_ORDER) {
-    if (!data.counts[sev]) continue;
-    const pill = document.createElement("span");
-    pill.className = "pill " + sev;
-    pill.textContent = `${data.counts[sev]} ${sev}`;
-    row.appendChild(pill);
-  }
-
-  const list = $("findings");
-  list.innerHTML = "";
-  if (!data.findings.length) {
-    const div = document.createElement("div");
-    div.className = "finding";
-    const h = document.createElement("h3"); h.className = "ok"; h.textContent = "✓ Nothing found. Nice.";
-    const p = document.createElement("p"); p.className = "desc";
-    p.textContent = "This scan covers common patterns, not everything — keep secrets in environment variables and rotate anything you ever pasted somewhere public.";
-    div.append(h, p);
-    list.appendChild(div);
-  }
-  for (const f of data.findings) {
-    const div = document.createElement("div");
-    div.className = "finding " + f.severity;
-    const frow = document.createElement("div"); frow.className = "frow";
-    const h3 = document.createElement("h3"); h3.textContent = f.title;
-    const sev = document.createElement("span"); sev.className = "sev " + f.severity; sev.textContent = f.severity.toUpperCase();
-    frow.append(h3, sev);
-    const loc = document.createElement("div"); loc.className = "loc";
-    loc.textContent = f.line ? `${f.path}:${f.line}` : f.path;
-    const ex = document.createElement("div"); ex.className = "excerpt"; ex.textContent = f.excerpt;
-    const desc = document.createElement("p"); desc.className = "desc"; desc.textContent = f.description;
-    div.append(frow, loc, ex, desc);
-    if (f.fix_prompt) {
-      const fix = document.createElement("div"); fix.className = "fixwrap";
-      const label = document.createElement("div"); label.className = "label";
-      label.textContent = "FIX PROMPT — PASTE INTO CURSOR / CLAUDE CODE / LOVABLE / BOLT";
-      const fp = document.createElement("p"); fp.textContent = f.fix_prompt;
-      const btn = document.createElement("button"); btn.className = "copy"; btn.textContent = "Copy fix prompt";
-      btn.addEventListener("click", () => copy(btn, f.fix_prompt, "Copy fix prompt"));
-      fix.append(label, fp, btn);
-      div.append(fix);
-    }
-    list.appendChild(div);
-  }
-  // A shared link should land on the report immediately; smooth-scrolling
-  // from a cold page load just looks like the page is drifting.
-  report.scrollIntoView({ behavior: isShared ? "auto" : "smooth" });
-}
-
-async function copy(btn, text, original) {
-  try {
-    await navigator.clipboard.writeText(text);
-    btn.textContent = "Copied ✓"; btn.classList.add("done");
-  } catch {
-    btn.textContent = "Press ⌘C to copy";
-    window.prompt("Copy:", text);
-  }
-  setTimeout(() => { btn.textContent = original; btn.classList.remove("done"); }, 1800);
-}
-
-/* ---------- share links ----------
-   The whole report is compressed into the URL fragment, so a shared link
-   never touches a server: the fragment isn't even sent in the request. */
-function b64url(bytes) {
-  let s = "";
-  for (const b of bytes) s += String.fromCharCode(b);
-  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-function unb64url(str) {
-  let s = str.replace(/-/g, "+").replace(/_/g, "/");
-  while (s.length % 4) s += "=";
-  const bin = atob(s);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-async function gzip(bytes) {
-  const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream("gzip"));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
-}
-async function gunzip(bytes) {
-  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
-}
-
-async function encodeReport(data) {
-  // Only the facts travel in the link; the prose is rehydrated from rules.json.
-  const payload = {
-    v: 1, s: data.score, g: data.grade, n: data.files_scanned, k: data.kind || "code",
-    f: data.findings.map(f => [f.rule_id, f.severity, f.path, f.line || 0, f.excerpt]),
-  };
-  const bytes = new TextEncoder().encode(JSON.stringify(payload));
-  if (window.CompressionStream) return "z" + b64url(await gzip(bytes));
-  return "j" + b64url(bytes);
-}
-
-async function decodeReport(str) {
-  const kind = str[0];
-  let bytes = unb64url(str.slice(1));
-  if (kind === "z") bytes = await gunzip(bytes);
-  else if (kind !== "j") throw new Error("Unrecognised link format.");
-  return JSON.parse(new TextDecoder().decode(bytes));
-}
-
-function fillTemplate(tpl, path, line) {
-  // Mirrors Python str.format: substitute the fields, then unescape {{ }}.
-  return String(tpl)
-    .split("{path}").join(path)
-    .split("{line}").join(String(line))
-    .split("{{").join("{")
-    .split("}}").join("}");
-}
-
-async function getRules() {
-  if (!rulesManifest) {
-    const res = await fetch("/rules.json");
-    if (!res.ok) throw new Error("Couldn't load the rule descriptions.");
-    rulesManifest = (await res.json()).rules;
-  }
-  return rulesManifest;
-}
-
-async function hydrate(payload) {
-  const rules = await getRules();
-  const counts = {critical:0, high:0, medium:0, low:0, info:0};
-  const findings = payload.f.map(([rule_id, severity, path, line, excerpt]) => {
-    const r = rules[rule_id] || {};
-    counts[severity] = (counts[severity] || 0) + 1;
-    return {
-      rule_id, severity, path, line, excerpt,
-      title: r.t || rule_id,
-      description: r.d || "",
-      fix_prompt: r.f ? fillTemplate(r.f, path, line) : "",
-    };
-  });
-  return {
-    score: payload.s, grade: payload.g, files_scanned: payload.n,
-    kind: payload.k, counts, findings,
-  };
-}
-
-$("shareBtn").addEventListener("click", async () => {
-  if (!lastResult) return;
-  const btn = $("shareBtn");
-  try {
-    const encoded = await encodeReport(lastResult);
-    const url = `${location.origin}${location.pathname}#r=${encoded}`;
-    if (url.length > 30000) {
-      statusEl.textContent = "⚠ This report is too big for a share link — use the Markdown download instead.";
-      return;
-    }
-    history.replaceState(null, "", `#r=${encoded}`);
-    await copy(btn, url, "Copy share link");
-  } catch (err) {
-    statusEl.textContent = "⚠ " + err.message;
-  }
-});
-
-$("badgeBtn").addEventListener("click", () => {
-  if (!lastResult) return;
-  const md = `[![Vibe Score](${location.origin}/api/badge?score=${lastResult.score})](${location.origin})`;
-  copy($("badgeBtn"), md, "Copy score badge (Markdown)");
-});
-
-$("startOwn").addEventListener("click", e => {
-  e.preventDefault();
-  history.replaceState(null, "", location.pathname);
-  $("report").style.display = "none";
-  window.scrollTo({ top: 0, behavior: "smooth" });
-});
-
-$("rescanBtn").addEventListener("click", () => {
-  $("report").style.display = "none";
-  window.scrollTo({ top: 0, behavior: "smooth" });
-});
-
-$("downloadBtn").addEventListener("click", () => {
-  if (!lastResult) return;
-  const d = lastResult;
-  let md = `# vibecheck security report\n\n**Vibe Score: ${d.score}/100 (grade ${d.grade})**\n\n`;
-  let sev = null;
-  for (const f of d.findings) {
-    if (f.severity !== sev) { sev = f.severity; md += `## ${sev.toUpperCase()}\n\n`; }
-    const loc = f.line ? `${f.path}:${f.line}` : f.path;
-    md += `### ${f.title}\n\n\`${loc}\`\n\n> ${f.excerpt}\n\n${f.description}\n\n`;
-    if (f.fix_prompt) md += `**Fix prompt:**\n\n\`\`\`text\n${f.fix_prompt}\n\`\`\`\n\n`;
-  }
-  md += "---\n_Generated by vibecheck · psychosecurity.io — rotate every exposed credential; deleting it from code does not un-leak it._\n";
-  const blob = new Blob([md], { type: "text/markdown" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "vibecheck-report.md";
-  a.click();
-  URL.revokeObjectURL(a.href);
-});
 
 /* ---------- demo + shared-link boot ---------- */
 $("demoBtn").addEventListener("click", () => {
@@ -599,17 +319,8 @@ $("demoBtn").addEventListener("click", () => {
 });
 
 (async function boot() {
-  const hash = location.hash;
-  if (hash === "#url") { selectTab("url"); return; }  // linked from /visibility
-  if (!hash.startsWith("#r=")) return;
-  try {
-    statusEl.textContent = "Loading shared report…";
-    const data = await hydrate(await decodeReport(hash.slice(3)));
-    statusEl.textContent = "";
-    render(data, true);
-  } catch (err) {
-    statusEl.textContent = "⚠ That shared link couldn't be read (" + err.message + ")";
-  }
+  if (location.hash === "#url") { selectTab("url"); return; }  // linked from /visibility
+  await VibeReport.boot($("report"), statusEl);
 })();
 </script>
 </body>

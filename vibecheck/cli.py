@@ -1,8 +1,15 @@
-"""Command-line entry point: vibecheck [path]"""
+"""Command-line entry point.
+
+    vibecheck [path]                                   the security scan, as it always was
+    vibecheck --url https://myapp.com                  the security scan of a live site
+    vibecheck <path-or-url> --checks security,visibility
+                                                       any checks, one report, one exit code
+"""
 
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -21,7 +28,14 @@ def main(argv=None) -> int:
             "back into your AI coding tool."
         ),
     )
-    parser.add_argument("path", nargs="?", default=".", help="project directory to scan (default: current directory)")
+    parser.add_argument("path", nargs="?", default=None,
+                        help="project directory to scan, or a site's URL (default: current directory)")
+    parser.add_argument(
+        "--checks",
+        metavar="LIST",
+        help="comma-separated checks to run: security, visibility (default: security for a folder; "
+             "every URL check for a URL). Exit code 1 on any high or critical across all of them.",
+    )
     parser.add_argument(
         "--url",
         metavar="URL",
@@ -58,8 +72,9 @@ def main(argv=None) -> int:
     parser.add_argument("--version", action="version", version=f"vibecheck {__version__}")
     args = parser.parse_args(argv)
 
-    if args.visibility:
-        return _visibility(args)
+    if args.visibility or args.checks or _looks_like_url(args.path):
+        return _unified(parser, args)
+    args.path = args.path or "."
 
     if args.url:
         from .urlscan import build_default_fetcher, scan_url
@@ -94,31 +109,83 @@ def main(argv=None) -> int:
     return 0
 
 
-def _visibility(args) -> int:
-    from .visibility import report as vreport
-    from .visibility import scan_visibility
-    from .visibility.fetch import build_fetcher
+CODE_EXTS = {"py", "js", "ts", "tsx", "jsx", "json", "md", "txt", "html", "yml", "yaml", "toml", "sh", "env", "rb", "go", "rs"}
 
-    # Unguarded, like --url: checking your own staging box from your own
-    # machine is a fair use. The hosted endpoint always guards.
-    result = scan_visibility(args.visibility, build_fetcher(guard=False))
-    threshold = SEVERITY_ORDER[args.min_severity]
-    result.findings = [f for f in result.findings if SEVERITY_ORDER[f.severity] <= threshold]
+
+def _looks_like_url(value) -> bool:
+    if not value:
+        return False
+    if re.match(r"https?://", value):
+        return True
+    # A bare domain counts, but a missing file named like code ("app.py") is a
+    # typo, not a site in Paraguay.
+    host = value.split("/", 1)[0]
+    if host.rsplit(".", 1)[-1].lower() in CODE_EXTS:
+        return False
+    return not Path(value).exists() and bool(re.fullmatch(r"[a-z0-9-]+(\.[a-z0-9-]+)+(/\S*)?", value, re.I))
+
+
+def _unified(parser, args) -> int:
+    from .core import registry
+    from .core import report as core_report
+    from .core.models import SEVERITY_ORDER as CORE_ORDER
+    from .core.models import Context, Target
+    from .core.walker import git_commit
+
+    url = args.visibility or args.url
+    repo = None
+    if args.path and _looks_like_url(args.path):
+        url = url or args.path
+    elif args.path or not url:
+        path = args.path or "."
+        if not Path(path).exists():
+            parser.error(f"path does not exist: {path}")
+        repo = str(Path(path).resolve())
+    if url and "://" not in url:
+        url = "https://" + url
+    target = Target(url=url, repo=repo, commit=git_commit(Path(repo)) if repo else None)
+
+    if args.checks:
+        wanted = [c.strip() for c in args.checks.split(",") if c.strip()]
+    elif args.visibility:
+        wanted = ["visibility"]
+    else:
+        wanted = [c.id for c in registry.available_for(target)]
+    try:
+        checks = [registry.get(c) for c in wanted]
+    except KeyError as e:
+        parser.error(str(e.args[0]))
+    runnable = [c for c in checks if c.inputs & target.inputs]
+    for c in checks:
+        if c not in runnable:
+            needs = " or ".join(f"a {i}" for i in sorted(c.inputs))
+            print(f"  skipping {c.id}: it needs {needs}", file=sys.stderr)
+    if not runnable:
+        parser.error("none of those checks can run on this target")
+
+    # Unguarded, like --url always was: checking your own staging box from
+    # your own machine is a fair use. The hosted endpoints always guard.
+    ctx = Context(guard=False, exclude=args.exclude, provenance="self")
+    results = [c.run(target, ctx) for c in runnable]
+
+    threshold = CORE_ORDER[args.min_severity]
+    for r in results:
+        r.findings = [f for f in r.findings if f.severity == "pass" or CORE_ORDER[f.severity] <= threshold]
 
     if args.json == "-":
-        print(vreport.render_json(result), end="")
+        print(core_report.render_json(results), end="")
     else:
         use_color = not args.no_color and sys.stdout.isatty()
-        print(vreport.render_terminal(result, use_color=use_color))
+        print(core_report.render_combined_terminal(results, use_color=use_color))
     if args.markdown:
-        Path(args.markdown).write_text(vreport.render_markdown(result), encoding="utf-8")
+        Path(args.markdown).write_text(core_report.render_combined_markdown(results), encoding="utf-8")
         if args.json != "-":
             print(f"  Markdown report written to {args.markdown}")
     if args.json and args.json != "-":
-        Path(args.json).write_text(vreport.render_json(result), encoding="utf-8")
+        Path(args.json).write_text(core_report.render_json(results), encoding="utf-8")
         print(f"  JSON report written to {args.json}")
 
-    if args.fail_on != "never" and vreport.fails(result, args.fail_on):
+    if args.fail_on != "never" and core_report.fails(results, args.fail_on):
         return 1
     return 0
 

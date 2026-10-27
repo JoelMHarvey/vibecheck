@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check everything: security and visibility in one report — vibecheck</title>
+<meta name="description" content="Run vibecheck's security and visibility checks on a live site at once: leaked files and missing headers beside crawlability and AI readiness, with a fix prompt for each.">
+<link rel="canonical" href="https://psychosecurity.io/check">
+<meta name="theme-color" content="#0b0e14">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="vibecheck">
+<meta property="og:url" content="https://psychosecurity.io/check">
+<meta property="og:title" content="Check everything: security and visibility in one report">
+<meta property="og:description" content="Every vibecheck check against your live site, side by side, with a fix prompt for each finding.">
+<meta property="og:image" content="https://psychosecurity.io/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://psychosecurity.io/og.png">
+<link rel="stylesheet" href="/report.css">
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #12161f; --panel2: #171c27; --border: #232a38;
+    --text: #e6e9f0; --muted: #8b94a7; --accent: #5eead4; --accent2: #a78bfa;
+    --critical: #f87171; --high: #fb923c; --medium: #facc15; --low: #60a5fa; --info: #64748b;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color: var(--accent); }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 16px; }
+  header { padding: 18px 0; border-bottom: 1px solid var(--border); }
+  header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .logo { font-family: var(--mono); font-weight: 700; font-size: 18px; color: var(--text); text-decoration: none; }
+  .logo span { color: var(--accent); }
+  .byline { color: var(--muted); font-size: 13px; }
+  .hero { padding: 48px 0 28px; text-align: center; }
+  .hero h1 { font-size: clamp(28px, 5vw, 44px); line-height: 1.15; letter-spacing: -0.02em; }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p.sub { color: var(--muted); max-width: 640px; margin: 18px auto 0; font-size: 18px; }
+  .tabs { display: flex; gap: 6px; justify-content: center; margin: 28px 0 0; flex-wrap: wrap; }
+  .tab { font: 600 14px/1 system-ui, sans-serif; background: transparent; color: var(--muted); border: 1px solid var(--border);
+         border-radius: 8px; padding: 10px 18px; text-decoration: none; }
+  .tab[aria-current="page"] { background: var(--panel2); color: var(--text); border-color: var(--accent); }
+  .urlbox { margin: 16px auto 8px; display: flex; gap: 8px; max-width: 620px; }
+  .urlbox input { flex: 1; min-width: 0; font: 15px/1 var(--mono); color: var(--text); background: var(--panel);
+                  border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .urlbox input:focus { outline: none; border-color: var(--accent); }
+  button { font: 600 14px/1 system-ui, sans-serif; color: var(--bg); background: var(--accent); border: 0; border-radius: 8px;
+           padding: 12px 18px; cursor: pointer; }
+  button.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  button:disabled { opacity: .5; cursor: default; }
+  .privacy { text-align: center; color: var(--muted); font-size: 13px; margin: 14px auto 0; max-width: 640px; }
+  .status { text-align: center; color: var(--accent); font-family: var(--mono); font-size: 14px; min-height: 22px; margin-top: 16px; }
+  #report { display: none; margin-top: 28px; }
+  section.info { padding: 56px 0 8px; }
+  section.info h2 { font-size: 24px; margin-bottom: 14px; }
+  section.info p { color: var(--muted); margin-bottom: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  .card h3 { font-size: 15px; margin-bottom: 6px; }
+  .card p { color: var(--muted); font-size: 14px; margin: 0; }
+  a.card { display: block; text-decoration: none; color: inherit; transition: border-color .15s; }
+  a.card:hover { border-color: var(--accent); }
+  a.card h3 { color: var(--accent); }
+  pre.cli { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px;
+            font-family: var(--mono); font-size: 14px; overflow-x: auto; }
+  code { font-family: var(--mono); font-size: .9em; }
+  footer { margin-top: 64px; padding: 28px 0 40px; border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; }
+  .ok { color: var(--accent); }
+  .hidden { display: none !important; }
+  @media (max-width: 520px) {
+    .urlbox { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="logo" href="/">vibe<span>check</span> 🔒</a>
+    <div class="byline">a psychosecurity.io tool</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>Check <em>everything</em></h1>
+    <p class="sub">Every check vibecheck can run on a live site, in one report: is it leaking, and is anyone finding it?
+    Each finding comes with a <strong>fix prompt you paste straight back into your AI tool</strong>.</p>
+
+    <nav class="tabs" aria-label="Scan modes">
+      <a class="tab" href="/">Scan my code</a>
+      <a class="tab" href="/#url">Scan a live site</a>
+      <a class="tab" href="/visibility">Is anyone finding it?</a>
+      <a class="tab" href="/check" aria-current="page">Check everything</a>
+    </nav>
+
+    <form class="urlbox" id="urlForm">
+      <input type="text" id="urlInput" placeholder="https://myapp.com" spellcheck="false" autocomplete="off" aria-label="Site address">
+      <button type="submit" id="urlBtn">Check it</button>
+    </form>
+    <p class="privacy">Runs the <a href="/">security</a> and <a href="/visibility">visibility</a> checks from our server
+    at the same time. No sign-up, nothing you type is stored. For your code as well, use the command line:
+    <code>python3 -m vibecheck ./app --url https://myapp.com --checks security,visibility</code></p>
+
+    <div class="status" id="status" role="status"></div>
+  </div>
+
+  <!-- Drawn by report.js, the same component every check's results use. -->
+  <div id="report"></div>
+
+  <footer>
+    <div class="wrap" style="padding:0">
+      <p>vibecheck · a <strong>psychosecurity.io</strong> tool · <a href="/">security scan</a> · <a href="/visibility">visibility check</a> · <a href="/check">check everything</a></p>
+    </div>
+  </footer>
+</div>
+
+<script src="/report.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const statusEl = $("status");
+
+async function call(endpoint, body) {
+  const res = await fetch(endpoint, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "The check failed.");
+  return data;
+}
+
+async function check(url, fresh) {
+  $("urlBtn").disabled = true;
+  statusEl.textContent = `Checking ${url}… the visibility crawl takes up to a minute.`;
+  // Both at once; one failing (a rate limit, say) doesn't hide the other.
+  const [security, visibility] = await Promise.allSettled([
+    call("/api/scan-url", { url }).then(d => d.result),
+    call("/api/visibility", { url, fresh }),
+  ]);
+  const results = [security, visibility].filter(r => r.status === "fulfilled").map(r => r.value);
+  const errors = [["Security", security], ["Visibility", visibility]]
+    .filter(([, r]) => r.status === "rejected").map(([name, r]) => `${name}: ${r.reason.message}`);
+  statusEl.textContent = errors.length ? "⚠ " + errors.join(" · ") : "";
+  history.replaceState(null, "", location.pathname);
+  if (results.length) {
+    await VibeReport.render($("report"), results, { onRecheck: () => check(url, true) });
+  }
+  $("urlBtn").disabled = false;
+}
+
+$("urlForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const url = $("urlInput").value.trim();
+  if (url) check(url, false);
+});
+
+VibeReport.boot($("report"), statusEl);
+</script>
+</body>
+</html>

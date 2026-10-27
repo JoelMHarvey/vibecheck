@@ -31,14 +31,38 @@ VIS_MANIFEST_PATH = Path(__file__).resolve().parent.parent / "visibility-rules.j
 
 
 def build_manifest() -> dict:
-    all_rules = ALL_RULES
+    from vibecheck.checks.security import CATEGORIES, GUIDES, RULE_CATEGORY, SECRET_GUIDE, VERIFY
+
+    def extra(rule_id: str, fix_prompt: str) -> dict:
+        category = RULE_CATEGORY[rule_id]
+        out = {"c": category}
+        if fix_prompt:
+            out["v"] = VERIFY[category]
+        guide = GUIDES.get(rule_id) or (SECRET_GUIDE if category == "secrets" else None)
+        if guide:
+            out["g"] = guide
+        return out
+
     rules = {}
-    for rule in all_rules:
-        rules[rule.id] = {"t": rule.title, "d": rule.description, "f": rule.fix_prompt}
+    for rule in ALL_RULES:
+        rules[rule.id] = {"t": rule.title, "d": rule.description, "f": rule.fix_prompt,
+                          **extra(rule.id, rule.fix_prompt)}
     # Deployed-site rules are built by urlscan, not from Rule objects.
     for rule_id, title, description, fix_prompt in iter_url_rules():
-        rules[rule_id] = {"t": title, "d": description, "f": fix_prompt}
-    return {"version": 1, "rules": rules}
+        rules[rule_id] = {"t": title, "d": description, "f": fix_prompt, **extra(rule_id, fix_prompt)}
+    # Severity isn't here: the scanner can raise it per finding (a key in
+    # browser code), so a share link carries it with each finding.
+    return {"version": 2, **_check_header("security"), "rules": rules,
+            "categories": [[c.id, c.label, c.weight] for c in CATEGORIES]}
+
+
+def _check_header(check_id: str) -> dict:
+    """What report.js needs to word a report without knowing the check."""
+    from vibecheck.core.registry import get
+
+    check = get(check_id)
+    return {"check": check.id, "check_version": check.version, "title": check.title,
+            "blurbs": dict(check.blurbs), "footer": check.footer, "not_run": check.not_run}
 
 
 def render() -> str:
@@ -46,8 +70,8 @@ def render() -> str:
 
 
 def build_visibility_manifest() -> dict:
-    from vibecheck.visibility import config
-    from vibecheck.visibility.rules import PASSES, RULES
+    from vibecheck.checks.visibility import config
+    from vibecheck.checks.visibility.rules import PASSES, RULES
 
     rules = {}
     for rule in RULES.values():
@@ -56,8 +80,10 @@ def build_visibility_manifest() -> dict:
         if rule.guide:
             entry["g"] = rule.guide
         rules[rule.id] = entry
-    return {"version": 1, "rules": rules, "passes": dict(PASSES),
-            "categories": [list(c) for c in config.CATEGORIES]}
+    for check_id, (title, category) in PASSES.items():
+        rules[check_id] = {"t": title, "s": "pass", "c": category}
+    return {"version": 2, **_check_header("visibility"), "rules": rules,
+            "categories": [[c.id, c.label, c.weight] for c in config.CATEGORIES]}
 
 
 def render_visibility() -> str:

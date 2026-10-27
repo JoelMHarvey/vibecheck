@@ -19,10 +19,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from vis_fakes import NOW, healthy_site  # noqa: E402
 
-from vibecheck import netguard  # noqa: E402
-from vibecheck.ratelimit import MemoryBackend, RateLimiter  # noqa: E402
-from vibecheck.visibility import scan_visibility  # noqa: E402
-from vibecheck.visibility.cache import MemoryCache, ResultCache  # noqa: E402
+from vibecheck.checks.visibility import scan_visibility  # noqa: E402
+from vibecheck.core import netguard  # noqa: E402
+from vibecheck.core.cache import MemoryCache, ResultCache  # noqa: E402
+from vibecheck.core.ratelimit import MemoryBackend, RateLimiter  # noqa: E402
 
 
 def load():
@@ -69,8 +69,8 @@ class VisibilityApiTest(unittest.TestCase):
     def test_scans_and_returns_the_report(self):
         status, body = self.post({"url": "groomly.test"})
         self.assertEqual(status, 200)
-        self.assertEqual(body["kind"], "visibility")
-        self.assertEqual(body["score"], 100)
+        self.assertEqual(body["check_id"], "visibility")
+        self.assertEqual(body["total"], 100)
         self.assertFalse(body["cached"])
         self.assertEqual(self.scans, ["https://groomly.test"])
 
@@ -137,7 +137,7 @@ class CacheTest(unittest.TestCase):
         self.assertIsNone(cache.get("https://a.test/"))
 
     def test_kv_commands(self):
-        from vibecheck.visibility.cache import KVCache
+        from vibecheck.core.cache import KVCache
         sent = []
 
         def post(url, headers, commands):

@@ -1,38 +1,28 @@
 """Every tunable number for the visibility scan, in one place.
 
-Scoring: a category starts at 10 and loses CATEGORY_PENALTY points per
-finding in it, floored at 0. The total is the weighted mean of the categories
+Scoring: a category starts at 10 and loses points per finding in it
+(vibecheck.core.scoring.CATEGORY_PENALTY, the same for every check), floored at 0. The total is the weighted mean of the categories
 that ran, scaled to 0-100. A category with no checks yet (phases 2-4) scores
 None and is left out of the mean, not counted as zero.
 """
 
 from __future__ import annotations
 
-# (key, label). Order is the order they're shown in.
-CATEGORIES = [
-    ("technical", "Technical"),
-    ("ai", "AI readiness"),
-    ("content", "Content & keywords"),
-    ("positioning", "Positioning"),
-    ("offsite", "Off-site"),
-    ("brand", "Brand clarity"),
-]
+from ...core.models import Category
 
-# Relative weights in the total. They needn't sum to 1; the total divides by
-# the sum of the weights of the categories that ran.
-CATEGORY_WEIGHTS = {
-    "technical": 0.20,
-    "ai": 0.15,
-    "content": 0.20,
-    "positioning": 0.20,
-    "offsite": 0.10,
-    "brand": 0.15,
-}
+# Order is the order they're shown in. Weights are relative: the total
+# divides by the sum of the weights of the categories that ran.
+CATEGORIES = [
+    Category("technical", "Technical", 0.20),
+    Category("ai", "AI readiness", 0.15),
+    Category("content", "Content & keywords", 0.20),
+    Category("positioning", "Positioning", 0.20),
+    Category("offsite", "Off-site", 0.10),
+    Category("brand", "Brand clarity", 0.15),
+]
 
 # Categories phase 1 can score. The rest say "run the deeper check".
 PHASE1_CATEGORIES = ("technical", "ai", "content")
-
-CATEGORY_PENALTY = {"critical": 10, "high": 4, "medium": 2, "low": 1, "info": 0}
 
 # Crawl limits.
 USER_AGENT = "vibecheck-visibility/1.0 (+https://psychosecurity.io/visibility)"
@@ -60,4 +50,3 @@ FRAGMENT_SECTIONS_MIN = 4
 AI_CRAWLERS = ("GPTBot", "ClaudeBot", "PerplexityBot", "Google-Extended", "CCBot")
 SEARCH_CRAWLERS = ("Googlebot", "Bingbot")
 
-CACHE_SECONDS = 24 * 3600

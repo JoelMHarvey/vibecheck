@@ -1,220 +1,364 @@
 {
+ "blurbs": {
+  "A": "Looking good. Fix anything below and ship it.",
+  "B": "Nearly there \u2014 a few things need attention before launch.",
+  "C": "Some real risks here. Work through the list before sharing your app.",
+  "D": "Serious problems. Fix the critical/high items before anything else.",
+  "F": "Stop \u2014 do not launch this yet. Fix the critical items first.",
+  "\u2013": "We couldn't reach the site, so nothing was checked."
+ },
+ "categories": [
+  [
+   "secrets",
+   "Secrets",
+   0.4
+  ],
+  [
+   "exposure",
+   "Browser exposure",
+   0.2
+  ],
+  [
+   "injection",
+   "Injection",
+   0.2
+  ],
+  [
+   "config",
+   "Configuration",
+   0.2
+  ]
+ ],
+ "check": "security",
+ "check_version": "1.0.0",
+ "footer": "Deleting a key from your code does not un-leak it. Rotate every exposed credential at its provider.",
+ "not_run": "needs your code",
  "rules": {
   "anthropic-api-key": {
+   "c": "secrets",
    "d": "An Anthropic API key is written directly in your code. Anyone who can see this file \u2014 or your site's source, if it ships to the browser \u2014 can use the key and run up your bill.",
    "f": "An Anthropic API key is hardcoded in {path} on line {line}. Move every Anthropic API call to server-side code that reads the key from an environment variable named ANTHROPIC_API_KEY, delete the hardcoded value, and add a .env entry locally. Remind me to rotate the key at console.anthropic.com because it has been exposed.",
-   "t": "Anthropic API key hardcoded"
+   "g": "/guides/openai-api-key-exposed",
+   "t": "Anthropic API key hardcoded",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "aws-access-key-id": {
+   "c": "secrets",
    "d": "This looks like an AWS access key ID. If the matching secret key is nearby, an attacker can use your AWS account \u2014 spinning up servers on your card or stealing data from S3.",
    "f": "An AWS access key appears in {path} on line {line}. Remove it, load AWS credentials from environment variables or an IAM role instead, and remind me to deactivate this key pair in the AWS IAM console because it has been exposed.",
-   "t": "AWS access key ID hardcoded"
+   "g": "/guides/api-key-leaked",
+   "t": "AWS access key ID hardcoded",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "cors-allow-all": {
+   "c": "config",
    "d": "Your API accepts requests from any website on the internet. Combined with cookie-based login, a malicious site can make requests to your API as your logged-in users.",
    "f": "CORS is configured to allow all origins in {path} on line {line}. Restrict it to my actual frontend domain(s), e.g. cors({{ origin: ['https://myapp.com'] }}), and keep localhost only for development.",
-   "t": "CORS allows every website"
+   "t": "CORS allows every website",
+   "v": "Re-run the scan, or check the response headers with 'curl -sI https://yoursite.com'."
   },
   "cors-wildcard-live": {
+   "c": "config",
    "d": "Your site responds with Access-Control-Allow-Origin: *, letting any website read responses from it. Combined with cookie auth this can expose logged-in users' data to malicious sites.",
    "f": "My deployed site returns 'Access-Control-Allow-Origin: *'. Restrict it to only the origins that actually need cross-origin access, and never combine a wildcard with credentialed (cookie) requests.",
-   "t": "Live site sends CORS: allow all origins"
+   "t": "Live site sends CORS: allow all origins",
+   "v": "Re-run the scan, or check the response headers with 'curl -sI https://yoursite.com'."
   },
   "dangerously-allow-browser": {
+   "c": "exposure",
    "d": "dangerouslyAllowBrowser: true means the AI SDK runs in the visitor's browser \u2014 which means your API key is shipped to every visitor. The flag is named 'dangerously' for exactly this reason. Anyone can open DevTools, copy your key, and spend your credits.",
    "f": "My app calls an LLM API directly from the browser using dangerouslyAllowBrowser: true ({path} line {line}). Create a server-side API route that makes the LLM call using an environment-variable key, change the frontend to call that route instead, remove the dangerouslyAllowBrowser flag, and add basic rate limiting to the new route. Remind me to rotate the API key because it has shipped to browsers.",
-   "t": "LLM SDK running in the browser"
+   "g": "/guides/openai-api-key-exposed",
+   "t": "LLM SDK running in the browser",
+   "v": "Re-run the scan, then open your site with DevTools' Network tab: no request from the browser should carry a secret key."
   },
   "env-file-not-gitignored": {
+   "c": "secrets",
    "d": "Your project has a .env file (where secrets belong) but .gitignore does not exclude it. That means one 'git push' \u2014 by you or your AI tool \u2014 publishes every secret in it.",
    "f": "My project's {path} file is not covered by .gitignore. Add '.env' and '.env.*' to .gitignore, then check whether the file was ever committed (git log --all -- {path}); if it was, remind me to rotate every credential inside it and rewrite it out of git history.",
-   "t": ".env file is not protected by .gitignore"
+   "g": "/guides/api-key-leaked",
+   "t": ".env file is not protected by .gitignore",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "eval-usage": {
+   "c": "injection",
    "d": "eval() executes whatever string it's given as code. If that string can be influenced by user input, it's full code execution in your app.",
    "f": "eval() is used in {path} on line {line}. Replace it with a safer alternative (JSON.parse for data, a lookup table for dynamic behavior). If it must stay, confirm the input can never contain user-provided text.",
-   "t": "eval() used"
+   "t": "eval() used",
+   "v": "Re-run the scan, then try the input that would have broken it (a quote, a semicolon, a <script> tag) and check it's treated as plain text."
   },
   "exposed-aws-credentials": {
+   "c": "secrets",
    "d": "An AWS credentials file is being served publicly. Anyone can take your AWS keys and use your account.",
    "f": "My deployed site serves an AWS credentials file publicly at /.aws/credentials. Remove it from the deploy, never include credential files in the web root, and remind me to deactivate those AWS keys immediately.",
-   "t": "AWS credentials file publicly readable"
+   "g": "/guides/api-key-leaked",
+   "t": "AWS credentials file publicly readable",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "exposed-config": {
+   "c": "secrets",
    "d": "A config.json is served publicly. That's fine if it only holds public settings, but config files often accidentally contain API keys or internal URLs.",
    "f": "My deployed site serves /config.json publicly. Check it for anything that shouldn't be public (API keys, secrets, internal endpoints); if it has them, move those to server-side environment variables and rotate them.",
-   "t": "config.json is publicly readable"
+   "g": "/guides/api-key-leaked",
+   "t": "config.json is publicly readable",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "exposed-env-file": {
+   "c": "secrets",
    "d": "Your deployed site serves its .env file to anyone who asks for /.env. Every secret in it \u2014 API keys, database passwords, signing secrets \u2014 is being handed to the public right now.",
    "f": "My deployed site serves its .env file at the public URL /.env. Make the server refuse to serve dotfiles, move .env out of the web root / public directory, and confirm the deploy no longer includes it. Then remind me to rotate EVERY credential in that file because it has been exposed.",
-   "t": "Live .env file is publicly readable"
+   "g": "/guides/api-key-leaked",
+   "t": "Live .env file is publicly readable",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "exposed-git-dir": {
+   "c": "secrets",
    "d": "Your .git directory is being served publicly. Anyone can download your entire source history \u2014 including any secrets ever committed and later 'removed' \u2014 by cloning it straight off your site.",
    "f": "My deployed site exposes its .git directory (/.git/config is readable). Stop the server from serving the .git folder, remove it from the deployed output, and remind me to rotate any secret that was ever committed to this repo's history because the full history is downloadable.",
-   "t": "Live .git directory is publicly readable"
+   "g": "/guides/api-key-leaked",
+   "t": "Live .git directory is publicly readable",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "exposed-source-map": {
+   "c": "exposure",
    "d": "Your JavaScript source maps are publicly served. They let anyone reconstruct your original, unminified source code \u2014 including comments and any secrets or logic you assumed were hidden in the bundle.",
    "f": "My deployed site publishes JavaScript source maps (.map files are publicly readable). Turn off source map generation for production builds, or stop the server from serving .map files. Check the reconstructed source didn't expose any secrets.",
-   "t": "Source maps are published"
+   "t": "Source maps are published",
+   "v": "Re-run the scan, then open your site with DevTools' Network tab: no request from the browser should carry a secret key."
   },
   "flask-debug-enabled": {
+   "c": "config",
    "d": "Debug mode is switched on. In production this shows full error pages with your code and variables to visitors, and Flask's debugger even allows running arbitrary code on your server.",
    "f": "Debug mode is enabled in {path} on line {line}. Make debug mode depend on an environment variable that defaults to off (e.g. debug=os.environ.get('FLASK_DEBUG') == '1') so production never runs with it enabled.",
-   "t": "Debug mode enabled"
+   "t": "Debug mode enabled",
+   "v": "Re-run the scan, or check the response headers with 'curl -sI https://yoursite.com'."
   },
   "github-token": {
+   "c": "secrets",
    "d": "A GitHub token is written in your code. Anyone with it may be able to read or push to your repositories as you.",
    "f": "A GitHub token is hardcoded in {path} on line {line}. Remove it, read it from an environment variable instead, and remind me to revoke this token at github.com/settings/tokens because it has been exposed.",
-   "t": "GitHub token hardcoded"
+   "g": "/guides/api-key-leaked",
+   "t": "GitHub token hardcoded",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "google-api-key": {
+   "c": "secrets",
    "d": "A Google API key is written in your code. Depending on which APIs it can call, someone could run up charges on your Google Cloud account. Some Google keys (like Maps browser keys) are meant to be public, but only if they're locked down with referrer and API restrictions.",
    "f": "A Google API key appears in {path} on line {line}. If it's used server-side, move it to an environment variable. If it must be public (e.g. a Maps browser key), remind me to add HTTP-referrer and API restrictions to it in the Google Cloud console so it can't be abused.",
-   "t": "Google API key hardcoded"
+   "g": "/guides/api-key-leaked",
+   "t": "Google API key hardcoded",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "hardcoded-jwt": {
+   "c": "secrets",
    "d": "A JSON Web Token is written directly in your code. Tokens grant access to whatever issued them, and they don't belong in source files.",
    "f": "A JWT is hardcoded in {path} on line {line}. Work out what issued it, move it to an environment variable if it's a long-lived credential, and remind me to revoke or rotate it because it has been exposed.",
-   "t": "Hardcoded JWT token"
+   "g": "/guides/api-key-leaked",
+   "t": "Hardcoded JWT token",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "hardcoded-password": {
+   "c": "secrets",
    "d": "A password appears to be written directly in the code. If this is a real credential, anyone with access to the code has it too.",
    "f": "A password looks hardcoded in {path} on line {line}. If it's a real credential, move it to an environment variable and change the password wherever it's used. If it's test data, rename it so it's obviously fake (e.g. 'test-password-not-real').",
-   "t": "Hardcoded password"
+   "g": "/guides/api-key-leaked",
+   "t": "Hardcoded password",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "innerhtml-assignment": {
+   "c": "injection",
    "d": "HTML is being built from a variable rather than a fixed string. That is only a problem if the variable can hold something a stranger chose \u2014 the scanner can see the pattern but not where the value came from, so this is worth a look rather than a finding. If the value is ever user input, it is an XSS hole; if it is your own markup, it is fine.",
    "f": "innerHTML is assigned in {path} on line {line}. If the content includes any user-provided data, switch to textContent, or sanitize the HTML with a library like DOMPurify before inserting it.",
-   "t": "HTML built from a variable"
+   "t": "HTML built from a variable",
+   "v": "Re-run the scan, then try the input that would have broken it (a quote, a semicolon, a <script> tag) and check it's treated as plain text."
   },
   "innerhtml-untrusted-input": {
+   "c": "injection",
    "d": "HTML is being built from a value that comes from outside your app \u2014 the URL, a form field, a request, or browser storage. Anyone who controls that value can inject a script that runs for whoever views the page, stealing their session or defacing the app for them.",
    "f": "In {path} on line {line}, HTML is built from a value that comes from outside the app (the URL, a form field, a request, or storage) and assigned to innerHTML. Use textContent if the value is meant to be text, or sanitize it with DOMPurify before inserting it as HTML. Check the rest of the file for the same pattern.",
-   "t": "HTML built from user-controlled data (XSS risk)"
+   "t": "HTML built from user-controlled data (XSS risk)",
+   "v": "Re-run the scan, then try the input that would have broken it (a quote, a semicolon, a <script> tag) and check it's treated as plain text."
   },
   "jwt-secret-hardcoded": {
+   "c": "secrets",
    "d": "The secret used to sign your login tokens is written in the code. Anyone who reads it can forge a valid login token for ANY user of your app, including admins.",
    "f": "The JWT signing secret is hardcoded in {path} on line {line}. Read it from an environment variable named JWT_SECRET instead, generate a new long random value for production, and remove the hardcoded string. Note that changing the secret will log out existing sessions, which is the correct thing to do after a leak.",
-   "t": "JWT signing secret hardcoded"
+   "g": "/guides/api-key-leaked",
+   "t": "JWT signing secret hardcoded",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "llm-api-call-in-frontend": {
+   "c": "exposure",
    "d": "Your frontend talks to an LLM API directly. Browser code can't keep a secret, so the API key that authorizes these calls is visible to every visitor via DevTools.",
    "f": "My frontend calls an LLM API directly ({path} line {line}). Create a server-side API route that proxies the LLM call using a key from an environment variable, update the frontend to call that route, and add basic rate limiting so strangers can't drain my credits through it.",
-   "t": "LLM API called from frontend code"
+   "g": "/guides/openai-api-key-exposed",
+   "t": "LLM API called from frontend code",
+   "v": "Re-run the scan, then open your site with DevTools' Network tab: no request from the browser should carry a secret key."
   },
   "missing-csp": {
+   "c": "config",
    "d": "There's no Content-Security-Policy header. A CSP is the strongest defence against cross-site scripting (XSS) \u2014 without it, an injected script runs with no restrictions.",
    "f": "My deployed site has no Content-Security-Policy header. Add a CSP that restricts scripts to my own domain and any services I actually use, then test it doesn't break the app. Start in report-only mode if unsure.",
-   "t": "No Content-Security-Policy"
+   "t": "No Content-Security-Policy",
+   "v": "Re-run the scan, or check the response headers with 'curl -sI https://yoursite.com'."
   },
   "missing-hsts": {
+   "c": "config",
    "d": "Your site doesn't send Strict-Transport-Security, so a visitor's first request can be downgraded to plain HTTP and intercepted.",
    "f": "My deployed site is missing the Strict-Transport-Security header. Add 'Strict-Transport-Security: max-age=63072000; includeSubDomains' to my site's response headers (in vercel.json, netlify.toml, or my server config).",
-   "t": "Missing HSTS header"
+   "t": "Missing HSTS header",
+   "v": "Re-run the scan, or check the response headers with 'curl -sI https://yoursite.com'."
   },
   "missing-xcto": {
+   "c": "config",
    "d": "Without X-Content-Type-Options: nosniff, browsers may guess the type of a response and execute a file you didn't intend to be a script.",
    "f": "My deployed site is missing the X-Content-Type-Options header. Add 'X-Content-Type-Options: nosniff' to my site's response headers.",
-   "t": "Missing X-Content-Type-Options header"
+   "t": "Missing X-Content-Type-Options header",
+   "v": "Re-run the scan, or check the response headers with 'curl -sI https://yoursite.com'."
   },
   "missing-xfo": {
+   "c": "config",
    "d": "Nothing stops your site being embedded in an <iframe> on another site, which enables clickjacking (tricking your users into clicking things they can't see).",
    "f": "My deployed site can be framed by any other site. Add 'X-Frame-Options: DENY' (or a Content-Security-Policy with frame-ancestors 'self') to my response headers.",
-   "t": "Missing X-Frame-Options / frame-ancestors"
+   "t": "Missing X-Frame-Options / frame-ancestors",
+   "v": "Re-run the scan, or check the response headers with 'curl -sI https://yoursite.com'."
   },
   "mongodb-uri-credentials": {
+   "c": "secrets",
    "d": "A MongoDB connection string containing a username and password is written in your code. Anyone who sees it can connect directly to your database.",
    "f": "A MongoDB connection string with embedded credentials is hardcoded in {path} on line {line}. Move it to an environment variable named MONGODB_URI and read it from there. Remind me to change the database user's password because it has been exposed.",
-   "t": "MongoDB connection string with password"
+   "g": "/guides/api-key-leaked",
+   "t": "MongoDB connection string with password",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "no-https": {
+   "c": "config",
    "d": "Your site is served over HTTP, not HTTPS. Everything between your users and the site \u2014 including passwords and session cookies \u2014 travels unencrypted and can be read or altered in transit.",
    "f": "My deployed site is served over plain HTTP. Enable HTTPS (most hosts like Vercel/Netlify do this automatically once a domain is added) and redirect all HTTP traffic to HTTPS.",
-   "t": "Site served over plain HTTP"
+   "t": "Site served over plain HTTP",
+   "v": "Re-run the scan, or check the response headers with 'curl -sI https://yoursite.com'."
   },
   "openai-api-key": {
+   "c": "secrets",
    "d": "An OpenAI API key is written directly in your code. Anyone who can see this file can spend your OpenAI credits.",
    "f": "An OpenAI API key is hardcoded in {path} on line {line}. Move the OpenAI calls to server-side code that reads the key from an environment variable named OPENAI_API_KEY and delete the hardcoded value. Remind me to rotate the key at platform.openai.com because it has been exposed.",
-   "t": "OpenAI API key hardcoded"
+   "g": "/guides/openai-api-key-exposed",
+   "t": "OpenAI API key hardcoded",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "postgres-uri-credentials": {
+   "c": "secrets",
    "d": "A Postgres connection string containing a username and password is written in your code. Anyone who sees it can connect directly to your database.",
    "f": "A Postgres connection string with embedded credentials is hardcoded in {path} on line {line}. Move it to an environment variable named DATABASE_URL and read it from there. Remind me to change the database user's password because it has been exposed.",
-   "t": "Postgres connection string with password"
+   "g": "/guides/api-key-leaked",
+   "t": "Postgres connection string with password",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "private-key-block": {
+   "c": "secrets",
    "d": "This is a cryptographic private key sitting in your project. Private keys are the master credential for whatever they protect \u2014 TLS, SSH, service accounts \u2014 and must never be in a repository.",
    "f": "A private key is committed at {path}. Remove the file from the repository, add its filename and common key patterns (*.pem, *.key) to .gitignore, and load the key from a secret store or environment variable at runtime. Remind me to rotate/reissue this key because it has been exposed.",
-   "t": "Private key file committed"
+   "g": "/guides/api-key-leaked",
+   "t": "Private key file committed",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "public-env-var-holds-secret": {
+   "c": "exposure",
    "d": "Environment variables prefixed VITE_, NEXT_PUBLIC_, REACT_APP_ or EXPO_PUBLIC_ are compiled INTO your frontend bundle \u2014 they are public by definition. This one's name suggests it holds a secret, which means the secret ships to every visitor's browser.",
    "f": "The environment variable referenced in {path} on line {line} uses a public prefix (VITE_/NEXT_PUBLIC_/REACT_APP_/EXPO_PUBLIC_) but appears to hold a secret. Move the secret to a server-only environment variable (no public prefix), move the code that uses it into a server-side route or API handler, and rotate the secret since it has shipped to browsers.",
-   "t": "Secret in a PUBLIC env variable"
+   "t": "Secret in a PUBLIC env variable",
+   "v": "Re-run the scan, then open your site with DevTools' Network tab: no request from the browser should carry a secret key."
   },
   "robots-leaks-paths": {
+   "c": "config",
    "d": "Your robots.txt lists a sensitive-looking path in a Disallow rule. robots.txt is public, so this is a signpost pointing attackers straight at the pages you most want hidden \u2014 it does not protect them.",
    "f": "My robots.txt lists sensitive paths in Disallow rules (shown in this report), which just advertises them to anyone who looks. Protect those routes with real authentication instead of relying on robots.txt, and remove the revealing entries.",
-   "t": "robots.txt advertises sensitive paths"
+   "t": "robots.txt advertises sensitive paths",
+   "v": "Re-run the scan, or check the response headers with 'curl -sI https://yoursite.com'."
   },
   "shell-command-interpolation": {
+   "c": "injection",
    "d": "A shell command is being built by pasting variables into the command string. If any variable comes from user input, an attacker can run their own commands on your server.",
    "f": "A shell command is built from variables in {path} on line {line}. Replace it with an API that passes arguments as a list (e.g. subprocess.run([...]) or execFile) so user input can never be interpreted as part of the command.",
-   "t": "Shell command built from variables"
+   "t": "Shell command built from variables",
+   "v": "Re-run the scan, then try the input that would have broken it (a quote, a semicolon, a <script> tag) and check it's treated as plain text."
   },
   "site-unreachable": {
+   "c": "config",
    "d": "vibecheck couldn't connect to this URL, so no deployed-site checks ran. Check the address is correct and the site is up.",
    "f": "",
    "t": "Site could not be reached"
   },
   "slack-token": {
+   "c": "secrets",
    "d": "A Slack token is written in your code. Anyone with it can read or post messages in your Slack workspace as your app or as you.",
    "f": "A Slack token is hardcoded in {path} on line {line}. Remove it, read it from an environment variable instead, and remind me to revoke and regenerate it in the Slack app settings because it has been exposed.",
-   "t": "Slack token hardcoded"
+   "g": "/guides/api-key-leaked",
+   "t": "Slack token hardcoded",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "sql-string-building": {
+   "c": "injection",
    "d": "A database query is being built by pasting values into the SQL string. If any of those values comes from a user, they can inject their own SQL \u2014 reading, changing, or deleting anything in your database.",
    "f": "A SQL query is built with string interpolation in {path} on line {line}. Rewrite it to use parameterized queries (placeholders like ? or $1 with values passed separately), and check the rest of the file for the same pattern.",
-   "t": "SQL built by string interpolation"
+   "t": "SQL built by string interpolation",
+   "v": "Re-run the scan, then try the input that would have broken it (a quote, a semicolon, a <script> tag) and check it's treated as plain text."
   },
   "stripe-live-key": {
+   "c": "secrets",
    "d": "This is a LIVE Stripe secret key. Anyone who has it can create charges, issue refunds, and read customer data on your real Stripe account. This is about as serious as a leak gets.",
    "f": "A live Stripe secret key is hardcoded in {path} on line {line}. Move all Stripe API calls to server-side code that reads the key from an environment variable named STRIPE_SECRET_KEY, and make sure only the publishable key (pk_live_...) ever appears in browser code. Remind me to roll this key immediately in the Stripe dashboard (Developers > API keys) because it has been exposed.",
-   "t": "Stripe LIVE secret key exposed"
+   "g": "/guides/stripe-secret-key-exposed",
+   "t": "Stripe LIVE secret key exposed",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "stripe-test-key": {
+   "c": "secrets",
    "d": "This is a Stripe TEST key, so no real money is at risk \u2014 but hardcoding it is the same habit that leaks live keys later. Fix the pattern now, before you switch to live mode.",
    "f": "A Stripe test secret key is hardcoded in {path} on line {line}. Refactor so the key is read from an environment variable named STRIPE_SECRET_KEY, so that switching to the live key later doesn't put a secret in the code.",
-   "t": "Stripe test secret key hardcoded"
+   "g": "/guides/stripe-secret-key-exposed",
+   "t": "Stripe test secret key hardcoded",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "subprocess-shell-true": {
+   "c": "injection",
    "d": "Running subprocesses with shell=True is risky if any part of the command can be influenced by user input. Worth a look even if it's currently safe.",
    "f": "subprocess is called with shell=True in {path} on line {line}. If the command includes any variable data, rewrite it as subprocess.run([...]) with a list of arguments and shell=False.",
-   "t": "subprocess with shell=True"
+   "t": "subprocess with shell=True",
+   "v": "Re-run the scan, then try the input that would have broken it (a quote, a semicolon, a <script> tag) and check it's treated as plain text."
   },
   "supabase-anon-key": {
+   "c": "secrets",
    "d": "This looks like a Supabase anon key. That key is designed to be public, so this is not a leak by itself \u2014 but it means your only protection is Row Level Security. If RLS is off or misconfigured on any table, anyone can read or write your data using this key.",
    "f": "My app uses a Supabase anon key (seen in {path} line {line}). Review every table in my Supabase project and confirm Row Level Security is enabled with explicit policies for select, insert, update and delete. List any table that has RLS disabled or a policy that allows public access it shouldn't.",
-   "t": "Supabase anon key found (check RLS)"
+   "g": "/guides/supabase-service-role-key-exposed",
+   "t": "Supabase anon key found (check RLS)",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "supabase-service-role-key": {
+   "c": "secrets",
    "d": "This is a Supabase service_role key. It bypasses ALL of your Row Level Security rules \u2014 anyone holding it can read, change, or delete every row in your database. It must only ever live in server-side environment variables, never in code or anything shipped to the browser.",
    "f": "A Supabase service_role key is hardcoded in {path} on line {line}. Remove it from the code, move any queries that need it into a server-side route or edge function that reads it from an environment variable named SUPABASE_SERVICE_ROLE_KEY, and make sure client code only ever uses the anon key with Row Level Security enabled. Remind me to rotate this key in the Supabase dashboard (Settings > API) because it has been exposed.",
-   "t": "Supabase service_role key exposed"
+   "g": "/guides/supabase-service-role-key-exposed",
+   "t": "Supabase service_role key exposed",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "telegram-bot-token": {
+   "c": "secrets",
    "d": "A Telegram bot token is written in your code. Anyone with it can fully control your bot \u2014 read its messages and send messages as the bot.",
    "f": "A Telegram bot token is hardcoded in {path} on line {line}. Remove it and read it from an environment variable instead. Remind me to revoke the token with @BotFather (/revoke) because it has been exposed.",
-   "t": "Telegram bot token hardcoded"
+   "g": "/guides/api-key-leaked",
+   "t": "Telegram bot token hardcoded",
+   "v": "Re-run the scan and check the finding has gone. Then confirm the old key no longer works at the provider: deleting it from the code doesn't un-leak it."
   },
   "tls-verification-disabled": {
+   "c": "config",
    "d": "Your code turns off TLS certificate verification, which silently removes the protection HTTPS provides. Anyone between your server and the API it calls can read or alter the traffic \u2014 including API keys in headers.",
    "f": "TLS verification is disabled in {path} on line {line}. Remove this setting and fix the underlying certificate problem properly (usually a missing CA bundle or wrong hostname) instead of turning verification off.",
-   "t": "TLS certificate checking disabled"
+   "t": "TLS certificate checking disabled",
+   "v": "Re-run the scan, or check the response headers with 'curl -sI https://yoursite.com'."
   }
  },
- "version": 1
+ "title": "Security",
+ "version": 2
 }
