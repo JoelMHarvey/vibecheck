@@ -29,6 +29,11 @@ BLOCKED_HOSTNAMES = {
 
 
 def _ip_is_public(ip: ipaddress._BaseAddress) -> bool:
+    # ::ffff:10.0.0.1 is 10.0.0.1 on the wire; older Pythons don't call it
+    # private, so judge the IPv4 address it carries.
+    mapped = getattr(ip, "ipv4_mapped", None)
+    if mapped is not None:
+        ip = mapped
     return not (
         ip.is_private
         or ip.is_loopback
@@ -47,26 +52,37 @@ def resolve_host(host: str) -> List[str]:
 
 def check_url(url: str, resolver=resolve_host) -> Tuple[bool, Optional[str]]:
     """Return (ok, reason_if_rejected) for a URL we are about to fetch."""
+    ok, reason, _ip = vet_url(url, resolver)
+    return ok, reason
+
+
+def vet_url(url: str, resolver=resolve_host) -> Tuple[bool, Optional[str], Optional[str]]:
+    """Like check_url, but also return the address that was vetted.
+
+    A caller that connects to that address (rather than resolving the name
+    again) closes the DNS-rebinding gap: a name that answers with a public
+    address for the check and a private one for the connect.
+    """
     try:
         parsed = urlparse(url)
     except ValueError:
-        return False, "That doesn't look like a valid URL."
+        return False, "That doesn't look like a valid URL.", None
 
     if parsed.scheme not in ALLOWED_SCHEMES:
-        return False, "Only http:// and https:// URLs can be scanned."
+        return False, "Only http:// and https:// URLs can be scanned.", None
 
     host = parsed.hostname
     if not host:
-        return False, "That URL has no hostname."
+        return False, "That URL has no hostname.", None
 
     if host.lower() in BLOCKED_HOSTNAMES or host.lower().endswith(".localhost"):
-        return False, "Local addresses can't be scanned. Use the CLI for local apps."
+        return False, "Local addresses can't be scanned. Use the CLI for local apps.", None
 
     try:
         if parsed.port is not None and parsed.port not in ALLOWED_PORTS:
-            return False, "Only standard web ports (80, 443, 8080, 8443) can be scanned."
+            return False, "Only standard web ports (80, 443, 8080, 8443) can be scanned.", None
     except ValueError:
-        return False, "That URL has an invalid port."
+        return False, "That URL has an invalid port.", None
 
     # A literal IP in the URL is checked directly; a hostname is resolved and
     # every address it points at must be public (a name can resolve to more
@@ -77,13 +93,13 @@ def check_url(url: str, resolver=resolve_host) -> Tuple[bool, Optional[str]]:
         try:
             addresses = [ipaddress.ip_address(a) for a in resolver(host)]
         except (OSError, ValueError):
-            return False, "That hostname could not be resolved."
+            return False, "That hostname could not be resolved.", None
 
     if not addresses:
-        return False, "That hostname could not be resolved."
+        return False, "That hostname could not be resolved.", None
 
     for ip in addresses:
         if not _ip_is_public(ip):
-            return False, "That address is on a private or internal network and can't be scanned."
+            return False, "That address is on a private or internal network and can't be scanned.", None
 
-    return True, None
+    return True, None, str(addresses[0])

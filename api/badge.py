@@ -1,8 +1,8 @@
-"""Vercel serverless function: GET /api/badge?score=94
+"""Vercel serverless function: GET /api/badge?score=94[&label=visibility]
 
 Returns an SVG "Vibe Score" badge for READMEs. Inputs are clamped to an
-integer 0-100 and the grade is derived server-side, so nothing
-caller-controlled is ever interpolated into the SVG.
+integer 0-100, the grade is derived server-side and the label is picked from
+a fixed list, so nothing caller-controlled is ever interpolated into the SVG.
 """
 
 import os
@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 COLORS = [(90, "#3fb950"), (75, "#9acd32"), (60, "#d29922"), (40, "#db8a34"), (0, "#f85149")]
 LABEL = "vibe score"
+LABELS = {"vibe": "vibe score", "visibility": "visibility"}
 
 
 def grade_for(score: int) -> str:
@@ -30,17 +31,18 @@ def color_for(score: int) -> str:
     return COLORS[-1][1]
 
 
-def render_badge(score: int) -> str:
+def render_badge(score: int, label: str = LABEL) -> str:
     score = max(0, min(100, int(score)))
     value = f"{score}/100 {grade_for(score)}"
-    label_w = 74
+    text = label if label in LABELS.values() else LABELS["vibe"]
+    label_w = 7 * len(text) + 4
     value_w = 8 * len(value) + 16
     total = label_w + value_w
     color = color_for(score)
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{total}" height="20" '
-        f'role="img" aria-label="{LABEL}: {value}">'
-        f'<title>{LABEL}: {value}</title>'
+        f'role="img" aria-label="{text}: {value}">'
+        f'<title>{text}: {value}</title>'
         f'<linearGradient id="s" x2="0" y2="100%">'
         f'<stop offset="0" stop-color="#bbb" stop-opacity=".1"/>'
         f'<stop offset="1" stop-opacity=".1"/></linearGradient>'
@@ -51,8 +53,8 @@ def render_badge(score: int) -> str:
         f'<rect width="{total}" height="20" fill="url(#s)"/></g>'
         f'<g fill="#fff" text-anchor="middle" '
         f'font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">'
-        f'<text x="{label_w / 2}" y="15" fill="#010101" fill-opacity=".3">{LABEL}</text>'
-        f'<text x="{label_w / 2}" y="14">{LABEL}</text>'
+        f'<text x="{label_w / 2}" y="15" fill="#010101" fill-opacity=".3">{text}</text>'
+        f'<text x="{label_w / 2}" y="14">{text}</text>'
         f'<text x="{label_w + value_w / 2}" y="15" fill="#010101" fill-opacity=".3">{value}</text>'
         f'<text x="{label_w + value_w / 2}" y="14">{value}</text>'
         f"</g></svg>"
@@ -68,7 +70,8 @@ class handler(BaseHTTPRequestHandler):
         except (TypeError, ValueError):
             score = 0
 
-        svg = render_badge(score).encode("utf-8")
+        label = LABELS.get((params.get("label") or ["vibe"])[0], LABEL)
+        svg = render_badge(score, label).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "image/svg+xml; charset=utf-8")
         self.send_header("Cache-Control", "public, max-age=3600")

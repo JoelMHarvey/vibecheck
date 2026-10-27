@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What llms.txt is, and whether you need one — vibecheck</title>
+<meta name="description" content="llms.txt is a plain-text summary of your site for AI assistants. What goes in it, what it does and doesn't do, and a template you can fill in.">
+<link rel="canonical" href="https://psychosecurity.io/guides/llms-txt">
+<meta name="theme-color" content="#0b0e14">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="vibecheck">
+<meta property="og:url" content="https://psychosecurity.io/guides/llms-txt">
+<meta property="og:title" content="What llms.txt is, and whether you need one">
+<meta property="og:description" content="A plain-text summary of your site for AI assistants: what goes in it, what it does and doesn't do, and a template.">
+<meta property="og:image" content="https://psychosecurity.io/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://psychosecurity.io/og.png">
+<link rel="stylesheet" href="/guide.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="logo" href="/">vibe<span>check</span> 🔒</a>
+    <div class="byline">a psychosecurity.io tool</div>
+  </div>
+</header>
+
+<div class="wrap">
+<article>
+  <h1>What llms.txt is, and whether you need one</h1>
+  <p class="standfirst">A short Markdown file at <code>/llms.txt</code> that tells an
+  AI what your site is and where the important pages are. It takes twenty
+  minutes to write. It won't move your rankings. It's still worth doing, for
+  reasons that are more modest than the hype.</p>
+
+  <h2>What it is</h2>
+
+  <p>Jeremy Howard of Answer.AI proposed it in September 2024, at
+  <a href="https://llmstxt.org">llmstxt.org</a>. The idea is simple: web pages
+  are full of navigation, scripts and layout that a language model has to wade
+  through, so give it one plain file instead. The shape is:</p>
+
+  <ul>
+    <li>a <code>#</code> heading with the name of the site or product</li>
+    <li>a <code>&gt;</code> blockquote with a one-paragraph summary</li>
+    <li>any notes you want read first</li>
+    <li><code>##</code> sections, each a list of links with a short description</li>
+    <li>optionally, a section called <code>## Optional</code> for links that can be skipped</li>
+  </ul>
+
+  <p>That's all. No schema, no registration, nothing to install.</p>
+
+  <h2>What it doesn't do</h2>
+
+  <p>It isn't robots.txt. It doesn't let anything in or keep anything out; if
+  you want to block AI crawlers, that's still robots.txt's job.</p>
+
+  <p>It isn't a ranking signal. Google has said publicly that it doesn't use
+  it, and none of the big AI companies has committed to reading it when
+  answering questions. Anyone selling llms.txt as a way to "rank in ChatGPT"
+  is selling you a file you can write yourself in twenty minutes.</p>
+
+  <h2>Why bother, then</h2>
+
+  <p>Because the cost is close to nothing and it does help in a few real
+  places:</p>
+
+  <ul>
+    <li><strong>People paste it.</strong> Someone deciding whether to use your
+    product can paste your llms.txt into a chat and get an accurate answer
+    instead of the assistant's guess.</li>
+    <li><strong>Agents and coding tools look for it.</strong> Assistants that
+    browse, and tools that read documentation, increasingly check for it
+    because it's cheaper than parsing your pages.</li>
+    <li><strong>It makes you write the summary.</strong> If you can't say in
+    one paragraph what you do, for whom and for how much, your home page
+    probably can't either.</li>
+  </ul>
+
+  <p>It matters most for sites whose pages are hard for a machine to read:
+  <a href="/guides/lovable-app-invisible-to-google">apps that render in the
+  browser</a>, documentation spread over hundreds of pages, or a product with
+  plans and prices an AI keeps getting wrong.</p>
+
+  <h2>A template</h2>
+
+<pre><code># Groomly
+
+&gt; Booking and invoicing software for independent dog groomers in the UK.
+&gt; One plan, £12 a month, no commission on bookings.
+
+Groomly is made by Groomly Ltd, a two-person company in Bristol.
+
+## The product
+
+- [Features](https://groomly.com/features): bookings, reminders, invoices, client notes
+- [Pricing](https://groomly.com/pricing): one plan at £12 a month; 30 days free
+- [How it compares](https://groomly.com/compare): against the per-booking apps
+
+## Help
+
+- [Getting started](https://groomly.com/docs/start): setting up in ten minutes
+- [Contact](mailto:hello@groomly.com)
+
+## Optional
+
+- [Changelog](https://groomly.com/changelog.md)
+- [Plans as data](https://groomly.com/plans.json)</code></pre>
+
+  <p>Serve it as plain text from the root of your domain. On Vercel, Netlify
+  or any static host that means putting it in <code>public/llms.txt</code>.
+  Then open <code>yourdomain.com/llms.txt</code> in a browser and check you
+  get the text, not your app's home page. Single-page app hosts answer every
+  unknown path with the app, and a crawler will take that as "no file".</p>
+
+  <h2>Getting it right</h2>
+
+  <ul class="checklist">
+    <li>The summary says what it is, who it's for and what it costs</li>
+    <li>Prices and plans match the site exactly</li>
+    <li>Every link is a full URL, in the form your site actually serves (www or not, consistently)</li>
+    <li>Only pages that exist and that you'd want quoted</li>
+    <li>Facts an AI should get exactly right are linked as data (JSON or Markdown)</li>
+    <li>Updated when the prices change; a stale llms.txt is worse than none</li>
+  </ul>
+
+  <p>A working example: <a href="https://robinofloxley.com/llms.txt">robinofloxley.com/llms.txt</a>
+  lists ten apps with their prices, links each app's own llms.txt, and points
+  to the costs behind every price as JSON.</p>
+
+  <div class="cta">
+    <h2>Check yours</h2>
+    <p>The visibility check reads your llms.txt along with your sitemap,
+    robots.txt and structured data, and tells you what's missing.</p>
+    <a class="btn" href="/visibility">Check my site, free</a>
+  </div>
+
+  <div class="related">
+    <h2>Related</h2>
+    <ul>
+      <li><a href="/guides/lovable-app-invisible-to-google">Is my Lovable app invisible to Google?</a>: why most AI crawlers see a blank page</li>
+      <li><a href="/guides/ai-app-security-checklist">The AI app security checklist</a>: the other list worth working through before launch</li>
+      <li><a href="/guides/cursor-claude-code-security">Cursor &amp; Claude Code</a>: what an agent reading your repo can see</li>
+    </ul>
+  </div>
+</article>
+
+<footer>
+  <p>vibecheck · a <strong>psychosecurity.io</strong> tool · <a href="/visibility">visibility check</a> · <a href="/">security scan</a></p>
+</footer>
+</div>
+
+</body>
+</html>

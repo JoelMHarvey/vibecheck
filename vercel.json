@@ -1,6 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
+  "functions": {
+    "api/visibility.py": { "maxDuration": 60 }
+  },
   "headers": [
     {
       "source": "/(.*)",
