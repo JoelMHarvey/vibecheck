@@ -73,3 +73,11 @@
 .vr-clean h3 { color: var(--accent); }
 .vr-footer { color: var(--muted); font-size: 13.5px; margin-top: 18px; }
 @media (max-width: 520px) { .vr-card { padding: 18px; } }
+.vr-prov { font-size: 13.5px; margin-top: 10px; padding: 8px 12px; border-radius: 8px; background: var(--panel2);
+           border: 1px solid var(--border); overflow-wrap: anywhere; }
+.vr-prov.ok { border-color: var(--accent); }
+.vr-prov.bad { border-color: var(--vr-critical); color: var(--vr-critical); }
+.vr-pill.vr-level.gold { color: #e6b422; border-color: #e6b422; }
+.vr-pill.vr-level.silver { color: #c0c7d2; border-color: #c0c7d2; }
+.vr-pill.vr-level.bronze { color: #cd8a52; border-color: #cd8a52; }
+.vr-pill.vr-expired { color: var(--muted); border-style: dashed; }

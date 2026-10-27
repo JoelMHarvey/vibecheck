@@ -4,6 +4,10 @@
   "functions": {
     "api/visibility.py": { "maxDuration": 60 }
   },
+  "rewrites": [
+    { "source": "/badge/:check.svg", "destination": "/api/badge?check=:check" },
+    { "source": "/.well-known/vibecheck-key", "destination": "/api/key" }
+  ],
   "headers": [
     {
       "source": "/(.*)",

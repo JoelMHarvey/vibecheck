@@ -181,7 +181,13 @@ def redact_patterns(line: str, patterns: Iterable["re.Pattern[str]"]) -> str:
 
 def git_commit(root: Path) -> Optional[str]:
     """The commit SHA a working tree is at, read from .git without running
-    git. None when it isn't a repository or the ref can't be found."""
+    git, looking upward from ``root`` the way git does. None when it isn't in
+    a repository or the ref can't be found."""
+    root = Path(root).resolve()
+    for candidate in (root, *root.parents):  # a subfolder pins to its checkout
+        if (candidate / ".git").exists():
+            root = candidate
+            break
     git = root / ".git"
     try:
         if git.is_file():  # a worktree or submodule: "gitdir: <path>"

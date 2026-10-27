@@ -1,0 +1,7 @@
+# Server only. The CLI and the GitHub Action need nothing beyond Python itself.
+#
+# The hosted functions sign reports and badges with Ed25519. vibecheck has
+# its own standard-library Ed25519 (vibecheck/core/ed25519.py), which is
+# correct but not constant-time; on the server, signing uses this audited,
+# constant-time implementation instead. Verification needs neither.
+cryptography>=42

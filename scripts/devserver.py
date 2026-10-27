@@ -10,6 +10,7 @@ handler classes Vercel runs.
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -23,6 +24,7 @@ STATIC = {
     "/rules.json": ("rules.json", "application/json; charset=utf-8"),
     "/visibility": ("visibility.html", "text/html; charset=utf-8"),
     "/check": ("check.html", "text/html; charset=utf-8"),
+    "/report": ("report.html", "text/html; charset=utf-8"),
     "/report.js": ("report.js", "text/javascript; charset=utf-8"),
     "/report.css": ("report.css", "text/css; charset=utf-8"),
     "/visibility-rules.json": ("visibility-rules.json", "application/json; charset=utf-8"),
@@ -65,14 +67,31 @@ API = {
     "/api/scan-url": _load("scan_url_api", "scan-url.py"),
     "/api/badge": _load("badge_api", "badge.py"),
     "/api/visibility": _load("visibility_api", "visibility.py"),
+    "/api/key": _load("key_api", "key.py"),
+    "/api/verify": _load("verify_api", "verify.py"),
+    "/api/vibechecked": _load("vibechecked_api", "vibechecked.py"),
 }
+
+# vercel.json's rewrites, mirrored.
+REWRITES = [
+    (re.compile(r"^/badge/([a-z]+)\.svg$"), lambda m: "/api/badge?check=" + m.group(1)),
+    (re.compile(r"^/\.well-known/vibecheck-key$"), lambda m: "/api/key"),
+]
 
 
 class DevHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
     def _route(self, method: str):
-        path = self.path.split("?")[0]
+        path, _, query = self.path.partition("?")
+        for pattern, target in REWRITES:
+            m = pattern.match(path)
+            if m:
+                rewritten = target(m)
+                path = rewritten.split("?")[0]
+                joined = "&".join(q for q in (rewritten.partition("?")[2], query) if q)
+                self.path = path + ("?" + joined if joined else "")
+                break
         handler_cls = API.get(path)
         if handler_cls:
             # Reuse the real handler's method against this connection.

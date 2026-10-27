@@ -1,16 +1,25 @@
-"""Vercel serverless function: GET /api/badge?score=94[&label=visibility]
+"""Vercel serverless function: the badges.
 
-Returns an SVG "Vibe Score" badge for READMEs. Inputs are clamped to an
-integer 0-100, the grade is derived server-side and the label is picked from
-a fixed list, so nothing caller-controlled is ever interpolated into the SVG.
+GET /badge/<check>.svg?r=<signed claim>   (rewritten to /api/badge?check=<check>&r=...)
+    A badge for a security, visibility or vibechecked result. The claim in
+    the URL is verified against our key, the level and date come from it,
+    and it turns grey 30 days after the scan. Nothing is stored and nothing
+    from the URL reaches the SVG unchecked.
+
+GET /api/badge?score=94[&label=visibility]
+    The original score-only badge, kept so existing READMEs don't break.
 """
 
+import datetime as dt
 import os
 import sys
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+from vibecheck.core import badge  # noqa: E402
+from vibecheck.core.signing import public_keys  # noqa: E402
 
 COLORS = [(90, "#3fb950"), (75, "#9acd32"), (60, "#d29922"), (40, "#db8a34"), (0, "#f85149")]
 LABEL = "vibe score"
@@ -32,6 +41,8 @@ def color_for(score: int) -> str:
 
 
 def render_badge(score: int, label: str = LABEL) -> str:
+    """The score-only badge, drawn exactly as it always was. Score clamped to
+    an int 0-100, label from a fixed list."""
     score = max(0, min(100, int(score)))
     value = f"{score}/100 {grade_for(score)}"
     text = label if label in LABELS.values() else LABELS["vibe"]
@@ -64,20 +75,30 @@ def render_badge(score: int, label: str = LABEL) -> str:
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         params = parse_qs(urlparse(self.path).query)
-        raw = (params.get("score") or ["0"])[0]
-        try:
-            score = int(float(raw))
-        except (TypeError, ValueError):
-            score = 0
+        check = (params.get("check") or [""])[0]
+        if check or "r" in params:
+            svg = badge.render(check, (params.get("r") or [""])[0], public_keys(),
+                               dt.datetime.now(dt.timezone.utc))
+            # Short cache: the badge must go grey on time.
+            cache = "public, max-age=3600"
+        else:
+            raw = (params.get("score") or ["0"])[0]
+            try:
+                score = int(float(raw))
+            except (TypeError, ValueError):
+                score = 0
+            label = LABELS.get((params.get("label") or ["vibe"])[0], LABEL)
+            svg = render_badge(score, label)
+            cache = "public, max-age=3600"
 
-        label = LABELS.get((params.get("label") or ["vibe"])[0], LABEL)
-        svg = render_badge(score, label).encode("utf-8")
+        data = svg.encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "image/svg+xml; charset=utf-8")
-        self.send_header("Cache-Control", "public, max-age=3600")
-        self.send_header("Content-Length", str(len(svg)))
+        self.send_header("Cache-Control", cache)
+        self.send_header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'")
+        self.send_header("Content-Length", str(len(data)))
         self.end_headers()
-        self.wfile.write(svg)
+        self.wfile.write(data)
 
     def log_message(self, *args):
         pass

@@ -46,6 +46,9 @@ def main(argv=None) -> int:
         metavar="URL",
         help="check how a DEPLOYED site looks to search engines and AI crawlers (rendering, robots.txt, sitemap, llms.txt, structured data, titles, link previews)",
     )
+    parser.add_argument("--badge", action="store_true",
+                        help="print badge Markdown for each check. From your machine it says self-reported; "
+                             "in GitHub Actions it names the run. Only scans run on psychosecurity.io are signed.")
     parser.add_argument("--markdown", metavar="FILE", help="also write a Markdown report to FILE")
     parser.add_argument("--json", metavar="FILE", nargs="?", const="-",
                         help="also write a JSON report to FILE (no FILE: print JSON instead of the terminal report)")
@@ -72,7 +75,7 @@ def main(argv=None) -> int:
     parser.add_argument("--version", action="version", version=f"vibecheck {__version__}")
     args = parser.parse_args(argv)
 
-    if args.visibility or args.checks or _looks_like_url(args.path):
+    if args.visibility or args.checks or args.badge or _looks_like_url(args.path):
         return _unified(parser, args)
     args.path = args.path or "."
 
@@ -185,9 +188,29 @@ def _unified(parser, args) -> int:
         Path(args.json).write_text(core_report.render_json(results), encoding="utf-8")
         print(f"  JSON report written to {args.json}")
 
+    if args.badge:
+        _print_badges(results, json_to_stdout=args.json == "-")
+
     if args.fail_on != "never" and core_report.fails(results, args.fail_on):
         return 1
     return 0
+
+
+def _print_badges(results, json_to_stdout: bool) -> None:
+    import os
+
+    from .core import badge
+
+    out = sys.stderr if json_to_stdout else sys.stdout
+    prov = badge.ci_provenance(os.environ)
+    print("  Badges (paste into your README):", file=out)
+    for r in results:
+        if not r.target.url and not r.target.commit:
+            print(f"  {r.check_id}: no badge, because a folder that isn't a git checkout has no "
+                  "commit to pin it to", file=out)
+            continue
+        signed = badge.sign_result(r, None, prov)
+        print(badge.badge_markdown(r.check_id, signed["badge"], [signed["report"]]), file=out)
 
 
 if __name__ == "__main__":
