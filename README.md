@@ -142,6 +142,20 @@ vibecheck ./app --checks security --json                      # the common resul
 On the web, [psychosecurity.io/check](https://psychosecurity.io/check) runs
 both against a live site side by side.
 
+## Badges you can check
+
+A scan run on psychosecurity.io is signed (Ed25519), so its badge can be
+verified: the badge links to the report, and the report page checks the
+signature against the key at `/.well-known/vibecheck-key` and says
+**verified** or **tampered**. Levels need a score and nothing serious open:
+gold is 85+ with no critical or high findings, silver 70+ with no criticals,
+bronze 50+ with no criticals. Badges show the scan date and go grey after 30
+days. A site badge pins the address scanned, a code badge the commit.
+`vibecheck --badge` prints badges for your README; from your own machine they
+say "self-reported", from GitHub Actions "CI run". Nothing is stored: the
+signed report travels in the link. Details in
+[`docs/badges-design.md`](docs/badges-design.md).
+
 ## Usage
 
 ```bash

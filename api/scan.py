@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from vibecheck.checks.security import CHECK  # noqa: E402
 from vibecheck.core.models import Target, iso, utc_now  # noqa: E402
 from vibecheck.core.ratelimit import RateLimiter, client_ip  # noqa: E402
+from vibecheck.core.signed import with_signatures  # noqa: E402
 from vibecheck.report import to_json_dict  # noqa: E402
 from vibecheck.scanner import scan_files  # noqa: E402
 
@@ -61,8 +62,9 @@ class handler(BaseHTTPRequestHandler):
         payload = to_json_dict(result)
         payload["kind"] = "code"
         payload["truncated"] = len(raw_files) > MAX_FILES
-        payload["result"] = CHECK.to_result(
-            result, Target(files=(), label="uploaded project"), iso(utc_now())).to_dict()
+        payload["result"] = with_signatures(
+            CHECK.to_result(result, Target(files=(), label="uploaded project"), iso(utc_now())),
+            sign_badge=False)
         return self._json(200, payload)
 
     def _json(self, code, payload, extra_headers=None):

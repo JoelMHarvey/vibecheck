@@ -24,6 +24,7 @@ from vibecheck.core.cache import ResultCache  # noqa: E402
 from vibecheck.core.models import Context, Target  # noqa: E402
 from vibecheck.core.netguard import check_url  # noqa: E402
 from vibecheck.core.ratelimit import RateLimiter, client_ip  # noqa: E402
+from vibecheck.core.signed import with_signatures  # noqa: E402
 
 MAX_BODY_BYTES = 4_000
 
@@ -86,7 +87,7 @@ class handler(BaseHTTPRequestHandler):
             return self._json(429, {"error": f"That site was checked moments ago. Try again in {decision.retry_after}s."},
                               extra_headers={"Retry-After": str(decision.retry_after)})
 
-        payload = scan(target).to_dict()
+        payload = with_signatures(scan(target))
         payload["cached"] = False
         CACHE.set(cache_url, payload)
         return self._json(200, payload)

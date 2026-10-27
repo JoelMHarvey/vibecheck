@@ -10,12 +10,13 @@ alongside it.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
+from urllib.parse import urlsplit
 
 from ...core.models import Category, CheckResult, Context, Finding, Target, iso
 from ...core.scoring import category_scores
 from .scanner import ScanResult, _finalize, scan, scan_files
-from .urlscan import scan_url
+from .urlscan import _norm_base, scan_url
 
 CATEGORIES = [
     Category("secrets", "Secrets", 0.4),
@@ -104,11 +105,14 @@ class SecurityCheck:
             ran |= {c.id for c in CATEGORIES}
         unreachable = False
         if target.url:
-            url_result = scan_url(target.url, ctx.fetcher(**URL_FETCH))
+            url_result, final_url = self.scan_live(target.url, ctx.fetcher(**URL_FETCH))
             unreachable = any(f.rule_id == "site-unreachable" for f in url_result.findings)
             if not unreachable:
                 ran |= URL_CATEGORIES
             parts.append(url_result)
+            # Pin what was scanned: the address the site ended up at.
+            target = Target(url=final_url or target.url, repo=target.repo, commit=target.commit,
+                            files=target.files, label=target.label)
         merged = ScanResult(root=" + ".join(p.root for p in parts))
         for p in parts:
             merged.findings.extend(p.findings)
@@ -116,6 +120,26 @@ class SecurityCheck:
         _finalize(merged)
         return self.to_result(merged, target, iso(ctx.timestamp()), ran,
                               nothing_checked=unreachable and not ran)
+
+    @staticmethod
+    def scan_live(url: str, fetch) -> Tuple[ScanResult, Optional[str]]:
+        """The deployed-site scan, plus the origin the home page ended up at
+        after redirects. The scanner itself is untouched; this just watches
+        what it fetched."""
+        seen = {}
+
+        def watching(u, *args):
+            resp = fetch(u, *args)
+            seen.setdefault(u, resp)
+            return resp
+
+        legacy = scan_url(url, watching)
+        home = seen.get(_norm_base(url) + "/")
+        final = None
+        if home is not None and getattr(home, "url", ""):
+            parts = urlsplit(home.url)
+            final = f"{parts.scheme}://{parts.netloc}"
+        return legacy, final
 
     def to_result(self, legacy: ScanResult, target: Target, scanned_at: str,
                   ran: Optional[Set[str]] = None, nothing_checked: bool = False) -> CheckResult:

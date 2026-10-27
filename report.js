@@ -37,6 +37,16 @@
     return n;
   }
 
+  // Badge levels: vibecheck/core/scoring.py LEVELS.
+  function levelFor(r) {
+    if (r.total === null || r.total === undefined) return null;
+    const open = new Set(r.findings.map(f => f.severity));
+    if (r.total >= 85 && !open.has("critical") && !open.has("high")) return "gold";
+    if (r.total >= 70 && !open.has("critical")) return "silver";
+    if (r.total >= 50 && !open.has("critical")) return "bronze";
+    return null;
+  }
+
   function gradeFor(total) {
     if (total === null || total === undefined) return "–";
     for (const [t, g] of [[90, "A"], [75, "B"], [60, "C"], [40, "D"]]) if (total >= t) return g;
@@ -74,6 +84,78 @@
     setTimeout(() => { btn.textContent = original; btn.classList.remove("done"); }, 1800);
   }
 
+  /* ---------- signatures ----------
+     A signed result carries signed.report: {p, sig, kid}, where p is the
+     canonical JSON claim. The signature covers a prefix plus the exact bytes
+     of p, checked here with WebCrypto against /.well-known/vibecheck-key, or
+     by /api/verify where the browser has no Ed25519. */
+
+  const PREFIX = { report: "vibecheck/report/1\n", badge: "vibecheck/badge/1\n" };
+  let keysPromise = null;
+
+  function keys() {
+    if (!keysPromise) {
+      keysPromise = fetch("/.well-known/vibecheck-key").then(r => r.ok ? r.json() : { keys: [] })
+        .then(d => d.keys || []).catch(() => []);
+    }
+    return keysPromise;
+  }
+
+  async function verify(env, kind) {
+    if (!env || typeof env.p !== "string") return "tampered";
+    if (!env.sig) return "unsigned";
+    const key = (await keys()).find(k => k.kid === env.kid);
+    if (!key) return "unknown-key";
+    const data = new TextEncoder().encode(PREFIX[kind] + env.p);
+    try {
+      const pub = await crypto.subtle.importKey("raw", unb64url(key.x), { name: "Ed25519" }, false, ["verify"]);
+      return (await crypto.subtle.verify({ name: "Ed25519" }, pub, unb64url(env.sig), data)) ? "verified" : "tampered";
+    } catch {
+      try {
+        const res = await fetch("/api/verify", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ envelope: env, kind }) });
+        return res.ok ? (await res.json()).status : "unchecked";
+      } catch { return "unchecked"; }
+    }
+  }
+
+  function claimOf(r) {
+    try { return r.signed && r.signed.report ? JSON.parse(r.signed.report.p) : null; } catch { return null; }
+  }
+
+  function expired(r) {
+    const c = claimOf(r);
+    return Boolean(c && c.expires_at && new Date(c.expires_at) <= new Date());
+  }
+
+  function provenanceLine(r, status) {
+    const c = claimOf(r);
+    const by = c && c.provenance ? c.provenance.by : null;
+    const p = el("p", "vr-prov");
+    if (status === "verified") {
+      p.classList.add("ok");
+      p.append("✓ Verified: scanned by psychosecurity.io and signed; the signature matches every finding below. ");
+      const a = el("a", "", "How this is checked"); a.href = "/report#how"; p.append(a);
+    } else if (status === "tampered") {
+      p.classList.add("bad");
+      p.textContent = "⚠ Tampered: this report's signature doesn't match its contents. Don't trust anything below.";
+    } else if (status === "unknown-key") {
+      p.classList.add("bad");
+      p.textContent = "⚠ Signed with a key psychosecurity.io doesn't publish. Treat it as unverified.";
+    } else if (by === "ci" && c.provenance.run) {
+      p.append("Reported by a GitHub Actions run, not by psychosecurity.io, so it isn't signed. Open the run to see its log: ");
+      const a = el("a", "", c.provenance.run.replace("https://github.com/", "")); a.href = c.provenance.run;
+      p.append(a);
+    } else if (by === "self") {
+      p.textContent = "Self-reported: run on someone's own machine with the command-line tool, so it isn't signed.";
+    } else if (status === "unchecked") {
+      p.textContent = "Couldn't check the signature just now. Reload to try again.";
+    } else {
+      p.textContent = "Not signed.";
+    }
+    return p;
+  }
+
   /* ---------- drawing ---------- */
 
   // ids: on a page showing one result, the dial and lists keep the ids the
@@ -108,7 +190,15 @@
     const pills = el("div", "vr-pills");
     const c = counts(r);
     for (const sev of PROBLEMS) if (c[sev]) pills.appendChild(el("span", "vr-pill " + sev, `${c[sev]} ${sev}`));
+    const lvl = r.level !== undefined ? r.level : levelFor(r);
+    if (expired(r)) pills.appendChild(el("span", "vr-pill vr-expired", "badge expired: rescan"));
+    else if (lvl) pills.appendChild(el("span", "vr-pill vr-level " + lvl, `${lvl} badge`));
     meta.append(pills);
+    if (r.signed) {
+      const line = el("p", "vr-prov", "Checking the signature…");
+      meta.append(line);
+      verify(r.signed && r.signed.report, "report").then(status => line.replaceWith(provenanceLine(r, status)));
+    }
     card.append(dial(r.total, ids), meta);
     return card;
   }
@@ -230,10 +320,19 @@
       copy(share, url, "Copy share link");
     });
     const badge = el("button", "ghost", "Copy badge (Markdown)"); badge.type = "button"; badge.id = "badgeBtn";
-    badge.addEventListener("click", () => copy(badge, badgeMarkdown(results, opts.pageUrl), "Copy badge (Markdown)"));
+    badge.addEventListener("click", async () => copy(badge, await badgeMarkdown(results, opts.pageUrl), "Copy badge (Markdown)"));
+    if (results.some(expired)) badge.disabled = true;
     const md = el("button", "ghost", "Download report (Markdown)"); md.type = "button"; md.id = "downloadBtn";
     md.addEventListener("click", () => downloadMarkdown(results));
     row.append(share, badge, md);
+    if (canCombine(results)) {
+      const both = el("button", "", "Copy vibechecked badge"); both.type = "button"; both.id = "vibecheckedBtn";
+      both.addEventListener("click", async () => {
+        try { copy(both, await combinedBadge(results), "Copy vibechecked badge"); }
+        catch (err) { alert(err.message); }
+      });
+      row.append(both);
+    }
     if (opts.onRecheck) {
       const again = el("button", "ghost", "Check again now"); again.type = "button";
       again.addEventListener("click", opts.onRecheck);
@@ -243,12 +342,43 @@
     return box;
   }
 
-  function badgeMarkdown(results, pageUrl) {
+  function utf8b64url(text) { return b64url(new TextEncoder().encode(text)); }
+
+  async function reportLink(envelopes) {
+    return `${location.origin}/report#r=${await encodeSigned(envelopes)}`;
+  }
+
+  // A signed badge per result where the server issued one; the plain score
+  // badge otherwise (no signing key configured, or an older link).
+  async function badgeMarkdown(results, pageUrl) {
     const page = pageUrl || location.origin + location.pathname;
-    return results.filter(r => r.total !== null && r.total !== undefined).map(r => {
-      const [alt, label] = r.check_id === "security" ? ["Vibe Score", "vibe"] : ["Visibility", "visibility"];
-      return `[![${alt}](${location.origin}/api/badge?score=${r.total}&label=${label})](${page})`;
-    }).join(" ");
+    const lines = [];
+    for (const r of results) {
+      if (r.total === null || r.total === undefined) continue;
+      if (r.signed && r.signed.badge && r.signed.report) {
+        const claim = JSON.parse(r.signed.badge.p);
+        const img = `${location.origin}/badge/${r.check_id}.svg?r=${utf8b64url(JSON.stringify(r.signed.badge))}`;
+        lines.push(`[![vibecheck ${r.check_id}: ${claim.level || "no badge yet"}](${img})](${await reportLink([r.signed.report])})`);
+      } else {
+        const [alt, label] = r.check_id === "security" ? ["Vibe Score", "vibe"] : ["Visibility", "visibility"];
+        lines.push(`[![${alt}](${location.origin}/api/badge?score=${r.total}&label=${label})](${page})`);
+      }
+    }
+    return lines.join(" ");
+  }
+
+  function canCombine(results) {
+    return results.length > 1 && results.every(r => r.signed && r.signed.report && !expired(r)
+      && ["bronze", "silver", "gold"].includes(r.level !== undefined ? r.level : levelFor(r)));
+  }
+
+  async function combinedBadge(results) {
+    const res = await fetch("/api/vibechecked", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reports: results.map(r => r.signed.report) }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "No combined badge.");
+    const img = `${location.origin}/badge/vibechecked.svg?r=${utf8b64url(JSON.stringify(data.badge))}`;
+    return `[![vibechecked: ${JSON.parse(data.badge.p).level}](${img})](${await reportLink(results.map(r => r.signed.report))})`;
   }
 
   /* ---------- Markdown ---------- */
@@ -325,7 +455,17 @@
     };
   }
 
+  async function gz(obj) {
+    const bytes = new TextEncoder().encode(JSON.stringify(obj));
+    if (window.CompressionStream) return "z" + b64url(await pipe(bytes, new CompressionStream("gzip")));
+    return "j" + b64url(bytes);
+  }
+
+  // v3: the server's signed envelopes, as they are. Rewritten, they'd fail.
+  function encodeSigned(envelopes) { return gz({ v: 3, e: envelopes }); }
+
   async function encode(results) {
+    if (results.every(r => r.signed && r.signed.report)) return encodeSigned(results.map(r => r.signed.report));
     const payload = { v: 2, r: await Promise.all(results.map(compact)) };
     const bytes = new TextEncoder().encode(JSON.stringify(payload));
     if (window.CompressionStream) return "z" + b64url(await pipe(bytes, new CompressionStream("gzip")));
@@ -362,6 +502,18 @@
     };
   }
 
+  // v3: a signed envelope. The claim is parsed to draw it; whether it can be
+  // trusted is decided by verify(), shown on the scorecard.
+  async function hydrateSigned(env) {
+    const c = JSON.parse(env.p);
+    const m = await manifest(c.check);
+    return {
+      check_id: c.check, check_version: c.check_version, target: c.target || {}, scanned_at: c.scanned_at,
+      total: c.total, category_scores: c.category_scores || {}, meta: c.meta || {}, level: c.level,
+      findings: (c.findings || []).map(f => prose(m, c.check, f)), signed: { report: env },
+    };
+  }
+
   // v1: the security-only links from before the framework.
   async function hydrateV1(p) {
     const m = await manifest("security");
@@ -387,6 +539,7 @@
     const p = JSON.parse(new TextDecoder().decode(bytes));
     if (p.v === 1) return [await hydrateV1(p)];
     if (p.v === 2) return Promise.all(p.r.map(hydrate));
+    if (p.v === 3) return Promise.all(p.e.map(hydrateSigned));
     throw new Error("this link is from a newer version of vibecheck");
   }
 
@@ -403,5 +556,5 @@
     return true;
   }
 
-  window.VibeReport = { render, encode, decode, shareUrl, toMarkdown, boot, gradeFor };
+  window.VibeReport = { render, encode, decode, shareUrl, toMarkdown, boot, gradeFor, verify, levelFor };
 })();
