@@ -11,7 +11,7 @@ hosts or sections involved). Literal braces are written {{ }}.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 GUIDE_LOVABLE = "/guides/lovable-app-invisible-to-google"
 GUIDE_LLMS = "/guides/llms-txt"
@@ -609,25 +609,25 @@ _RULES = [
 
 RULES: Dict[str, VisRule] = {r.id: r for r in _RULES}
 
-# What a reader sees for each check that passed.
-PASSES: Dict[str, str] = {
-    "server-rendered": "Content is in the raw HTML",
-    "robots-ok": "robots.txt lets search engines in",
-    "ai-crawlers-allowed": "AI crawlers are allowed",
-    "sitemap-ok": "sitemap.xml is there and parses",
-    "llms-ok": "llms.txt is there, with a summary and links",
-    "og-complete": "Open Graph is complete",
-    "https-ok": "HTTP redirects to HTTPS",
-    "host-ok": "One form of the domain redirects to the other",
-    "jsonld-ok": "Structured data parses",
-    "org-ok": "Organization schema is complete",
-    "titles-ok": "Every page has a title of a sensible length",
-    "descriptions-ok": "Every page has a meta description",
-    "h1-ok": "One H1 per page",
-    "canonical-ok": "Canonical URLs point at their own page",
-    "alt-ok": "Images have alt text",
-    "trust-ok": "Contact, privacy, company and pricing are on the page",
-    "data-files-ok": "Machine-readable data is linked",
+# Each check that can pass: (what the reader sees, category).
+PASSES: Dict[str, Tuple[str, str]] = {
+    "server-rendered": ("Content is in the raw HTML", "technical"),
+    "robots-ok": ("robots.txt lets search engines in", "technical"),
+    "ai-crawlers-allowed": ("AI crawlers are allowed", "ai"),
+    "sitemap-ok": ("sitemap.xml is there and parses", "technical"),
+    "llms-ok": ("llms.txt is there, with a summary and links", "ai"),
+    "og-complete": ("Open Graph is complete", "content"),
+    "https-ok": ("HTTP redirects to HTTPS", "technical"),
+    "host-ok": ("One form of the domain redirects to the other", "technical"),
+    "jsonld-ok": ("Structured data parses", "ai"),
+    "org-ok": ("Organization schema is complete", "ai"),
+    "titles-ok": ("Every page has a title of a sensible length", "content"),
+    "descriptions-ok": ("Every page has a meta description", "content"),
+    "h1-ok": ("One H1 per page", "content"),
+    "canonical-ok": ("Canonical URLs point at their own page", "technical"),
+    "alt-ok": ("Images have alt text", "content"),
+    "trust-ok": ("Contact, privacy, company and pricing are on the page", "content"),
+    "data-files-ok": ("Machine-readable data is linked", "ai"),
 }
 
 assert len(RULES) == len(_RULES), "duplicate visibility rule id"

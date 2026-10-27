@@ -1,4 +1,4 @@
-"""HTTP for the visibility crawl.
+"""HTTP for every check that reads a live site.
 
 A fetch returns a ``Fetched`` (with the redirect chain it followed) or None
 when the request failed, timed out or was refused by the SSRF guard. The
@@ -29,7 +29,12 @@ from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Tuple
 from urllib.parse import quote, urljoin, urlsplit
 
-from . import config
+# Defaults; a check asks for its own (the security scan keeps its older,
+# tighter limits, the visibility crawl uses these).
+USER_AGENT = "vibecheck/0.1 (+https://psychosecurity.io)"
+TIMEOUT = 10.0
+MAX_BYTES = 2_000_000
+MAX_REDIRECTS = 5
 
 REDIRECT_CODES = (301, 302, 303, 307, 308)
 PERMANENT_CODES = (301, 308)
@@ -166,11 +171,11 @@ def _urllib_request(url, method, headers, timeout, max_bytes):
         return e.code, hdrs, body, False
 
 
-def build_fetcher(guard: bool = True, *, timeout: float = config.TIMEOUT,
-                  max_bytes: int = config.MAX_BYTES, max_redirects: int = config.MAX_REDIRECTS,
-                  user_agent: str = config.USER_AGENT, resolver=None) -> Fetcher:
+def build_fetcher(guard: bool = True, *, timeout: float = TIMEOUT,
+                  max_bytes: int = MAX_BYTES, max_redirects: int = MAX_REDIRECTS,
+                  user_agent: str = USER_AGENT, resolver=None) -> Fetcher:
     """The real network fetcher. ``guard=True`` for anything hosted."""
-    from .. import netguard
+    from . import netguard
 
     resolve = resolver or netguard.resolve_host
     headers = {

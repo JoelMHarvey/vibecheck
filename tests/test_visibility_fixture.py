@@ -20,8 +20,8 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from record_visibility_fixture import FIXTURES, Replay, load_fixture, replay  # noqa: E402
 
-from vibecheck.visibility import scan_visibility  # noqa: E402
-from vibecheck.visibility.report import render_json, to_json_dict  # noqa: E402
+from vibecheck.checks.visibility import scan_visibility  # noqa: E402
+from vibecheck.core.report import render_json  # noqa: E402
 
 
 class RobinOfLoxleyTest(unittest.TestCase):
@@ -29,12 +29,12 @@ class RobinOfLoxleyTest(unittest.TestCase):
     def setUpClass(cls):
         cls.fixture = load_fixture("robinofloxley")
         cls.result = replay(cls.fixture)
-        cls.ids = {f.rule_id: f for f in cls.result.findings}
-        cls.passes = {p.check_id: p for p in cls.result.passes}
+        cls.ids = {f.id: f for f in cls.result.problems}
+        cls.passes = {p.id: p for p in cls.result.passes}
 
     def test_matches_the_snapshot(self):
         expected = (FIXTURES / "robinofloxley.expected.json").read_text(encoding="utf-8")
-        self.assertEqual(render_json(self.result), expected,
+        self.assertEqual(render_json([self.result]), expected,
                          "re-snapshot with: python3 scripts/record_visibility_fixture.py --name robinofloxley --replay")
 
     def test_replay_needs_nothing_unrecorded(self):
@@ -47,23 +47,23 @@ class RobinOfLoxleyTest(unittest.TestCase):
 
     def test_fragment_only_app_sections(self):
         f = self.ids["fragment-sections"]
-        self.assertIn("#myownsession", f.excerpt)
-        self.assertIn("11 sections", f.excerpt)
+        self.assertIn("#myownsession", f.evidence)
+        self.assertIn("11 sections", f.evidence)
 
     def test_sitemap_has_four_urls_against_pages_found(self):
         f = self.ids["sitemap-incomplete"]
-        self.assertIn("sitemap lists 4 URLs", f.excerpt)
-        self.assertIn("the crawl found 5 pages", f.excerpt)
+        self.assertIn("sitemap lists 4 URLs", f.evidence)
+        self.assertIn("the crawl found 5 pages", f.evidence)
 
     def test_home_lastmod_older_than_content(self):
         f = self.ids["sitemap-lastmod-stale"]
-        self.assertIn("/: lastmod 2026-09-28", f.excerpt)
+        self.assertIn("/: lastmod 2026-09-28", f.evidence)
 
     def test_bare_and_www_mismatch_against_llms_txt(self):
         f = self.ids["external-host-mixed"]
         for host in ("myowntrader.com", "myownlingo.com"):
-            self.assertIn(f"{host} in page links", f.excerpt)
-            self.assertIn(f"www.{host} in llms.txt", f.excerpt)
+            self.assertIn(f"{host} in page links", f.evidence)
+            self.assertIn(f"www.{host} in llms.txt", f.evidence)
 
     def test_llms_txt_present(self):
         self.assertIn("llms-ok", self.passes)
@@ -81,7 +81,14 @@ class RobinOfLoxleyTest(unittest.TestCase):
         self.assertFalse([f for f in self.result.findings if f.severity in ("critical", "high")])
 
     def test_json_round_trips(self):
-        json.loads(json.dumps(to_json_dict(self.result)))
+        json.loads(json.dumps(self.result.to_dict()))
+
+    def test_scores_unchanged_by_the_move(self):
+        # Phase 1 shipped at 62 (Technical 5, AI 8, Content 6); the framework
+        # move must not shift a single point.
+        self.assertEqual(self.result.total, 62)
+        self.assertEqual({k: v for k, v in self.result.category_scores.items() if v is not None},
+                         {"technical": 5, "ai": 8, "content": 6})
 
 
 if __name__ == "__main__":

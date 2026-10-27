@@ -16,10 +16,13 @@ from http.server import BaseHTTPRequestHandler
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from vibecheck.netguard import check_url  # noqa: E402
-from vibecheck.ratelimit import RateLimiter, client_ip  # noqa: E402
+from vibecheck.checks.security import CHECK, URL_CATEGORIES, URL_FETCH  # noqa: E402
+from vibecheck.core.fetcher import build_fetcher  # noqa: E402
+from vibecheck.core.models import Target, iso, utc_now  # noqa: E402
+from vibecheck.core.netguard import check_url  # noqa: E402
+from vibecheck.core.ratelimit import RateLimiter, client_ip  # noqa: E402
 from vibecheck.report import to_json_dict  # noqa: E402
-from vibecheck.urlscan import build_guarded_fetcher, scan_url  # noqa: E402
+from vibecheck.urlscan import scan_url  # noqa: E402
 
 MAX_BODY_BYTES = 4_000
 
@@ -67,9 +70,15 @@ class handler(BaseHTTPRequestHandler):
         if not ok:
             return self._json(400, {"error": reason})
 
-        result = scan_url(target, build_guarded_fetcher())
+        # The shared fetcher, guarded and pinned to the address it vetted, with
+        # the limits this scan has always had.
+        result = scan_url(target, build_fetcher(guard=True, **URL_FETCH))
         payload = to_json_dict(result)
         payload["kind"] = "url"
+        unreachable = any(f.rule_id == "site-unreachable" for f in result.findings)
+        payload["result"] = CHECK.to_result(
+            result, Target(url=target), iso(utc_now()), ran=set() if unreachable else URL_CATEGORIES,
+            nothing_checked=unreachable).to_dict()
         return self._json(200, payload)
 
     def _json(self, code, payload, extra_headers=None):

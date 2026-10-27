@@ -2,8 +2,9 @@
 
     python3 scripts/record_visibility_fixture.py robinofloxley.com --name robinofloxley
 
-writes tests/fixtures/<name>.json.gz (every response the crawl saw) and
-tests/fixtures/<name>.expected.json (the report those responses produce).
+writes vibecheck/checks/visibility/fixtures/<name>.json.gz (every response
+the crawl saw) and <name>.expected.json beside it (the report those
+responses produce).
 tests/test_visibility_fixture.py replays the first and compares against the
 second, so any change to a check shows up as a diff in review.
 
@@ -25,17 +26,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from vibecheck.visibility import scan_visibility  # noqa: E402
-from vibecheck.visibility.fetch import Fetched, build_fetcher  # noqa: E402
-from vibecheck.visibility.report import render_json  # noqa: E402
+from vibecheck.checks.visibility import scan_visibility  # noqa: E402
+from vibecheck.core.fetcher import Fetched, build_fetcher  # noqa: E402
+from vibecheck.core.report import render_json  # noqa: E402
 
-FIXTURES = ROOT / "tests" / "fixtures"
+FIXTURES = ROOT / "vibecheck" / "checks" / "visibility" / "fixtures"
 KEEP_HEADERS = ("content-type", "content-length", "location", "last-modified")
 IMAGE_BODY_BYTES = 65536  # enough to read any image header
 
 
 def record(url: str):
-    live = build_fetcher(guard=False)
+    from vibecheck.checks.visibility import config
+
+    live = build_fetcher(guard=False, user_agent=config.USER_AGENT)
     responses = {}
 
     def fetch(target, method="GET"):
@@ -109,9 +112,9 @@ def main(argv=None) -> int:
         # Snapshot from the replay, not the live run, so the snapshot is
         # exactly what the test will reproduce.
         result = replay(fixture)
-    (FIXTURES / f"{args.name}.expected.json").write_text(render_json(result), encoding="utf-8")
-    print(f"{args.name}: {len(fixture['responses'])} responses, score {result.score}, "
-          f"{len(result.findings)} findings, {len(result.passes)} passes")
+    (FIXTURES / f"{args.name}.expected.json").write_text(render_json([result]), encoding="utf-8")
+    print(f"{args.name}: {len(fixture['responses'])} responses, score {result.total}, "
+          f"{len(result.problems)} findings, {len(result.passes)} passes")
     return 0
 
 

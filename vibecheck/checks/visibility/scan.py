@@ -16,14 +16,13 @@ import time
 import urllib.robotparser
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, wait
-from dataclasses import dataclass, field
 from typing import Callable, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 from urllib.parse import urlsplit, urlunsplit
 
-from ..rules import SEVERITY_ORDER
-from ..scanner import Finding
+from ...core.fetcher import PERMANENT_CODES, Fetched
+from ...core.models import SEVERITY_ORDER, CheckResult, Finding, Target, iso
+from ...core.scoring import category_scores, weighted_total
 from . import config
-from .fetch import PERMANENT_CODES, Fetched
 from .page import Page, fingerprint, parse_page
 from .rules import PASSES, RULES
 
@@ -44,70 +43,6 @@ MONTHS = {m: i for i, m in enumerate(
 ORG_TYPES = {"organization", "corporation", "localbusiness", "onlinebusiness", "onlinestore",
              "ngo", "educationalorganization", "professionalservice", "store", "softwarecompany"}
 PRODUCT_TYPES = {"softwareapplication", "webapplication", "mobileapplication", "product"}
-
-
-# ---- result model ------------------------------------------------------------
-
-@dataclass
-class Pass:
-    check_id: str
-    evidence: str
-
-    @property
-    def title(self) -> str:
-        return PASSES.get(self.check_id, self.check_id)
-
-
-@dataclass
-class VisibilityResult:
-    root: str
-    findings: List[Finding] = field(default_factory=list)
-    passes: List[Pass] = field(default_factory=list)
-    pages_crawled: int = 0
-    ran: Set[str] = field(default_factory=set)   # categories whose checks ran
-    reachable: bool = True
-    scanned_at: str = ""
-
-    @property
-    def counts(self) -> Dict[str, int]:
-        counts = {sev: 0 for sev in SEVERITY_ORDER}
-        for f in self.findings:
-            counts[f.severity] += 1
-        return counts
-
-    @property
-    def categories(self) -> Dict[str, Optional[int]]:
-        scores: Dict[str, Optional[int]] = {}
-        for key, _label in config.CATEGORIES:
-            if not self.reachable or key not in self.ran:
-                scores[key] = None
-                continue
-            penalty = sum(config.CATEGORY_PENALTY[f.severity] for f in self.findings
-                          if RULES[f.rule_id].category == key)
-            scores[key] = max(0, 10 - penalty)
-        return scores
-
-    @property
-    def score(self) -> Optional[int]:
-        scored = [(config.CATEGORY_WEIGHTS[k], s) for k, s in self.categories.items() if s is not None]
-        if not scored:
-            return None
-        weight = sum(w for w, _ in scored)
-        return round(sum(w * s for w, s in scored) / weight * 10)
-
-    @property
-    def grade(self) -> str:
-        s = self.score
-        if s is None:
-            return "–"
-        for threshold, letter in ((90, "A"), (75, "B"), (60, "C"), (40, "D")):
-            if s >= threshold:
-                return letter
-        return "F"
-
-    @property
-    def categories_scored(self) -> int:
-        return sum(1 for s in self.categories.values() if s is not None)
 
 
 # ---- small helpers -------------------------------------------------------------
@@ -325,8 +260,9 @@ class _Scan:
         self.deadline = time.monotonic() + budget
         self.origin = origin_of(self.input_url)
         self.host = host_of(self.input_url)
-        self.result = VisibilityResult(root=self.origin,
-                                       scanned_at=self.now.strftime("%Y-%m-%dT%H:%M:%SZ"))
+        self.findings: List[Finding] = []
+        self.ran: Set[str] = set()       # categories whose checks ran
+        self.reachable = True
         self.robots: Optional[urllib.robotparser.RobotFileParser] = None
         self.robots_resp: Optional[Fetched] = None
         self.sitemap_entries: List[Tuple[str, Optional[str]]] = []
@@ -341,10 +277,11 @@ class _Scan:
     def add(self, rule_id: str, path: str, excerpt: str) -> None:
         rule = RULES[rule_id]
         fill = {"path": path, "excerpt": excerpt, "line": 0}
-        self.result.findings.append(Finding(
-            rule_id=rule_id, title=rule.title, severity=rule.severity, path=path, line=0,
-            excerpt=excerpt, description=rule.description.format(**fill),
-            fix_prompt=rule.fix_prompt.format(**fill),
+        self.findings.append(Finding(
+            id=rule_id, check_id="visibility", category=rule.category, severity=rule.severity,
+            title=rule.title, why_it_matters=rule.description.format(**fill), evidence=excerpt,
+            fix_prompt=rule.fix_prompt.format(**fill), verify_hint=rule.verify, guide_url=rule.guide,
+            path=path,
         ))
 
     def add_pages(self, rule_id: str, items: List[Tuple[str, str]]) -> None:
@@ -357,7 +294,9 @@ class _Scan:
         self.add(rule_id, path, excerpt)
 
     def ok(self, check_id: str, evidence: str) -> None:
-        self.result.passes.append(Pass(check_id, evidence))
+        title, category = PASSES[check_id]
+        self.findings.append(Finding(id=check_id, check_id="visibility", category=category,
+                                     severity="pass", title=title, evidence=evidence))
 
     # -- fetching --
     def remaining(self) -> float:
@@ -401,17 +340,17 @@ class _Scan:
         return self.robots.can_fetch(config.ROBOTS_AGENT, url)
 
     # -- main --
-    def run(self) -> VisibilityResult:
+    def run(self) -> None:
         self._seen = set()
         self.robots_step()
-        if not self.result.reachable:
-            return self.result
+        if not self.reachable:
+            return
         if self.robots is not None and not self.crawlable(self.origin + "/"):
             self.add("robots-blocks-us", "/robots.txt",
                      "robots.txt disallows the vibecheck-visibility user agent from /")
             self.side_files()
-            self.result.ran.update({"technical", "ai"})
-            return self.result
+            self.ran.update({"technical", "ai"})
+            return
 
         home_url = self.origin + "/"
         start = urlsplit(self.input_url)
@@ -419,15 +358,14 @@ class _Scan:
         got = self.get_many([home_url] + extra)
         home = got.get(home_url)
         if home is None or not home.ok or not home.is_html:
-            self.result.reachable = False
+            self.reachable = False
             why = "no response" if home is None else (
                 f"home page returned {home.status}" if not home.ok else "home page isn't HTML")
             self.add("site-unreachable", "/", why)
-            return self.result
+            return
         # Follow the home page wherever it redirected (www <-> bare, http -> https).
         self.origin = origin_of(home.url)
         self.host = host_of(home.url)
-        self.result.root = self.origin
         self.input_chain = home.chain
         self.home = parse_page(home.url, home.text)
         self.pages[page_key(home.url)] = (home, self.home)
@@ -438,8 +376,7 @@ class _Scan:
 
         self.side_files()
         self.crawl()
-        self.result.pages_crawled = len(self.pages)
-        self.result.ran.update({"technical", "ai", "content"})
+        self.ran.update({"technical", "ai", "content"})
 
         self.check_rendering()
         self.check_head()
@@ -450,7 +387,7 @@ class _Scan:
         self.check_structured_data()
         self.check_trust()
         self.check_hosts_and_media()
-        return self.result
+        return
 
     # -- robots, sitemap, llms -----------------------------------------------
     def robots_step(self) -> None:
@@ -492,7 +429,7 @@ class _Scan:
                 self.ok("ai-crawlers-allowed", "robots.txt allows " + ", ".join(config.AI_CRAWLERS))
         else:
             self.ok("ai-crawlers-allowed", "no robots.txt, so nothing is blocked")
-            if self.robots_resp is not None or self.result.reachable:
+            if self.robots_resp is not None or self.reachable:
                 self.add("robots-missing", "/robots.txt", "GET /robots.txt didn't return a robots file")
 
         listed = list(self.robots.site_maps() or []) if self.robots is not None else []
@@ -1101,8 +1038,23 @@ class _Scan:
 
 
 def scan_visibility(url: str, fetch: Callable[..., Optional[Fetched]],
-                    now: Optional[_dt.datetime] = None, budget: float = config.BUDGET) -> VisibilityResult:
+                    now: Optional[_dt.datetime] = None, budget: float = config.BUDGET,
+                    target: Optional[Target] = None) -> CheckResult:
     """Run every phase-1 check against ``url``."""
-    result = _Scan(url, fetch, now, budget).run()
-    result.findings.sort(key=lambda f: (SEVERITY_ORDER[f.severity], f.rule_id, f.path))
-    return result
+    from . import CHECK
+
+    scan = _Scan(url, fetch, now, budget)
+    scan.run()
+    findings = sorted(scan.findings, key=lambda f: (SEVERITY_ORDER[f.severity], f.id, f.path))
+    ran = scan.ran if scan.reachable else set()
+    scores = category_scores(findings, config.CATEGORIES, ran)
+    return CheckResult(
+        check_id=CHECK.id,
+        check_version=CHECK.version,
+        target=target or Target(url=scan.origin),
+        scanned_at=iso(scan.now),
+        category_scores=scores,
+        total=weighted_total(scores, config.CATEGORIES),
+        findings=findings,
+        meta={"pages_crawled": len(scan.pages), "final_url": scan.origin + "/"},
+    )

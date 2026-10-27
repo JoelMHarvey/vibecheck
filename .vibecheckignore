@@ -19,8 +19,9 @@ posts/
 # paths are demoted to info automatically, because nothing in a test file
 # ships. One fewer suppression to trust.
 
-# rules.py is a table of vulnerability descriptions, so its prose matches its
-# own patterns — "subprocess is called with shell=True" is a fix prompt, not a
-# subprocess call. Only this one data file is excluded; every module with
-# actual logic in it is still scanned.
-vibecheck/rules.py
+# The security rules are a table of vulnerability descriptions, so their prose
+# matches their own patterns: "subprocess is called with shell=True" is a fix
+# prompt, not a subprocess call. Only this one data file is excluded (it moved
+# here from vibecheck/rules.py); every module with logic in it is still
+# scanned, including the alias left at the old path.
+vibecheck/checks/security/rules/__init__.py

@@ -1,50 +1,54 @@
 {
+ "blurbs": {
+  "A": "Easy to find. Fix anything below and keep it that way.",
+  "B": "Mostly findable. A few fixes will help search engines and AI read you right.",
+  "C": "Findable, with gaps. Work through the list, top first.",
+  "D": "Hard to find. Fix the high and medium items before anything else.",
+  "F": "Close to invisible. Start with the first finding.",
+  "–": "We couldn't check this site."
+ },
  "categories": [
   [
    "technical",
-   "Technical"
+   "Technical",
+   0.2
   ],
   [
    "ai",
-   "AI readiness"
+   "AI readiness",
+   0.15
   ],
   [
    "content",
-   "Content & keywords"
+   "Content & keywords",
+   0.2
   ],
   [
    "positioning",
-   "Positioning"
+   "Positioning",
+   0.2
   ],
   [
    "offsite",
-   "Off-site"
+   "Off-site",
+   0.1
   ],
   [
    "brand",
-   "Brand clarity"
+   "Brand clarity",
+   0.15
   ]
  ],
- "passes": {
-  "ai-crawlers-allowed": "AI crawlers are allowed",
-  "alt-ok": "Images have alt text",
-  "canonical-ok": "Canonical URLs point at their own page",
-  "data-files-ok": "Machine-readable data is linked",
-  "descriptions-ok": "Every page has a meta description",
-  "h1-ok": "One H1 per page",
-  "host-ok": "One form of the domain redirects to the other",
-  "https-ok": "HTTP redirects to HTTPS",
-  "jsonld-ok": "Structured data parses",
-  "llms-ok": "llms.txt is there, with a summary and links",
-  "og-complete": "Open Graph is complete",
-  "org-ok": "Organization schema is complete",
-  "robots-ok": "robots.txt lets search engines in",
-  "server-rendered": "Content is in the raw HTML",
-  "sitemap-ok": "sitemap.xml is there and parses",
-  "titles-ok": "Every page has a title of a sensible length",
-  "trust-ok": "Contact, privacy, company and pricing are on the page"
- },
+ "check": "visibility",
+ "check_version": "1.0.0",
+ "footer": "Rankings, keywords and backlinks aren't in this scan: Google Search Console shows those for your own site, free.",
+ "not_run": "deeper check coming soon",
  "rules": {
+  "ai-crawlers-allowed": {
+   "c": "ai",
+   "s": "pass",
+   "t": "AI crawlers are allowed"
+  },
   "ai-crawlers-blocked": {
    "c": "ai",
    "d": "Your robots.txt blocks some AI companies' crawlers. That's a fair choice and we don't score it, but it means those assistants can't read your site, so they'll describe you from other people's pages or not at all.",
@@ -52,6 +56,11 @@
    "s": "info",
    "t": "Some AI crawlers are blocked",
    "v": "If you want them in, remove their Disallow lines in robots.txt. If you want them out, nothing to do."
+  },
+  "alt-ok": {
+   "c": "content",
+   "s": "pass",
+   "t": "Images have alt text"
   },
   "canonical-elsewhere": {
    "c": "technical",
@@ -68,6 +77,11 @@
    "s": "low",
    "t": "No canonical URL",
    "v": "View source on each page and check the canonical is the page's own address."
+  },
+  "canonical-ok": {
+   "c": "technical",
+   "s": "pass",
+   "t": "Canonical URLs point at their own page"
   },
   "csr-generic": {
    "c": "technical",
@@ -105,6 +119,11 @@
    "t": "No machine-readable data linked",
    "v": "Open llms.txt and check the link to the data file works."
   },
+  "data-files-ok": {
+   "c": "ai",
+   "s": "pass",
+   "t": "Machine-readable data is linked"
+  },
   "description-duplicate": {
    "c": "content",
    "d": "Several pages have the same description, which tells search engines they're the same page.",
@@ -128,6 +147,11 @@
    "s": "medium",
    "t": "Pages without a meta description",
    "v": "View source and check each page has <meta name=\"description\">."
+  },
+  "descriptions-ok": {
+   "c": "content",
+   "s": "pass",
+   "t": "Every page has a meta description"
   },
   "external-host-mixed": {
    "c": "technical",
@@ -185,6 +209,11 @@
    "t": "The headline doesn't say what you sell",
    "v": "Read the H1 aloud to someone who's never seen the site: can they say what you sell?"
   },
+  "h1-ok": {
+   "c": "content",
+   "s": "pass",
+   "t": "One H1 per page"
+  },
   "heading-skip": {
    "c": "content",
    "d": "Headings jump a level (an H1 followed by an H3). Crawlers and screen readers use heading levels as the page's outline.",
@@ -200,6 +229,11 @@
    "s": "medium",
    "t": "www and bare domain both serve the site",
    "v": "Run 'curl -sI https://<the other form>/' and check for a 301 or 308 with a Location header on your main domain."
+  },
+  "host-ok": {
+   "c": "technical",
+   "s": "pass",
+   "t": "One form of the domain redirects to the other"
   },
   "host-redirect-temporary": {
    "c": "technical",
@@ -224,6 +258,11 @@
    "s": "high",
    "t": "Plain HTTP doesn't redirect to HTTPS",
    "v": "Open http:// plus your domain: the address bar should end on https://."
+  },
+  "https-ok": {
+   "c": "technical",
+   "s": "pass",
+   "t": "HTTP redirects to HTTPS"
   },
   "img-alt-missing": {
    "c": "content",
@@ -273,6 +312,11 @@
    "t": "No structured data",
    "v": "Paste the page into Google's Rich Results Test or validator.schema.org and check it finds your Organization and Product."
   },
+  "jsonld-ok": {
+   "c": "ai",
+   "s": "pass",
+   "t": "Structured data parses"
+  },
   "lang-missing": {
    "c": "technical",
    "d": "Without <html lang>, search engines and screen readers have to guess the page's language, and can show it to the wrong audience.",
@@ -299,6 +343,11 @@
    "t": "No llms.txt",
    "v": "Open /llms.txt in a browser: it should be plain text starting with '# ', not your app's home page."
   },
+  "llms-ok": {
+   "c": "ai",
+   "s": "pass",
+   "t": "llms.txt is there, with a summary and links"
+  },
   "offer-missing": {
    "c": "ai",
    "d": "Your structured data lists products or apps without an Offer, so the price you show on the page isn't machine-readable. AI assistants comparing prices will look elsewhere, or guess.",
@@ -306,6 +355,11 @@
    "s": "low",
    "t": "Products without prices in the structured data",
    "v": "Paste the page into Google's Rich Results Test and check each product shows its price."
+  },
+  "og-complete": {
+   "c": "content",
+   "s": "pass",
+   "t": "Open Graph is complete"
   },
   "og-image-broken": {
    "c": "content",
@@ -347,6 +401,11 @@
    "t": "No Organization in the structured data",
    "v": "Paste the page into validator.schema.org and check the Organization shows those fields."
   },
+  "org-ok": {
+   "c": "ai",
+   "s": "pass",
+   "t": "Organization schema is complete"
+  },
   "product-schema-missing": {
    "c": "ai",
    "d": "Your page shows prices, but nothing in the structured data describes what's being sold. A SoftwareApplication or Product with an Offer makes the price machine-readable.",
@@ -386,6 +445,16 @@
    "s": "low",
    "t": "No robots.txt",
    "v": "Open /robots.txt in a browser: it should be plain text, not your app's home page."
+  },
+  "robots-ok": {
+   "c": "technical",
+   "s": "pass",
+   "t": "robots.txt lets search engines in"
+  },
+  "server-rendered": {
+   "c": "technical",
+   "s": "pass",
+   "t": "Content is in the raw HTML"
   },
   "site-unreachable": {
    "c": "technical",
@@ -443,6 +512,11 @@
    "t": "robots.txt doesn't point to the sitemap",
    "v": "Open /robots.txt and check the Sitemap line is there with a full URL."
   },
+  "sitemap-ok": {
+   "c": "technical",
+   "s": "pass",
+   "t": "sitemap.xml is there and parses"
+  },
   "sitemap-orphans": {
    "c": "technical",
    "d": "These pages are in your sitemap but no page we crawled links to them. Search engines treat a page with no internal links as unimportant.",
@@ -475,6 +549,11 @@
    "t": "Pages without a title",
    "v": "View source on each page and check the <title>."
   },
+  "titles-ok": {
+   "c": "content",
+   "s": "pass",
+   "t": "Every page has a title of a sensible length"
+  },
   "trust-missing": {
    "c": "content",
    "d": "People and AI assistants both look for signs a site is a real business before recommending it: a way to get in touch, a privacy policy, who runs it, and what it costs.",
@@ -482,6 +561,11 @@
    "s": "low",
    "t": "Trust details not on the page",
    "v": "Re-run this scan."
+  },
+  "trust-ok": {
+   "c": "content",
+   "s": "pass",
+   "t": "Contact, privacy, company and pricing are on the page"
   },
   "viewport-missing": {
    "c": "technical",
@@ -492,5 +576,6 @@
    "v": "Open the site on a phone: text should be readable without zooming."
   }
  },
- "version": 1
+ "title": "Visibility",
+ "version": 2
 }

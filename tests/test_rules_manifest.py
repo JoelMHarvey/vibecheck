@@ -66,14 +66,14 @@ class VisibilityManifestTest(unittest.TestCase):
                          "visibility-rules.json is out of date — run python3 scripts/generate_rules_manifest.py")
 
     def test_carries_what_the_page_needs(self):
-        from vibecheck.visibility.rules import PASSES, RULES
+        from vibecheck.checks.visibility.rules import PASSES, RULES
 
         manifest = build_visibility_manifest()
-        self.assertEqual(set(manifest["rules"]), set(RULES))
-        self.assertEqual(set(manifest["passes"]), set(PASSES))
+        self.assertEqual(set(manifest["rules"]), set(RULES) | set(PASSES))
         self.assertEqual(len(manifest["categories"]), 6)
         for rule_id, entry in manifest["rules"].items():
-            for key in ("t", "s", "c", "d", "v"):
+            keys = ("t", "s", "c") if entry["s"] == "pass" else ("t", "s", "c", "d", "v")
+            for key in keys:
                 self.assertTrue(entry.get(key), f"{rule_id} has no {key}")
 
 

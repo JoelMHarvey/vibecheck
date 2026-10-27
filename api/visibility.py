@@ -18,13 +18,12 @@ from urllib.parse import urlsplit
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from vibecheck.netguard import check_url  # noqa: E402
-from vibecheck.ratelimit import RateLimiter, client_ip  # noqa: E402
-from vibecheck.visibility import scan_visibility  # noqa: E402
-from vibecheck.visibility.cache import ResultCache  # noqa: E402
-from vibecheck.visibility.fetch import build_fetcher  # noqa: E402
-from vibecheck.visibility.report import to_json_dict  # noqa: E402
-from vibecheck.visibility.scan import normalise_input  # noqa: E402
+from vibecheck.checks.visibility import CHECK  # noqa: E402
+from vibecheck.checks.visibility.scan import normalise_input  # noqa: E402
+from vibecheck.core.cache import ResultCache  # noqa: E402
+from vibecheck.core.models import Context, Target  # noqa: E402
+from vibecheck.core.netguard import check_url  # noqa: E402
+from vibecheck.core.ratelimit import RateLimiter, client_ip  # noqa: E402
 
 MAX_BODY_BYTES = 4_000
 
@@ -35,12 +34,12 @@ HOST_LIMITER = RateLimiter("visibility-host", [(1, 60)])
 # A ceiling on all outbound crawling.
 GLOBAL_LIMITER = RateLimiter("visibility-global", [(200, 3600)])
 
-CACHE = ResultCache()
+CACHE = ResultCache(namespace="vis")
 
 
 def scan(target):
     """Separate so tests can swap the network out."""
-    return scan_visibility(target, build_fetcher(guard=True))
+    return CHECK.run(Target(url=target), Context(guard=True, provenance="server"))
 
 
 class handler(BaseHTTPRequestHandler):
@@ -87,7 +86,7 @@ class handler(BaseHTTPRequestHandler):
             return self._json(429, {"error": f"That site was checked moments ago. Try again in {decision.retry_after}s."},
                               extra_headers={"Retry-After": str(decision.retry_after)})
 
-        payload = to_json_dict(scan(target))
+        payload = scan(target).to_dict()
         payload["cached"] = False
         CACHE.set(cache_url, payload)
         return self._json(200, payload)

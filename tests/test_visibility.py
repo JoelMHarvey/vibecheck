@@ -17,14 +17,14 @@ from vis_fakes import (  # noqa: E402
     LLMS, NOW, ROBOTS, SITEMAP, FakeSite, Fetched, good_home, healthy_site, html, png, sub_page, text,
 )
 
-from vibecheck.visibility import config, scan_visibility  # noqa: E402
-from vibecheck.visibility import fetch as vfetch  # noqa: E402
-from vibecheck.visibility.page import fingerprint, parse_page  # noqa: E402
-from vibecheck.visibility.report import render_markdown, render_terminal, to_json_dict  # noqa: E402
-from vibecheck.visibility.rules import PASSES, RULES  # noqa: E402
-from vibecheck.visibility.scan import image_size, parse_sitemap  # noqa: E402
+from vibecheck.checks.visibility import config, scan_visibility  # noqa: E402
+from vibecheck.core import fetcher as vfetch  # noqa: E402
+from vibecheck.checks.visibility.page import fingerprint, parse_page  # noqa: E402
+from vibecheck.core.report import render_markdown, render_terminal  # noqa: E402
+from vibecheck.checks.visibility.rules import PASSES, RULES  # noqa: E402
+from vibecheck.checks.visibility.scan import image_size, parse_sitemap  # noqa: E402
 
-FIXTURES = Path(__file__).resolve().parent / "fixtures"
+FIXTURES = Path(__file__).resolve().parent.parent / "vibecheck" / "checks" / "visibility" / "fixtures"
 BASE = "https://groomly.test"
 
 
@@ -33,31 +33,30 @@ def run(site, url="groomly.test"):
 
 
 def ids(result):
-    return {f.rule_id for f in result.findings}
+    return {f.id for f in result.problems}
 
 
 def passes(result):
-    return {p.check_id for p in result.passes}
+    return {p.id for p in result.passes}
 
 
 def finding(result, rule_id):
-    return next(f for f in result.findings if f.rule_id == rule_id)
+    return next(f for f in result.findings if f.id == rule_id)
 
 
 class HealthySiteTest(unittest.TestCase):
     def test_a_well_made_site_scores_full_marks(self):
         result = run(healthy_site())
-        self.assertEqual(result.findings, [])
-        self.assertEqual(result.score, 100)
+        self.assertEqual(result.problems, [])
+        self.assertEqual(result.total, 100)
         self.assertEqual(result.grade, "A")
-        self.assertEqual(result.pages_crawled, 5)
+        self.assertEqual(result.meta["pages_crawled"], 5)
 
     def test_phase_one_fills_three_categories_and_says_so(self):
         result = run(healthy_site())
-        cats = result.categories
+        cats = result.category_scores
         self.assertEqual([k for k, v in cats.items() if v is not None], list(config.PHASE1_CATEGORIES))
         self.assertIsNone(cats["positioning"])
-        self.assertEqual(result.categories_scored, 3)
         self.assertIn("deeper check", render_terminal(result, use_color=False))
 
     def test_passes_are_reported(self):
@@ -87,8 +86,8 @@ class LovableTemplateTest(unittest.TestCase):
     def test_flags_the_blank_page_as_high(self):
         f = finding(self.result, "csr-vite")
         self.assertEqual(f.severity, "high")
-        self.assertIn("Lovable", f.excerpt)
-        self.assertIn('<div id="root"> is empty', f.excerpt)
+        self.assertIn("Lovable", f.evidence)
+        self.assertIn('<div id="root"> is empty', f.evidence)
         self.assertIn("Vite + React", f.fix_prompt, "the fix prompt is tailored to the builder")
         self.assertNotIn("server-rendered", passes(self.result))
 
@@ -121,13 +120,13 @@ class RobotsTest(unittest.TestCase):
         result = run(site)
         f = finding(result, "robots-blocks-search")
         self.assertEqual(f.severity, "critical")
-        self.assertIn("Googlebot", f.excerpt)
+        self.assertIn("Googlebot", f.evidence)
         self.assertIn("robots-blocks-us", ids(result))
         # We obey it ourselves: only the crawl files were read.
         fetched = {u for _m, u in site.requests}
         self.assertNotIn(f"{BASE}/", fetched)
         self.assertNotIn(f"{BASE}/pricing", fetched)
-        self.assertLess(result.score, 75)
+        self.assertLess(result.total, 75)
 
     def test_our_agent_blocked_but_google_allowed(self):
         site = self.site_with("User-agent: vibecheck-visibility\nDisallow: /\n\nUser-agent: *\nAllow: /\n")
@@ -146,9 +145,9 @@ class RobotsTest(unittest.TestCase):
         result = run(site)
         f = finding(result, "ai-crawlers-blocked")
         self.assertEqual(f.severity, "info")
-        self.assertIn("GPTBot", f.excerpt)
-        self.assertIn("ClaudeBot", f.excerpt)   # listed as allowed
-        self.assertEqual(result.score, 100, "blocking AI crawlers is a choice, not a fault")
+        self.assertIn("GPTBot", f.evidence)
+        self.assertIn("ClaudeBot", f.evidence)   # listed as allowed
+        self.assertEqual(result.total, 100, "blocking AI crawlers is a choice, not a fault")
 
     def test_missing_robots_and_html_robots_both_count_as_missing(self):
         site = healthy_site()
@@ -196,7 +195,7 @@ class HeadAndContentTest(unittest.TestCase):
         self.assertIn("title-duplicate", got)
         self.assertIn("title-long", got)
         self.assertIn("description-missing", got)
-        self.assertIn("/about", finding(result, "description-missing").excerpt)
+        self.assertIn("/about", finding(result, "description-missing").evidence)
 
     def test_findings_on_many_pages_are_one_finding(self):
         site = healthy_site()
@@ -204,7 +203,7 @@ class HeadAndContentTest(unittest.TestCase):
             page = sub_page(f"{BASE}{path}", path[1:].title()).replace('<html lang="en-GB">', "<html>")
             site.add(f"{BASE}{path}", html(f"{BASE}{path}", page))
         result = run(site)
-        lang = [f for f in result.findings if f.rule_id == "lang-missing"]
+        lang = [f for f in result.findings if f.id == "lang-missing"]
         self.assertEqual(len(lang), 1)
         self.assertIn("(+2 more)", lang[0].path)
 
@@ -233,7 +232,7 @@ class HeadAndContentTest(unittest.TestCase):
         imgs = "".join(f'<img src="/p{i}.jpg">' for i in range(5))
         site.add(f"{BASE}/", html(f"{BASE}/", good_home(extra_body=imgs)))
         f = finding(run(site), "img-alt-missing")
-        self.assertIn("5 of 6", f.excerpt)
+        self.assertIn("5 of 6", f.evidence)
 
     def test_trust_signals(self):
         site = healthy_site()
@@ -242,9 +241,9 @@ class HeadAndContentTest(unittest.TestCase):
         bare = bare.replace('"name":"Groomly Ltd",', '"name":"Groomly",')
         site.add(f"{BASE}/", html(f"{BASE}/", bare))
         f = finding(run(site), "trust-missing")
-        self.assertIn("contact", f.excerpt)
-        self.assertIn("privacy", f.excerpt)
-        self.assertNotIn("prices", f.excerpt)  # "£12 a month" is on the page
+        self.assertIn("contact", f.evidence)
+        self.assertIn("privacy", f.evidence)
+        self.assertNotIn("prices", f.evidence)  # "£12 a month" is on the page
 
 
 class LinkPreviewTest(unittest.TestCase):
@@ -253,7 +252,7 @@ class LinkPreviewTest(unittest.TestCase):
         site.add(f"{BASE}/og.png", Fetched(url=f"{BASE}/og.png", status=200,
                                            headers={"content-type": "image/png"}, body=png(800, 800)))
         result = run(site)
-        self.assertIn("800x800", finding(result, "og-image-size").excerpt)
+        self.assertIn("800x800", finding(result, "og-image-size").evidence)
         self.assertNotIn("og-complete", passes(result))
 
         site = healthy_site()
@@ -279,7 +278,7 @@ class ArchitectureTest(unittest.TestCase):
         home = good_home().replace('<a href="/features">Features</a> <a href="/about">About</a>', nav)
         site.add(f"{BASE}/", html(f"{BASE}/", home))
         f = finding(run(site), "fragment-sections")
-        self.assertIn("5 sections", f.excerpt)
+        self.assertIn("5 sections", f.evidence)
         self.assertIn("#booking", f.fix_prompt)
 
     def test_skip_links_are_not_sections(self):
@@ -294,8 +293,8 @@ class ArchitectureTest(unittest.TestCase):
         site.add(f"{BASE}/team/", html(f"{BASE}/team", sub_page(f"{BASE}/team", "Team"),
                                        chain=[(f"{BASE}/team/", 308)]))
         result = run(site)
-        self.assertIn("/team/ -> /team", finding(result, "internal-link-redirects").excerpt)
-        self.assertIn("/team", finding(result, "sitemap-incomplete").excerpt)
+        self.assertIn("/team/ -> /team", finding(result, "internal-link-redirects").evidence)
+        self.assertIn("/team", finding(result, "sitemap-incomplete").evidence)
 
 
 class SitemapTest(unittest.TestCase):
@@ -308,9 +307,9 @@ class SitemapTest(unittest.TestCase):
         site.add(f"{BASE}/hidden", html(f"{BASE}/hidden", sub_page(f"{BASE}/hidden", "Hidden")))
         site.add(f"{BASE}/old", html(f"{BASE}/old", "gone", status=404))
         result = run(site)
-        self.assertIn("Not listed: /about", finding(result, "sitemap-incomplete").excerpt)
-        self.assertIn("/hidden", finding(result, "sitemap-orphans").excerpt)
-        self.assertIn("/old (404)", finding(result, "sitemap-broken-urls").excerpt)
+        self.assertIn("Not listed: /about", finding(result, "sitemap-incomplete").evidence)
+        self.assertIn("/hidden", finding(result, "sitemap-orphans").evidence)
+        self.assertIn("/old (404)", finding(result, "sitemap-broken-urls").evidence)
 
     def test_lastmod_older_than_the_content(self):
         site = healthy_site()
@@ -319,8 +318,8 @@ class SitemapTest(unittest.TestCase):
         sm = SITEMAP.replace("2026-10-20", "2026-09-28")
         site.add(f"{BASE}/sitemap.xml", text(f"{BASE}/sitemap.xml", sm, ctype="application/xml"))
         f = finding(run(site), "sitemap-lastmod-stale")
-        self.assertIn("lastmod 2026-09-28", f.excerpt)
-        self.assertIn("13 October 2026", f.excerpt)
+        self.assertIn("lastmod 2026-09-28", f.evidence)
+        self.assertIn("13 October 2026", f.evidence)
 
     def test_future_dates_and_server_headers_dont_count(self):
         # An event next year isn't an edit; a static host's Last-Modified is a deploy.
@@ -363,7 +362,7 @@ class AiReadinessTest(unittest.TestCase):
         site = healthy_site()
         site.add(f"{BASE}/llms.txt", text(f"{BASE}/llms.txt", "Groomly is booking software.\n"))
         f = finding(run(site), "llms-incomplete")
-        self.assertIn("summary", f.excerpt)
+        self.assertIn("summary", f.evidence)
         self.assertIn("/guides/llms-txt", RULES["llms-incomplete"].guide)
 
     def test_structured_data(self):
@@ -372,8 +371,8 @@ class AiReadinessTest(unittest.TestCase):
                           .replace(',"offers":{"@type":"Offer","price":"12","priceCurrency":"GBP"}', "")
         site.add(f"{BASE}/", html(f"{BASE}/", home))
         result = run(site)
-        self.assertEqual(finding(result, "org-incomplete").excerpt, "sameAs")
-        self.assertIn("Groomly", finding(result, "offer-missing").excerpt)
+        self.assertEqual(finding(result, "org-incomplete").evidence, "sameAs")
+        self.assertIn("Groomly", finding(result, "offer-missing").evidence)
 
     def test_broken_and_absent_json_ld(self):
         site = healthy_site()
@@ -420,14 +419,14 @@ class HostsTest(unittest.TestCase):
         site = healthy_site()
         site.add("http://groomly.test/", html(f"{BASE}/", good_home(),
                                               chain=[("http://groomly.test/", 301), ("https://www.groomly.test/", 301)]))
-        self.assertIn("2 hops", finding(run(site), "redirect-chain").excerpt)
+        self.assertIn("2 hops", finding(run(site), "redirect-chain").evidence)
 
     def test_starting_from_www_follows_the_site(self):
         site = healthy_site()
         site.add("https://www.groomly.test/robots.txt", text(f"{BASE}/robots.txt", ROBOTS))
         result = scan_visibility("https://www.groomly.test", site.fetch, now=NOW)
-        self.assertEqual(result.root, BASE)
-        self.assertEqual(result.findings, [])
+        self.assertEqual(result.target.url, BASE)
+        self.assertEqual(result.problems, [])
 
     def test_same_sites_linked_with_and_without_www(self):
         site = healthy_site()
@@ -436,22 +435,22 @@ class HostsTest(unittest.TestCase):
         site.add("https://partner.test/", html("https://www.partner.test/", "<html></html>",
                                                chain=[("https://partner.test/", 308)]))
         f = finding(run(site), "external-host-mixed")
-        self.assertIn("partner.test in page links", f.excerpt)
-        self.assertIn("www.partner.test in llms.txt", f.excerpt)
-        self.assertIn("the site serves www.partner.test", f.excerpt)
+        self.assertIn("partner.test in page links", f.evidence)
+        self.assertIn("www.partner.test in llms.txt", f.evidence)
+        self.assertIn("the site serves www.partner.test", f.evidence)
 
     def test_heavy_images(self):
         site = healthy_site()
         site.add(f"HEAD {BASE}/team.jpg", Fetched(url=f"{BASE}/team.jpg", status=200,
                                                    headers={"content-type": "image/jpeg", "content-length": "912000"}))
-        self.assertIn("912 KB", finding(run(site), "img-oversized").excerpt)
+        self.assertIn("912 KB", finding(run(site), "img-oversized").evidence)
 
 
 class UnreachableTest(unittest.TestCase):
     def test_dead_site(self):
         result = scan_visibility("dead.test", FakeSite().fetch, now=NOW)
-        self.assertFalse(result.reachable)
-        self.assertIsNone(result.score)
+        self.assertIsNone(result.total)
+        self.assertEqual(set(result.category_scores.values()), {None})
         self.assertEqual(result.grade, "–")
         self.assertEqual(ids(result), {"site-unreachable"})
         render_terminal(result, use_color=False)
@@ -463,7 +462,7 @@ class RuleTableTest(unittest.TestCase):
         for rule in RULES.values():
             with self.subTest(rule.id):
                 self.assertIn(rule.severity, ("critical", "high", "medium", "low", "info"))
-                self.assertIn(rule.category, dict(config.CATEGORIES))
+                self.assertIn(rule.category, {c.id for c in config.CATEGORIES})
                 self.assertTrue(rule.title and rule.description and rule.verify)
                 for tpl in (rule.description, rule.fix_prompt):
                     tpl.format(path="/x", excerpt="e", line=0)  # raises on a stray brace
@@ -477,21 +476,23 @@ class RuleTableTest(unittest.TestCase):
 
     def test_every_pass_emitted_has_a_title(self):
         for p in run(healthy_site()).passes:
-            self.assertIn(p.check_id, PASSES)
+            self.assertIn(p.id, PASSES)
+            self.assertEqual(p.category, PASSES[p.id][1])
 
-    def test_weights_cover_every_category(self):
-        self.assertEqual(set(config.CATEGORY_WEIGHTS), {k for k, _ in config.CATEGORIES})
+    def test_every_category_has_a_weight(self):
+        self.assertTrue(all(c.weight > 0 for c in config.CATEGORIES))
 
 
 class ReportTest(unittest.TestCase):
     def test_json_shape(self):
         site = healthy_site()
         site.add(f"{BASE}/llms.txt", text(f"{BASE}/llms.txt", "nothing\n"))
-        d = to_json_dict(run(site))
-        self.assertEqual(d["kind"], "visibility")
-        self.assertEqual(len(d["categories"]), 6)
+        d = run(site).to_dict()
+        self.assertEqual(d["check_id"], "visibility")
+        self.assertEqual(len(d["category_scores"]), 6)
         f = d["findings"][0]
-        for key in ("rule_id", "severity", "category", "path", "excerpt", "description", "fix_prompt", "verify", "guide"):
+        for key in ("id", "check_id", "category", "severity", "title", "why_it_matters", "evidence",
+                    "fix_prompt", "verify_hint", "guide_url"):
             self.assertIn(key, f)
         json.dumps(d)
 
@@ -499,7 +500,7 @@ class ReportTest(unittest.TestCase):
         site = healthy_site()
         del site.responses[f"{BASE}/llms.txt"]
         md = render_markdown(run(site))
-        self.assertIn("## Visibility:", md)
+        self.assertIn("## Visibility: ", md)
         self.assertIn("**Fix prompt**", md)
         self.assertIn("**Check it worked:**", md)
         self.assertIn("## Working", md)
@@ -552,12 +553,16 @@ class FetcherSafetyTest(unittest.TestCase):
         self.assertEqual(req.call_count, config.MAX_REDIRECTS + 1)
 
     def test_identifies_itself(self):
-        fetch = vfetch.build_fetcher(guard=True, resolver=self.resolver({"nice.test": self.PUBLIC}))
-        ok = (200, {}, b"", False)
-        with mock.patch.object(vfetch, "_pinned_request", return_value=ok) as req:
-            fetch("https://nice.test/")
-        headers = req.call_args[0][3]
-        self.assertEqual(headers["User-Agent"], "vibecheck-visibility/1.0 (+https://psychosecurity.io/visibility)")
+        # The plugin asks the shared fetcher for its own user agent and limits.
+        from vibecheck.checks.visibility import CHECK
+        from vibecheck.core.models import Context, Target
+
+        with mock.patch.object(vfetch, "build_fetcher", return_value=healthy_site().fetch) as built:
+            CHECK.run(Target(url="https://groomly.test"), Context(guard=True, now=NOW))
+        kwargs = built.call_args.kwargs
+        self.assertTrue(kwargs["guard"])
+        self.assertEqual(kwargs["user_agent"], "vibecheck-visibility/1.0 (+https://psychosecurity.io/visibility)")
+        self.assertEqual((kwargs["timeout"], kwargs["max_bytes"], kwargs["max_redirects"]), (10.0, 2_000_000, 5))
 
     def test_response_size_is_capped(self):
         stream = io.BytesIO(b"x" * 5000)
@@ -593,7 +598,7 @@ class CliTest(unittest.TestCase):
 
     def test_json_to_stdout(self):
         code, out = self.run_cli(healthy_site(), "--json")
-        self.assertEqual(json.loads(out)["score"], 100)
+        self.assertEqual(json.loads(out)["total"], 100)
 
     def test_markdown_file(self):
         import tempfile
