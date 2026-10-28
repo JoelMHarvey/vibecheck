@@ -17,7 +17,7 @@ from typing import Dict, List
 from .scanner import ScanResult
 
 TOOL_NAME = "vibecheck"
-TOOL_URI = "https://psychosecurity.io"
+TOOL_URI = "https://www.psychosecurity.io"
 
 # SARIF has three levels; we have five severities.
 SARIF_LEVEL = {

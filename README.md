@@ -1,13 +1,13 @@
 # vibecheck 🔒✨
 
 [![ci](https://github.com/JoelMHarvey/vibecheck/actions/workflows/ci.yml/badge.svg)](https://github.com/JoelMHarvey/vibecheck/actions/workflows/ci.yml)
-[![vibe score](https://psychosecurity.io/api/badge?score=100)](https://psychosecurity.io)
+[![vibe score](https://www.psychosecurity.io/api/badge?score=100)](https://www.psychosecurity.io)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **Security scanner for AI-built apps.** You vibe-coded it — now make sure it
 won't leak your keys, your database, or your users' data.
 
-Try it without installing anything at **[psychosecurity.io](https://psychosecurity.io)**.
+Try it without installing anything at **[psychosecurity.io](https://www.psychosecurity.io)**.
 
 vibecheck scans a project folder for the security mistakes AI app builders
 make most often, then explains each one in plain English and gives you a
@@ -97,7 +97,7 @@ copy-paste fix prompts.
 
 A third mode checks how a deployed site looks to search engines and to AI
 assistants like ChatGPT, Claude and Perplexity. Try it at
-**[psychosecurity.io/visibility](https://psychosecurity.io/visibility)** or:
+**[psychosecurity.io/visibility](https://www.psychosecurity.io/visibility)** or:
 
 ```bash
 vibecheck --visibility https://myapp.com
@@ -139,7 +139,7 @@ vibecheck ./app --url https://myapp.com --checks security,visibility
 vibecheck ./app --checks security --json                      # the common result model, to stdout
 ```
 
-On the web, [psychosecurity.io/check](https://psychosecurity.io/check) runs
+On the web, [psychosecurity.io/check](https://www.psychosecurity.io/check) runs
 both against a live site side by side.
 
 ## Badges you can check
@@ -354,7 +354,7 @@ Set `VIBECHECK_RATE_LIMIT_OFF=1` for local development. Never in production.
 There's also a score badge for READMEs:
 
 ```markdown
-[![Vibe Score](https://psychosecurity.io/api/badge?score=94)](https://psychosecurity.io)
+[![Vibe Score](https://www.psychosecurity.io/api/badge?score=94)](https://www.psychosecurity.io)
 ```
 
 ## Research harness

@@ -141,7 +141,7 @@ it's called vibecheck. you point it at a folder or a URL and it tells you what's
 wrong in plain english, then gives you a prompt to paste back into whatever AI
 tool you're using, so the thing that made the mess can clean it up.
 
-free, no signup: [psychosecurity.io](https://psychosecurity.io)
+free, no signup: [psychosecurity.io](https://www.psychosecurity.io)
 
 there's a CLI too if you'd rather nothing left your machine — same scanner, runs
 offline, no dependencies.

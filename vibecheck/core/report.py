@@ -154,7 +154,7 @@ def render_markdown(result: CheckResult, heading_level: int = 1) -> str:
         if f.verify_hint:
             lines += [f"**Check it worked:** {f.verify_hint}", ""]
         if f.guide_url:
-            lines += [f"More: https://psychosecurity.io{f.guide_url}", ""]
+            lines += [f"More: https://www.psychosecurity.io{f.guide_url}", ""]
     if result.passes:
         lines += [f"{h}# Working", ""]
         lines += [f"- ✓ **{f.title}** — {f.evidence}" for f in result.passes]
