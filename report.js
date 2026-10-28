@@ -185,6 +185,8 @@
     const scores = Object.values(r.category_scores);
     const ran = scores.filter(s => s !== null).length;
     if (ran && ran < scores.length) bits.push(`score based on ${ran} of ${scores.length} categories`);
+    const pos = positioningSkipped(r);
+    if (pos) bits.push(`positioning not reviewed: ${pos}`);
     bits.push(when(r.scanned_at));
     meta.append(el("p", "", bits.filter(Boolean).join(" · ")));
     const pills = el("div", "vr-pills");
@@ -203,13 +205,21 @@
     return card;
   }
 
+  // The visibility positioning review can be skipped for a reason worth
+  // saying (over the daily cap, nothing to read); "not run: <why>" in meta.
+  function positioningSkipped(r) {
+    const p = r.meta && r.meta.positioning;
+    return typeof p === "string" && p.startsWith("not run: ") ? p.slice(9) : "";
+  }
+
   function categoryGrid(r, m) {
     const grid = el("div", "vr-cats");
     for (const [id, label] of m.categories) {
       const s = r.category_scores[id];
       const none = s === null || s === undefined;
+      const noneLabel = id === "positioning" && positioningSkipped(r) ? "not run this time" : (m.not_run || NOT_RUN);
       const box = el("div", "vr-cat"); const top = el("div", "vr-top");
-      top.append(el("span", "", label), el("span", none ? "vr-val none" : "vr-val", none ? (m.not_run || NOT_RUN) : `${s}/10`));
+      top.append(el("span", "", label), el("span", none ? "vr-val none" : "vr-val", none ? noneLabel : `${s}/10`));
       const bar = el("div", "vr-bar"); const fill = el("span");
       fill.style.width = (none ? 0 : s * 10) + "%";
       bar.appendChild(fill); box.append(top, bar); grid.appendChild(box);

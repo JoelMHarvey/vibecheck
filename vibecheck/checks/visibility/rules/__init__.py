@@ -627,6 +627,75 @@ _RULES = [
         "it), and prices or a link to pricing.",
         "Re-run this scan.",
     ),
+
+    # ---- Positioning (phase 2: a review of the copy by Claude) ------------
+    VisRule(
+        "positioning-unclear", "A stranger can't tell what it is or who it's for", "medium", "positioning",
+        "Someone landing on your home page, or an AI summarising it, should be able "
+        "to say what you make and who it's for from the title, headline and first "
+        "lines alone. Here they can't: {excerpt}",
+        "Rewrite my home page's title, H1 and first paragraph so a stranger can say "
+        "in one sentence what the product is and who it's for. The review said: "
+        "{excerpt} Name the category in plain words (\"booking software for dog "
+        "groomers\", not \"reimagine your workflow\"), name the audience, and keep "
+        "my voice. Give me three options for the H1 and one for the opening paragraph.",
+        "Show the top of the page to someone who's never seen it for five seconds, "
+        "then ask what it is and who it's for.",
+        GUIDE_CHATGPT,
+    ),
+    VisRule(
+        "positioning-no-price", "No price in the copy", "low", "positioning",
+        "People asking an AI for a tool usually have a budget, and an answer that "
+        "can't say what you cost tends to recommend someone who says. {excerpt}",
+        "My home page doesn't state a price ({excerpt}). Add one plain line near the "
+        "top saying what it costs (\"£12 a month, one plan\" or \"free, no paid "
+        "plans\"), link it to the pricing page, and make the same price "
+        "machine-readable as an Offer in my JSON-LD.",
+        "Read the first screen of the home page: is a price, or 'free', on it?",
+    ),
+    VisRule(
+        "positioning-no-differentiator", "No reason to pick you over the alternatives", "low", "positioning",
+        "Comparison questions (\"cheaper alternative to X\", \"X vs Y\") are how people "
+        "ask assistants about products. A page that never says how it differs from a "
+        "named alternative gives them nothing to quote. {excerpt}",
+        "My home page doesn't say why to choose it over the alternatives ({excerpt}). "
+        "Write one or two sentences, true and specific, that name what people use "
+        "instead (a competitor, a spreadsheet, an agency) and the concrete "
+        "difference: price, commission, time saved, what it does that they don't. "
+        "No superlatives. Then suggest where on the page they should go.",
+        "Ask: would a reader be able to say how this differs from the thing they use now?",
+    ),
+    VisRule(
+        "positioning-no-social-proof", "No social proof", "low", "positioning",
+        "Testimonials, customer names, counts and ratings tell a stranger, and an AI "
+        "deciding what to recommend, that real people use this. {excerpt}",
+        "My home page has no social proof ({excerpt}). Suggest where to add it and "
+        "what kind fits my stage: a real quote from a user with their name and role, "
+        "a count I can stand behind, a rating from a review site, or logos of "
+        "customers who've agreed. Never invent any of it; if I have none yet, write "
+        "the email I could send early users to ask for a quote.",
+        "Look for a named person or a number on the home page that shows someone uses it.",
+    ),
+    VisRule(
+        "positioning-cta-unclear", "No single main call to action", "low", "positioning",
+        "A page that asks for several things at once, or nothing, loses people "
+        "between reading and doing. {excerpt}",
+        "My home page doesn't have one clear main action ({excerpt}). Pick the one "
+        "thing a new visitor should do, make it the only primary button above the "
+        "fold with a label that says what happens (\"Start free\", \"Book a demo\"), "
+        "and turn the other asks into secondary links.",
+        "Count the primary buttons on the first screen: there should be one.",
+    ),
+    VisRule(
+        "positioning-audience-sprawl", "One page talking to too many audiences", "low", "positioning",
+        "The home page addresses {excerpt}. Each extra audience waters down the "
+        "words the others search with, and an AI asked about one of them finds a "
+        "page that's half about someone else.",
+        "My home page tries to speak to {excerpt}. Keep the home page about the main "
+        "audience, and give each of the others its own page with its own title, H1 "
+        "and copy in their words, linked from the home page.",
+        "Read the home page as each audience: is it obviously for you?",
+    ),
 ]
 
 RULES: Dict[str, VisRule] = {r.id: r for r in _RULES}
@@ -650,6 +719,12 @@ PASSES: Dict[str, Tuple[str, str]] = {
     "alt-ok": ("Images have alt text", "content"),
     "trust-ok": ("Contact, privacy, company and pricing are on the page", "content"),
     "data-files-ok": ("Machine-readable data is linked", "ai"),
+    "positioning-clear": ("Says what it is and who it's for", "positioning"),
+    "positioning-price-ok": ("A price is in the copy", "positioning"),
+    "positioning-differentiator-ok": ("Says why it beats the alternative", "positioning"),
+    "positioning-social-proof-ok": ("Shows social proof", "positioning"),
+    "positioning-cta-ok": ("One main call to action", "positioning"),
+    "positioning-focused": ("Speaks to a focused audience", "positioning"),
 }
 
 assert len(RULES) == len(_RULES), "duplicate visibility rule id"

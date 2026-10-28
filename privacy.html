@@ -49,6 +49,13 @@
   report is about a public website, and it includes the site's address. The security check of a live site keeps
   nothing.</p>
 
+  <p>The visibility check can also review the home page's copy with Claude, Anthropic's AI model. When it
+  does, the public text of that home page (its title, description, headline, first 1,500 words and any
+  price lines) is sent to Anthropic's API, and the review is kept for a week, keyed by a hash of that text,
+  so an unchanged page isn't reviewed twice. Nothing about you goes with it: not your address, not your IP.
+  Anthropic's handling of API data is covered by its
+  <a href="https://www.anthropic.com/legal/commercial-terms">commercial terms</a>.</p>
+
   <h2>Rate limits</h2>
   <p>To stop the scanners being used to hammer other people's sites, each request is counted against your IP
   address. The counters hold the address for at most an hour, then expire. They live in memory or in our

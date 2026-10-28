@@ -1054,12 +1054,15 @@ class _Scan:
 
 def scan_visibility(url: str, fetch: Callable[..., Optional[Fetched]],
                     now: Optional[_dt.datetime] = None, budget: float = config.BUDGET,
-                    target: Optional[Target] = None) -> CheckResult:
-    """Run every phase-1 check against ``url``."""
+                    target: Optional[Target] = None, reviewer=None) -> CheckResult:
+    """Run every phase-1 check against ``url``, then the positioning review
+    when a ``reviewer`` is given (phase 2, see positioning.py)."""
     from . import CHECK
+    from .positioning import review_positioning
 
     scan = _Scan(url, fetch, now, budget)
     scan.run()
+    positioning = review_positioning(scan, reviewer)
     findings = sorted(scan.findings, key=lambda f: (SEVERITY_ORDER[f.severity], f.id, f.path))
     ran = scan.ran if scan.reachable else set()
     scores = category_scores(findings, config.CATEGORIES, ran)
@@ -1071,5 +1074,6 @@ def scan_visibility(url: str, fetch: Callable[..., Optional[Fetched]],
         category_scores=scores,
         total=weighted_total(scores, config.CATEGORIES),
         findings=findings,
-        meta={"pages_crawled": len(scan.pages), "final_url": scan.origin + "/"},
+        meta={"pages_crawled": len(scan.pages), "final_url": scan.origin + "/",
+              **({"positioning": positioning} if reviewer is not None else {})},
     )

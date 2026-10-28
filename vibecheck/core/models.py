@@ -200,8 +200,9 @@ class Context:
     ``fetcher(**options)`` returns a fetch function: guarded and pinned when
     ``guard`` is on (anything hosted), plain urllib for the CLI. Tests set
     ``fetch_override`` to a fake site. ``walker`` walks a folder with the
-    shared skip rules. ``llm`` is an optional client with a budget, for checks
-    that need one (none do yet).
+    shared skip rules. ``llm`` is an optional model client, for checks that
+    use one (visibility's positioning review takes a reviewer here; the caller
+    owns its budget and cache).
     """
 
     guard: bool = True

@@ -73,8 +73,8 @@ Each rule belongs to one category. Phase 1 fills three:
 - **Content & keywords**: title, description, H1, heading order, Open Graph,
   fragment-only sections, internal links, alt text, trust signals.
 
-Positioning, Off-site and Brand clarity show "run the deeper check" until
-phases 2 to 4 exist.
+Positioning is filled by phase 2 (below) when it runs. Off-site and Brand
+clarity show "run the deeper check" until phases 3 and 4 exist.
 
 Findings that would repeat page by page (a missing description on twelve
 pages) are one finding naming the pages, so the list stays readable.
@@ -105,8 +105,40 @@ Synthetic fixtures cover a fresh Lovable build (expects the client-side
 rendering finding), `Disallow: /` (expects critical) and a private address
 (expects refusal).
 
-## Not in phase 1
+## Phase 2: the positioning review
 
-Positioning review (phase 2), the AI-answer probe (phase 3), off-site
+`checks/visibility/positioning.py`. After the crawl, the home page's copy
+(title, description, H1, the first 1,500 words of raw-HTML text, and lines
+that mention prices, from a pricing page too if one was crawled) goes to
+Claude Haiku with a fixed rubric and a JSON schema
+(`output_config.format`), output capped at 4,000 tokens. It answers five
+criteria (who and what, price, differentiator, social proof, one primary call
+to action), each with `met`, a verbatim `quote` and a one-line `note`, plus
+the list of audiences the page addresses.
+
+- **Grounding.** The page is untrusted input and a signed badge rides on the
+  score, so `ground()` counts a criterion as met only when its quote (6+
+  characters, compared case- and space-insensitively) is in the copy. A
+  missing or invented quote is a miss, and the note says why.
+- **Price.** When phase 1 already saw a price on the home page, that wins over
+  the model.
+- **Findings.** Each miss is a positioning finding whose `{excerpt}` is the
+  reviewer's note, so the fix prompt carries what was wrong. Three or more
+  audiences is `positioning-audience-sprawl`. The category is scored like any
+  other: 10 less the usual penalties.
+- **Where it runs.** The check takes a reviewer from `Context.llm`; with none,
+  nothing changes. `/api/visibility` builds one when `ANTHROPIC_API_KEY` is
+  set: `CachingReviewer` (7 days, keyed by a hash of the copy, rubric version
+  and model) around `ClaudeReviewer`, whose daily cap
+  (`POSITIONING_DAILY_CAP`, default 1,000) is checked only when a call is
+  about to be made, so cached reviews cost nothing against it. The CLI runs it
+  with `--positioning` and the user's own key.
+- **When it can't run** (no copy in the raw HTML, over the cap, refused, API
+  down) the category stays unscored and `meta.positioning` says why; the
+  report shows it and the rest of the scan is untouched.
+
+## Not in phase 1 or 2
+
+The AI-answer probe (phase 3), off-site
 footprint (phase 4) and suite mode. Rank tracking, backlinks and keyword
 volumes are out of scope; the report points to Google Search Console.
