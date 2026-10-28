@@ -48,11 +48,13 @@ class PluginContractTest(unittest.TestCase):
 
     def test_registry_offers_only_what_a_target_can_satisfy(self):
         ids = lambda t: [c.id for c in registry.available_for(t)]  # noqa: E731
-        self.assertEqual(ids(Target(repo=".")), ["security"])
+        self.assertEqual(ids(Target(repo=".")), ["security", "integrity"])
         self.assertEqual(ids(Target(url="https://x.test")), ["security", "visibility"])
-        self.assertEqual(ids(Target(files=[("a.py", "x")])), ["security"])
+        self.assertEqual(ids(Target(files=[("a.py", "x")])), ["security", "integrity"])
+        hosted = lambda t: [c.id for c in registry.hosted_for(t)]  # noqa: E731
+        self.assertEqual(hosted(Target(repo=".")), ["security"], "integrity runs where the code is")
         with self.assertRaises(KeyError):
-            registry.get("integrity")
+            registry.get("nonexistent")
 
     def test_target_records_what_was_scanned(self):
         t = Target(url="https://x.test/", repo="/tmp/app", commit="a" * 40)
@@ -243,7 +245,7 @@ class CliTest(unittest.TestCase):
 
     def test_unknown_check(self):
         with self.assertRaises(SystemExit):
-            self.run_cli(".", "--checks", "integrity")
+            self.run_cli(".", "--checks", "nonexistent")
 
     def test_markdown_of_several(self):
         with tempfile.TemporaryDirectory() as tmp:

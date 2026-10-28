@@ -25,3 +25,8 @@ posts/
 # here from vibecheck/rules.py); every module with logic in it is still
 # scanned, including the alias left at the old path.
 vibecheck/checks/security/rules/__init__.py
+
+# The integrity check's pattern tables name the SDKs, endpoints and paths it
+# looks for, so they would be evidence of themselves. Data only; the logic in
+# signals.py is still scanned.
+vibecheck/checks/integrity/patterns.py

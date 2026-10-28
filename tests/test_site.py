@@ -215,7 +215,7 @@ class TestInternalLinks(unittest.TestCase):
         known |= {f"/posts/{p.stem}" for p in POSTS}
         known |= {"/", "/guide.css", "/og.png", "/robots.txt", "/sitemap.xml",
                   "/rules.json", "/index.html", "/visibility", "/visibility-rules.json",
-                  "/check", "/report.js", "/report.css", "/report", "/privacy", "/llms.txt"}
+                  "/check", "/report.js", "/report.css", "/report", "/privacy", "/llms.txt", "/integrity-rules.json"}
         return known
 
     def test_no_guide_links_to_a_page_that_does_not_exist(self):

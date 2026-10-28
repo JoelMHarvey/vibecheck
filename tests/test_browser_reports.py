@@ -77,6 +77,21 @@ class SharedReportTest(unittest.TestCase):
         self.assertEqual(titles, ["Security", "Visibility"])
         self.assertEqual(viewer.locator(".vr-mini").count(), 2)
 
+    def test_an_integrity_report_round_trips(self):
+        import json
+        import tempfile
+        from vibecheck.checks.integrity import CHECK
+        from vibecheck.core.models import Context, Target
+        with tempfile.TemporaryDirectory() as d:
+            Path(d, "package.json").write_text(json.dumps({"dependencies": {"express": "4"}}))
+            Path(d, "server.js").write_text("const p = process.env.PORT;\n")
+            result = CHECK.run(Target(repo=d, label="groomly"), Context(guard=False)).to_dict()
+        viewer, _url = self.share_round_trip("/check", [result])
+        text = viewer.inner_text("#report")
+        self.assertIn("No tests", text)
+        self.assertIn("Observability", text)
+        self.assertIn("How it was built", text)
+
     def test_old_security_links_still_open(self):
         # A v1 link, as the home page made them before the framework.
         page = self.page()

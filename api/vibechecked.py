@@ -25,14 +25,15 @@ LIMITER = RateLimiter("vibechecked", [(30, 60)])
 
 
 def required_checks(report_envelopes):
-    """Every check the target could have had: a URL target needs every URL
-    check, a repo target every repo check."""
+    """Every check we could have signed for the target: a URL target needs
+    every hosted URL check, a repo target every hosted repo check. Integrity
+    never runs here, so it can't be required."""
     try:
         target = json.loads(report_envelopes[0]["p"])["target"]
     except (ValueError, KeyError, TypeError, IndexError):
         return []
     t = Target(url=target.get("url"), repo=target.get("repo"), commit=target.get("commit"))
-    return [c.id for c in registry.available_for(t)]
+    return [c.id for c in registry.hosted_for(t)]
 
 
 class handler(BaseHTTPRequestHandler):

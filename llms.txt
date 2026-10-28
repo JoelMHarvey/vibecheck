@@ -32,6 +32,7 @@ vibecheck is open source (MIT). It runs on this site, as a command-line tool (`p
 
 - [Security rules](https://www.psychosecurity.io/rules.json): every security rule's title, explanation, fix prompt and category, as JSON
 - [Visibility rules](https://www.psychosecurity.io/visibility-rules.json): the same for the visibility check
+- [Integrity rules](https://www.psychosecurity.io/integrity-rules.json): the same for the integrity check, which runs on your own machine or in CI
 - [Signing keys](https://www.psychosecurity.io/.well-known/vibecheck-key): the public Ed25519 keys that verify signed reports and badges
 
 ## About
