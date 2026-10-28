@@ -1,0 +1,43 @@
+# vibecheck
+
+> Free security and visibility checks for apps built with AI coding tools (Lovable, Bolt, Cursor, v0, Claude Code). Every finding comes in plain English with a fix prompt to paste back into the AI tool. No sign-up, and nothing you send is stored.
+
+vibecheck is open source (MIT). It runs on this site, as a command-line tool (`python3 -m vibecheck`, no dependencies) and as a GitHub Action. It's free.
+
+## Checks
+
+- [Security scan](https://www.psychosecurity.io/): leaked API keys, secrets in browser code, Supabase keys, injection, and on a live site exposed .env and .git files, source maps and missing security headers
+- [Visibility check](https://www.psychosecurity.io/visibility): how a live site looks to search engines and AI crawlers: whether the content is in the HTML, robots.txt, sitemap, llms.txt, structured data, titles and link previews
+- [Check everything](https://www.psychosecurity.io/check): both checks on a live site, side by side
+- [Verify a report or badge](https://www.psychosecurity.io/report): checks the signature on a vibecheck report, and explains the badge levels
+
+## Guides
+
+- [The AI app security checklist](https://www.psychosecurity.io/guides/ai-app-security-checklist): A security checklist for apps built with AI coding tools: leaked API keys, secrets in frontend code, missing database rules, exposed .env files.
+- [My API key leaked. What now?](https://www.psychosecurity.io/guides/api-key-leaked): You committed an API key or got a secret-scanning alert. What to do first, in order: rotate it, check for abuse, clean up. Steps for each provider.
+- [Is my Bolt app secure?](https://www.psychosecurity.io/guides/bolt-app-security): The security mistakes Bolt.new apps ship with most often: secrets in VITE_ variables, keys called from the browser, .env files in the deploy.
+- [Is my Cursor or Claude Code project secure?](https://www.psychosecurity.io/guides/cursor-claude-code-security): Coding agents read your whole repo and run commands: secrets in context, prompt injection from files they read, and why auto-accept matters.
+- [Is my Firebase app secure?](https://www.psychosecurity.io/guides/firebase-app-security): Why a public Firebase config is fine, why that makes Security Rules your whole security model, and the rules mistakes that leave Firestore open.
+- [What llms.txt is, and whether you need one](https://www.psychosecurity.io/guides/llms-txt): llms.txt is a plain-text summary of your site for AI assistants. What goes in it, what it does and doesn't do, and a template you can fill in.
+- [Is my Lovable app invisible to Google?](https://www.psychosecurity.io/guides/lovable-app-invisible-to-google): Why a Lovable or Bolt app is a blank page to most crawlers and to ChatGPT, how to check yours in ten seconds, and the fixes that keep your app as it is.
+- [Is my Lovable app secure?](https://www.psychosecurity.io/guides/lovable-app-security): The security mistakes Lovable apps ship with most often: exposed Supabase service_role keys, Row Level Security left off, secrets in public env vars.
+- [My OpenAI API key is exposed](https://www.psychosecurity.io/guides/openai-api-key-exposed): A leaked OpenAI or Anthropic key is a bill, not a breach. Revoke it in two minutes, then fix why it was reachable, or the next one leaks too.
+- [My Stripe secret key is exposed](https://www.psychosecurity.io/guides/stripe-secret-key-exposed): A leaked Stripe secret key can move money. Tell a live key from a test one, roll it without breaking payments, and check what was done with it.
+- [My Supabase service_role key is exposed](https://www.psychosecurity.io/guides/supabase-service-role-key-exposed): A leaked service_role key bypasses all your Row Level Security. Tell it from the anon key, rotate without logging users out, check what was reachable.
+- [Is my v0 app secure?](https://www.psychosecurity.io/guides/v0-app-security): The security mistakes v0 apps ship with most often: secrets crossing the client boundary, Server Actions with no auth check, NEXT_PUBLIC_ variables.
+
+## Data
+
+- [Security rules](https://www.psychosecurity.io/rules.json): every security rule's title, explanation, fix prompt and category, as JSON
+- [Visibility rules](https://www.psychosecurity.io/visibility-rules.json): the same for the visibility check
+- [Signing keys](https://www.psychosecurity.io/.well-known/vibecheck-key): the public Ed25519 keys that verify signed reports and badges
+
+## About
+
+- [Privacy](https://www.psychosecurity.io/privacy): what the site keeps (an IP address in a rate-limit counter for up to an hour, and nothing of your code)
+- Run by Faresay Ltd, registered in England, 167-169 Great Portland Street, London W1W 5PF
+- [Contact](mailto:hello@psychosecurity.io)
+
+## Source
+
+- [vibecheck on GitHub](https://github.com/JoelMHarvey/vibecheck): the scanner, the command-line tool and the GitHub Action

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Is anyone finding it? Free SEO and AI visibility check — vibecheck</title>
-<meta name="description" content="Free check of how your vibe-coded site looks to Google and to AI assistants: blank pages, robots.txt, sitemap, llms.txt, structured data. Every finding has a fix prompt.">
+<title>Is anyone finding it? Free AI and SEO check — vibecheck</title>
+<meta name="description" content="How your vibe-coded site looks to Google and AI assistants: blank pages, robots.txt, sitemap, llms.txt, structured data, each with a fix prompt.">
 <link rel="canonical" href="https://www.psychosecurity.io/visibility">
 <meta name="theme-color" content="#0b0e14">
 <meta property="og:type" content="website">
@@ -19,6 +19,54 @@
 <meta name="twitter:title" content="Is anyone finding it? A free visibility check for AI-built apps">
 <meta name="twitter:description" content="How your site looks to Google and to ChatGPT, Claude and Perplexity, with a fix prompt for every finding.">
 <meta name="twitter:image" content="https://www.psychosecurity.io/og.png">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "FAQPage",
+ "mainEntity": [
+  {
+   "@type": "Question",
+   "name": "Can a crawler read it?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Whether your words are in the HTML or only drawn by JavaScript (the blank-page problem most Lovable, Bolt and Vite apps ship with), robots.txt, the sitemap and its dates."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Can an AI quote it?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "llms.txt, which AI crawlers you let in, structured data for who you are and what you charge, and machine-readable files."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Does each page say what it is?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Titles, descriptions, one clear H1, link previews, sections stuck behind #fragments, alt text."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Would a stranger trust it?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "A way to get in touch, a privacy policy, who's behind it, and what it costs."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Prefer the command line?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "The same check, from your own machine, with no limits. Python 3.9+, no dependencies. It exits 1 on any high or critical finding, so it can run in CI."
+   }
+  }
+ ]
+}
+</script>
 <link rel="stylesheet" href="/report.css">
 <style>
   :root {
@@ -153,7 +201,7 @@ python3 -m vibecheck --visibility https://myapp.com --json</pre>
 
   <footer>
     <div class="wrap" style="padding:0">
-      <p>vibecheck · a <strong>psychosecurity.io</strong> tool · <a href="/">security scan</a> · <a href="/visibility">visibility check</a></p>
+      <p>vibecheck · a <strong>psychosecurity.io</strong> tool · <a href="/">security scan</a> · <a href="/visibility">visibility check</a> · <a href="/report">verify a report</a> · <a href="/privacy">privacy</a> · <a href="mailto:hello@psychosecurity.io">contact</a></p>
     </div>
   </footer>
 </div>

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>vibecheck — security scanner for AI-built apps</title>
-<meta name="description" content="You vibe-coded it. Now vibecheck it. Free security scan for apps built with Lovable, Bolt, Cursor, v0 or Claude Code — plain-English findings with fix prompts you paste back into your AI tool.">
+<meta name="description" content="Free security scan for apps built with Lovable, Bolt, Cursor, v0 or Claude Code. Plain-English findings, each with a fix prompt for your AI tool.">
 <link rel="canonical" href="https://www.psychosecurity.io/">
 <meta name="theme-color" content="#0b0e14">
 
@@ -25,6 +25,59 @@
 <meta name="twitter:description" content="Free security scan for apps built with Lovable, Bolt, Cursor or v0 — every finding comes with a fix prompt you paste back into your AI tool.">
 <meta name="twitter:image" content="https://www.psychosecurity.io/og.png">
 <link rel="stylesheet" href="/report.css">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "Organization",
+   "@id": "https://www.psychosecurity.io/#org",
+   "name": "psychosecurity.io",
+   "url": "https://www.psychosecurity.io/",
+   "logo": "https://www.psychosecurity.io/og.png",
+   "legalName": "Faresay Ltd",
+   "email": "hello@psychosecurity.io",
+   "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "167-169 Great Portland Street",
+    "addressLocality": "London",
+    "postalCode": "W1W 5PF",
+    "addressCountry": "GB"
+   },
+   "sameAs": [
+    "https://github.com/JoelMHarvey/vibecheck"
+   ]
+  },
+  {
+   "@type": "WebSite",
+   "@id": "https://www.psychosecurity.io/#site",
+   "name": "vibecheck",
+   "url": "https://www.psychosecurity.io/",
+   "publisher": {
+    "@id": "https://www.psychosecurity.io/#org"
+   }
+  },
+  {
+   "@type": "SoftwareApplication",
+   "name": "vibecheck",
+   "url": "https://www.psychosecurity.io/",
+   "applicationCategory": "DeveloperApplication",
+   "operatingSystem": "Web, Linux, macOS, Windows",
+   "description": "Security and visibility checks for apps built with AI coding tools, with a fix prompt for every finding.",
+   "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+   },
+   "license": "https://opensource.org/licenses/MIT",
+   "codeRepository": "https://github.com/JoelMHarvey/vibecheck",
+   "publisher": {
+    "@id": "https://www.psychosecurity.io/#org"
+   }
+  }
+ ]
+}
+</script>
 <style>
   :root {
     --bg: #0b0e14; --panel: #12161f; --panel2: #171c27; --border: #232a38;
@@ -175,7 +228,9 @@ python3 -m vibecheck --visibility https://myapp.com</pre>
   <footer>
     <div class="wrap" style="padding:0">
       <p><strong>Two rules of thumb:</strong> browser code cannot keep a secret, and deleting a leaked key does not un-leak it — <em>rotate it</em>.</p>
-      <p style="margin-top:8px">vibecheck · a <strong>psychosecurity.io</strong> tool · your code never leaves this scan</p>
+      <p style="margin-top:8px">vibecheck · a <strong>psychosecurity.io</strong> tool · your code never leaves this scan · <a href="/report">verify a report or badge</a></p>
+      <p style="margin-top:8px">vibecheck is free and open source: <a href="https://github.com/JoelMHarvey/vibecheck">the code is on GitHub</a>.</p>
+      <p style="margin-top:8px">Run by Faresay Ltd, registered in England, 167-169 Great Portland Street, London W1W 5PF · <a href="mailto:hello@psychosecurity.io">hello@psychosecurity.io</a> · <a href="/privacy">privacy</a></p>
     </div>
   </footer>
 </div>
