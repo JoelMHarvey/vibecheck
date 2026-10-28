@@ -234,6 +234,17 @@ class HeadAndContentTest(unittest.TestCase):
         f = finding(run(site), "img-alt-missing")
         self.assertIn("5 of 6", f.evidence)
 
+    def test_a_plainly_free_product_has_stated_its_price(self):
+        site = healthy_site()
+        home = good_home().replace("It costs £12 a month, flat, with no commission on anything you earn.",
+                                   "Groomly is free to use, with no commission on anything you earn.") \
+                          .replace('<a href="/pricing">Pricing</a>', "")
+        site.add(f"{BASE}/", html(f"{BASE}/", home))
+        self.assertNotIn("trust-missing", ids(run(site)))
+        # A free trial is not a price.
+        site.add(f"{BASE}/", html(f"{BASE}/", home.replace("Groomly is free to use", "Start a free trial")))
+        self.assertIn("prices", finding(run(site), "trust-missing").evidence)
+
     def test_trust_signals(self):
         site = healthy_site()
         bare = good_home().replace('<a href="mailto:hi@groomly.test">Contact</a>', "") \

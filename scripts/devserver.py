@@ -28,9 +28,11 @@ STATIC = {
     "/report.js": ("report.js", "text/javascript; charset=utf-8"),
     "/report.css": ("report.css", "text/css; charset=utf-8"),
     "/visibility-rules.json": ("visibility-rules.json", "application/json; charset=utf-8"),
+    "/privacy": ("privacy.html", "text/html; charset=utf-8"),
     "/guide.css": ("guide.css", "text/css; charset=utf-8"),
     "/og.png": ("og.png", "image/png"),
     "/robots.txt": ("robots.txt", "text/plain; charset=utf-8"),
+    "/llms.txt": ("llms.txt", "text/plain; charset=utf-8"),
     "/sitemap.xml": ("sitemap.xml", "application/xml; charset=utf-8"),
     # Vercel's cleanUrls resolves /guides/x to guides/x.html; mirror that.
     "/guides/lovable-app-security": ("guides/lovable-app-security.html", "text/html; charset=utf-8"),

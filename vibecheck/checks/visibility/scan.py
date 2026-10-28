@@ -40,6 +40,9 @@ STOPWORDS = {
 MONTHS = {m: i for i, m in enumerate(
     ["january", "february", "march", "april", "may", "june", "july", "august",
      "september", "october", "november", "december"], start=1)}
+FREE_PRICE_RE = re.compile(
+    r"\b(?:is|it's|it’s|it is|always|completely|entirely)\s+free\b"
+    r"|\bfree (?:to use|forever|for everyone)\b|\bno paid (?:tiers?|plans?)\b", re.I)
 ORG_TYPES = {"organization", "corporation", "localbusiness", "onlinebusiness", "onlinestore",
              "ngo", "educationalorganization", "professionalservice", "store", "softwarecompany"}
 PRODUCT_TYPES = {"softwareapplication", "webapplication", "mobileapplication", "product"}
@@ -891,7 +894,11 @@ class _Scan:
         text = self.home.text
         if re.search(r"[£$€¥]\s?\d", text) or re.search(r"\b\d+(\.\d+)?\s?(USD|GBP|EUR|JPY)\b", text):
             return True
-        return bool(re.search(r"\b(per|a) month\b|/mo(nth)?\b", text, re.I))
+        if re.search(r"\b(per|a) month\b|/mo(nth)?\b", text, re.I):
+            return True
+        # A free product saying so plainly has stated its price. "Free" alone
+        # doesn't count: "free trial" and "free scan" are everywhere.
+        return bool(FREE_PRICE_RE.search(text))
 
     def check_trust(self) -> None:
         home_key = page_key(self.home.url)

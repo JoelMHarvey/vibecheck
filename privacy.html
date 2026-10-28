@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy — vibecheck</title>
+<meta name="description" content="What vibecheck at psychosecurity.io keeps when you scan code or a site: almost nothing, for as short a time as it can, and never your code.">
+<link rel="canonical" href="https://www.psychosecurity.io/privacy">
+<meta name="theme-color" content="#0b0e14">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="vibecheck">
+<meta property="og:url" content="https://www.psychosecurity.io/privacy">
+<meta property="og:title" content="Privacy at vibecheck">
+<meta property="og:description" content="What vibecheck keeps when you scan code or a site: almost nothing, for as short a time as it can, and never your code.">
+<meta property="og:image" content="https://www.psychosecurity.io/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://www.psychosecurity.io/og.png">
+<link rel="stylesheet" href="/guide.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="logo" href="/">vibe<span>check</span> 🔒</a>
+    <div class="byline">a psychosecurity.io tool</div>
+  </div>
+</header>
+
+<div class="wrap">
+<article>
+  <h1>Privacy</h1>
+  <p class="standfirst">The short version: no accounts, no cookies, no analytics, and your code is never
+  kept. What little the site does hold, it holds for an hour or a day, and this page says exactly what.</p>
+
+  <p>psychosecurity.io is run by Faresay Ltd, a company registered in England, 167-169 Great Portland Street,
+  London W1W 5PF. We decide how the site handles data, so for UK data protection law we're the controller.
+  Questions go to <a href="mailto:hello@psychosecurity.io">hello@psychosecurity.io</a>.</p>
+
+  <h2>Scanning your code</h2>
+  <p>When you drop a folder on the home page, your browser reads the files and sends the text ones to our
+  server over HTTPS. The server scans them in memory, sends the report back and discards them. Nothing is
+  written to disk, and the request isn't logged. The command-line tool and the GitHub Action never send your
+  code anywhere: they run on your machine or your CI runner.</p>
+
+  <h2>Checking a live site</h2>
+  <p>When you check a site, our server fetches its pages the way a search engine would, as described on the
+  <a href="/visibility#crawler">visibility page</a>. The address you typed isn't logged. A visibility report is
+  kept for 24 hours, keyed by a hash of the address, so a site checked twice in a day isn't crawled twice. That
+  report is about a public website, and it includes the site's address. The security check of a live site keeps
+  nothing.</p>
+
+  <h2>Rate limits</h2>
+  <p>To stop the scanners being used to hammer other people's sites, each request is counted against your IP
+  address. The counters hold the address for at most an hour, then expire. They live in memory or in our
+  rate-limit store (Upstash, through Vercel), and are used for nothing else.</p>
+
+  <h2>Shared reports and badges</h2>
+  <p>A share link carries the whole report in the part of the address after <code>#</code>, which browsers
+  never send to a server, so we can't read the reports you share. A badge's address carries its own small,
+  signed summary; when someone views it, our server checks the signature, draws the image and keeps nothing.
+  If your browser can't check a signature itself, the report page asks our server to, and the server keeps
+  nothing then either.</p>
+
+  <h2>What we don't do</h2>
+  <ul>
+    <li>No accounts and no sign-up.</li>
+    <li>No cookies and no local storage.</li>
+    <li>No analytics, tracking pixels or advertising.</li>
+    <li>Nothing sold or shared, because there's nothing collected to sell.</li>
+  </ul>
+
+  <h2>Our host</h2>
+  <p>The site runs on Vercel, which handles the requests that reach it and keeps its own short-lived
+  operational logs under <a href="https://vercel.com/legal/privacy-policy">Vercel's privacy policy</a>.</p>
+
+  <h2>Your rights</h2>
+  <p>Under UK data protection law you can ask what we hold about you, and ask us to correct or delete it. In
+  practice, the only personal data we ever hold is an IP address in a rate-limit counter for up to an hour, so
+  by the time you write it will be gone, but write anyway: <a href="mailto:hello@psychosecurity.io">hello@psychosecurity.io</a>.
+  If you're unhappy with our answer you can complain to the <a href="https://ico.org.uk/make-a-complaint/">Information
+  Commissioner's Office</a>.</p>
+
+  <p>If this changes, this page changes first. Last updated 28 October 2026.</p>
+
+  <div class="related">
+    <h2>Related</h2>
+    <ul>
+      <li><a href="/guides/api-key-leaked">My API key leaked: what to do right now</a></li>
+      <li><a href="/guides/llms-txt">What llms.txt is, and whether you need one</a></li>
+      <li><a href="/guides/ai-app-security-checklist">The AI app security checklist</a></li>
+    </ul>
+  </div>
+</article>
+
+<footer>
+  <p>vibecheck · a <strong>psychosecurity.io</strong> tool · run by Faresay Ltd · <a href="mailto:hello@psychosecurity.io">hello@psychosecurity.io</a></p>
+</footer>
+</div>
+
+</body>
+</html>
