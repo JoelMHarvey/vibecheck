@@ -8,6 +8,12 @@ The crawl runs here, server-side, never in the browser. Every request and
 every redirect hop goes through the SSRF guard, and connects to the address
 the guard vetted. Results are cached for 24 hours by URL; "fresh" skips the
 cache (for checking a fix) but not the per-site limit.
+
+When ANTHROPIC_API_KEY is set, the scan also runs the positioning review: one
+capped call to Claude about the home page's copy, cached for a week by a hash
+of that copy and limited to POSITIONING_DAILY_CAP reviews a day across all
+visitors. Over the cap, the Positioning category says so and the rest of the
+report is unchanged.
 """
 
 import json
@@ -19,6 +25,11 @@ from urllib.parse import urlsplit
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from vibecheck.checks.visibility import CHECK  # noqa: E402
+from vibecheck.checks.visibility.positioning import (  # noqa: E402
+    CACHE_SECONDS as POSITIONING_CACHE_SECONDS,
+    CachingReviewer,
+    ClaudeReviewer,
+)
 from vibecheck.checks.visibility.scan import normalise_input  # noqa: E402
 from vibecheck.core.cache import ResultCache  # noqa: E402
 from vibecheck.core.models import Context, Target  # noqa: E402
@@ -37,10 +48,27 @@ GLOBAL_LIMITER = RateLimiter("visibility-global", [(200, 3600)])
 
 CACHE = ResultCache(namespace="vis")
 
+# Claude calls a day, across everyone. A review is a few thousand tokens on
+# Claude Haiku, so the default caps the spend at a pound or two a day.
+try:
+    POSITIONING_DAILY_CAP = int(os.environ.get("POSITIONING_DAILY_CAP", "1000"))
+except ValueError:
+    POSITIONING_DAILY_CAP = 1000
+# A spending cap, so the local-development off switch doesn't lift it.
+POSITIONING_LIMITER = RateLimiter("positioning-day", [(POSITIONING_DAILY_CAP, 86400)], disabled=False)
+POSITIONING_CACHE = ResultCache(namespace="pos", ttl=POSITIONING_CACHE_SECONDS)
+
+
+def reviewer():
+    """The positioning reviewer, or None when no key is configured."""
+    if not os.environ.get("ANTHROPIC_API_KEY") or POSITIONING_DAILY_CAP <= 0:
+        return None
+    return CachingReviewer(ClaudeReviewer(limiter=POSITIONING_LIMITER), POSITIONING_CACHE)
+
 
 def scan(target):
     """Separate so tests can swap the network out."""
-    return CHECK.run(Target(url=target), Context(guard=True, provenance="server"))
+    return CHECK.run(Target(url=target), Context(guard=True, provenance="server", llm=reviewer()))
 
 
 class handler(BaseHTTPRequestHandler):

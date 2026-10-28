@@ -118,7 +118,26 @@ Each finding says why it matters, gives a fix prompt and says how to check
 the fix worked. Scores run 0 to 10 in six categories (Technical, AI
 readiness, Content & keywords, Positioning, Off-site, Brand clarity) plus a
 weighted total; phase 1 fills the first three. Weights and limits live in
-`vibecheck/visibility/config.py`. Exit code is 1 on any high or critical.
+`vibecheck/checks/visibility/config.py`. Exit code is 1 on any high or critical.
+
+### The positioning review
+
+`--positioning` adds one call to Claude (Haiku) about the home page's copy: can
+a stranger tell what it is and who it's for, is there a price, a reason to
+pick it over a named alternative, social proof, one main call to action, and
+how many audiences the page is talking to. Each miss comes with a fix prompt
+that rewrites the copy. It fills the Positioning category.
+
+```bash
+pip install anthropic
+ANTHROPIC_API_KEY=... vibecheck --visibility https://myapp.com --positioning
+```
+
+The key is yours and stays on your machine. The page is treated as untrusted:
+a criterion only counts as met when the review quotes the page and the quote is
+really there, so copy that tells the reviewer to mark it perfect gets nowhere.
+On psychosecurity.io the review runs on the server when it has a key, cached
+for a week by a hash of the copy, under a daily cap.
 
 The hosted crawl identifies itself as
 `vibecheck-visibility/1.0 (+https://psychosecurity.io/visibility)`, obeys

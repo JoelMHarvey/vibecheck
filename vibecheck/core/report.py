@@ -59,6 +59,8 @@ def meta_line(result: CheckResult) -> str:
     if "pages_crawled" in result.meta:
         n = result.meta["pages_crawled"]
         bits.append(f"{n} page{'s' if n != 1 else ''} crawled")
+    if result.meta.get("positioning"):
+        bits.append(f"positioning review: {result.meta['positioning']}")
     bits.append(result.scanned_at)
     return " · ".join(bits)
 

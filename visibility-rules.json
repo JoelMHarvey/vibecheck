@@ -418,6 +418,85 @@
    "s": "pass",
    "t": "Organization schema is complete"
   },
+  "positioning-audience-sprawl": {
+   "c": "positioning",
+   "d": "The home page addresses {excerpt}. Each extra audience waters down the words the others search with, and an AI asked about one of them finds a page that's half about someone else.",
+   "f": "My home page tries to speak to {excerpt}. Keep the home page about the main audience, and give each of the others its own page with its own title, H1 and copy in their words, linked from the home page.",
+   "s": "low",
+   "t": "One page talking to too many audiences",
+   "v": "Read the home page as each audience: is it obviously for you?"
+  },
+  "positioning-clear": {
+   "c": "positioning",
+   "s": "pass",
+   "t": "Says what it is and who it's for"
+  },
+  "positioning-cta-ok": {
+   "c": "positioning",
+   "s": "pass",
+   "t": "One main call to action"
+  },
+  "positioning-cta-unclear": {
+   "c": "positioning",
+   "d": "A page that asks for several things at once, or nothing, loses people between reading and doing. {excerpt}",
+   "f": "My home page doesn't have one clear main action ({excerpt}). Pick the one thing a new visitor should do, make it the only primary button above the fold with a label that says what happens (\"Start free\", \"Book a demo\"), and turn the other asks into secondary links.",
+   "s": "low",
+   "t": "No single main call to action",
+   "v": "Count the primary buttons on the first screen: there should be one."
+  },
+  "positioning-differentiator-ok": {
+   "c": "positioning",
+   "s": "pass",
+   "t": "Says why it beats the alternative"
+  },
+  "positioning-focused": {
+   "c": "positioning",
+   "s": "pass",
+   "t": "Speaks to a focused audience"
+  },
+  "positioning-no-differentiator": {
+   "c": "positioning",
+   "d": "Comparison questions (\"cheaper alternative to X\", \"X vs Y\") are how people ask assistants about products. A page that never says how it differs from a named alternative gives them nothing to quote. {excerpt}",
+   "f": "My home page doesn't say why to choose it over the alternatives ({excerpt}). Write one or two sentences, true and specific, that name what people use instead (a competitor, a spreadsheet, an agency) and the concrete difference: price, commission, time saved, what it does that they don't. No superlatives. Then suggest where on the page they should go.",
+   "s": "low",
+   "t": "No reason to pick you over the alternatives",
+   "v": "Ask: would a reader be able to say how this differs from the thing they use now?"
+  },
+  "positioning-no-price": {
+   "c": "positioning",
+   "d": "People asking an AI for a tool usually have a budget, and an answer that can't say what you cost tends to recommend someone who says. {excerpt}",
+   "f": "My home page doesn't state a price ({excerpt}). Add one plain line near the top saying what it costs (\"£12 a month, one plan\" or \"free, no paid plans\"), link it to the pricing page, and make the same price machine-readable as an Offer in my JSON-LD.",
+   "s": "low",
+   "t": "No price in the copy",
+   "v": "Read the first screen of the home page: is a price, or 'free', on it?"
+  },
+  "positioning-no-social-proof": {
+   "c": "positioning",
+   "d": "Testimonials, customer names, counts and ratings tell a stranger, and an AI deciding what to recommend, that real people use this. {excerpt}",
+   "f": "My home page has no social proof ({excerpt}). Suggest where to add it and what kind fits my stage: a real quote from a user with their name and role, a count I can stand behind, a rating from a review site, or logos of customers who've agreed. Never invent any of it; if I have none yet, write the email I could send early users to ask for a quote.",
+   "s": "low",
+   "t": "No social proof",
+   "v": "Look for a named person or a number on the home page that shows someone uses it."
+  },
+  "positioning-price-ok": {
+   "c": "positioning",
+   "s": "pass",
+   "t": "A price is in the copy"
+  },
+  "positioning-social-proof-ok": {
+   "c": "positioning",
+   "s": "pass",
+   "t": "Shows social proof"
+  },
+  "positioning-unclear": {
+   "c": "positioning",
+   "d": "Someone landing on your home page, or an AI summarising it, should be able to say what you make and who it's for from the title, headline and first lines alone. Here they can't: {excerpt}",
+   "f": "Rewrite my home page's title, H1 and first paragraph so a stranger can say in one sentence what the product is and who it's for. The review said: {excerpt} Name the category in plain words (\"booking software for dog groomers\", not \"reimagine your workflow\"), name the audience, and keep my voice. Give me three options for the H1 and one for the opening paragraph.",
+   "g": "/guides/app-not-in-chatgpt",
+   "s": "medium",
+   "t": "A stranger can't tell what it is or who it's for",
+   "v": "Show the top of the page to someone who's never seen it for five seconds, then ask what it is and who it's for."
+  },
   "product-schema-missing": {
    "c": "ai",
    "d": "Your page shows prices, but nothing in the structured data describes what's being sold. A SoftwareApplication or Product with an Offer makes the price machine-readable.",

@@ -46,6 +46,10 @@ def main(argv=None) -> int:
         metavar="URL",
         help="check how a DEPLOYED site looks to search engines and AI crawlers (rendering, robots.txt, sitemap, llms.txt, structured data, titles, link previews)",
     )
+    parser.add_argument("--positioning", action="store_true",
+                        help="with a visibility check, also review the home page's copy with Claude "
+                             "(who it's for, price, differentiator, social proof, call to action). "
+                             "Needs the anthropic package and your own ANTHROPIC_API_KEY; one small call per run.")
     parser.add_argument("--badge", action="store_true",
                         help="print badge Markdown for each check. From your machine it says self-reported; "
                              "in GitHub Actions it names the run. Only scans run on psychosecurity.io are signed.")
@@ -75,7 +79,7 @@ def main(argv=None) -> int:
     parser.add_argument("--version", action="version", version=f"vibecheck {__version__}")
     args = parser.parse_args(argv)
 
-    if args.visibility or args.checks or args.badge or _looks_like_url(args.path):
+    if args.visibility or args.checks or args.badge or args.positioning or _looks_like_url(args.path):
         return _unified(parser, args)
     args.path = args.path or "."
 
@@ -168,7 +172,12 @@ def _unified(parser, args) -> int:
 
     # Unguarded, like --url always was: checking your own staging box from
     # your own machine is a fair use. The hosted endpoints always guard.
-    ctx = Context(guard=False, exclude=args.exclude, provenance="self")
+    reviewer = None
+    if args.positioning:
+        from .checks.visibility.positioning import ClaudeReviewer
+
+        reviewer = ClaudeReviewer()
+    ctx = Context(guard=False, exclude=args.exclude, provenance="self", llm=reviewer)
     results = [c.run(target, ctx) for c in runnable]
 
     threshold = CORE_ORDER[args.min_severity]

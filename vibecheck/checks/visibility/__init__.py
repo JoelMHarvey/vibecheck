@@ -33,7 +33,7 @@ class VisibilityCheck:
         fetch = ctx.fetcher(user_agent=config.USER_AGENT, timeout=config.TIMEOUT,
                             max_bytes=config.MAX_BYTES, max_redirects=config.MAX_REDIRECTS)
         result = scan_visibility(target.url, fetch, now=ctx.timestamp(),
-                                 budget=ctx.budget or config.BUDGET)
+                                 budget=ctx.budget or config.BUDGET, reviewer=ctx.llm)
         result.target.commit = target.commit
         return result
 

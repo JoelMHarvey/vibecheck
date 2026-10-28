@@ -5,3 +5,8 @@
 # correct but not constant-time; on the server, signing uses this audited,
 # constant-time implementation instead. Verification needs neither.
 cryptography>=42
+
+# The positioning review (vibecheck/checks/visibility/positioning.py) calls
+# Claude from /api/visibility when ANTHROPIC_API_KEY is set. Imported lazily,
+# so nothing else needs it.
+anthropic>=2.3,<3

@@ -21,7 +21,8 @@ CATEGORIES = [
     Category("brand", "Brand clarity", 0.15),
 ]
 
-# Categories phase 1 can score. The rest say "run the deeper check".
+# Categories phase 1 can score. Positioning is phase 2 (positioning.py): it
+# runs when the check is given a reviewer. The rest say "run the deeper check".
 PHASE1_CATEGORIES = ("technical", "ai", "content")
 
 # Crawl limits.
