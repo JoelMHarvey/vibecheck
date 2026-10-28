@@ -164,6 +164,31 @@ SEVERITY_EMOJI = {
 CI_COMMENT_MARKER = "<!-- vibecheck-report -->"
 
 
+def _longest_backtick_run(text: str) -> int:
+    longest = run = 0
+    for ch in text:
+        run = run + 1 if ch == "`" else 0
+        longest = max(longest, run)
+    return longest
+
+
+def _code_span(text: str, in_table: bool = False) -> str:
+    """``text`` as an inline code span it can't close early. File names come
+    from the scanned repository: on a pull request that's whoever opened it,
+    and this lands in a comment posted under the workflow's name."""
+    text = " ".join(text.splitlines())
+    if in_table:
+        text = text.replace("|", "\\|")
+    fence = "`" * (_longest_backtick_run(text) + 1)
+    pad = " " if text.startswith("`") or text.endswith("`") else ""
+    return f"{fence}{pad}{text}{pad}{fence}"
+
+
+def _code_fence(text: str) -> str:
+    """A fence longer than any run of backticks inside ``text``."""
+    return "`" * max(3, _longest_backtick_run(text) + 1)
+
+
 def render_ci_markdown(
     result: ScanResult,
     limit: int = 30,
@@ -208,7 +233,7 @@ def render_ci_markdown(
     lines.append("| Severity | Finding | Location |")
     lines.append("|---|---|---|")
     for f in shown:
-        lines.append(f"| {SEVERITY_EMOJI[f.severity]} {f.severity} | {f.title} | `{loc(f)}` |")
+        lines.append(f"| {SEVERITY_EMOJI[f.severity]} {f.severity} | {f.title} | {_code_span(loc(f), in_table=True)} |")
     if len(result.findings) > limit:
         remaining = len(result.findings) - limit
         lines.append(f"| | _…and {remaining} more_ | |")
@@ -220,11 +245,12 @@ def render_ci_markdown(
         lines.append("<summary><b>Fix prompts</b> — paste into Cursor, Claude Code, Lovable, Bolt or v0</summary>")
         lines.append("")
         for f in with_prompts:
-            lines.append(f"**`{loc(f)}` — {f.title}**")
+            fence = _code_fence(f.fix_prompt)
+            lines.append(f"**{_code_span(loc(f))} — {f.title}**")
             lines.append("")
-            lines.append("```text")
+            lines.append(f"{fence}text")
             lines.append(f.fix_prompt)
-            lines.append("```")
+            lines.append(fence)
             lines.append("")
         lines.append("</details>")
         lines.append("")

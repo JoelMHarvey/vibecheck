@@ -6,6 +6,7 @@ real runner or the GitHub API.
 
 import io
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -88,7 +89,8 @@ class TestAnnotations(ActionCase):
         self.write("server.js", f'const s = "{fake_stripe_live_key()}";\n')
         self.run_action()
         text = self.out.getvalue()
-        self.assertIn("::error file=server.js,line=1,title=vibecheck:", text)
+        # Property values are escaped the way @actions/core escapes them.
+        self.assertIn("::error file=server.js,line=1,title=vibecheck%3A ", text)
 
     def test_annotation_paths_are_prefixed_when_scanning_a_subdirectory(self):
         self.write("web/server.js", f'const s = "{fake_stripe_live_key()}";\n')
@@ -129,6 +131,71 @@ class TestAnnotations(ActionCase):
             if line.startswith("::error file="):
                 self.assertNotIn("\n", line)
                 self.assertIn("%0A", line + "%0A")  # escaping applied, not literal
+
+
+def commands_the_runner_would_run(log):
+    """The workflow commands a runner would act on in ``log``: lines that
+    start with "::" once leading space is trimmed, minus everything between
+    ::stop-commands::<token> and ::<token>::."""
+    commands, paused = [], None
+    for line in log.splitlines():
+        line = line.lstrip()
+        if paused is not None:
+            if line == f"::{paused}::":
+                paused = None
+            continue
+        if line.startswith("::stop-commands::"):
+            paused = line[len("::stop-commands::"):]
+            continue
+        if line.startswith("::"):
+            commands.append(line)
+    return commands
+
+
+class TestUntrustedRepositoryContent(ActionCase):
+    """On a pull request the scanned tree is the author's, file names
+    included. Nothing in it may reach the log as a workflow command."""
+
+    INJECTED = "::set-output name=critical::0"
+
+    def secret_in(self, rel):
+        self.write(rel, f'const s = "{fake_stripe_live_key()}";\n')
+
+    @unittest.skipIf(os.name == "nt", "Windows file names can't hold a newline")
+    def test_a_newline_in_a_file_name_cannot_start_a_command(self):
+        self.secret_in(f"pwn\n{self.INJECTED}\nx/server.js")
+        self.assertEqual(self.run_action(), 1)
+        commands = commands_the_runner_would_run(self.out.getvalue())
+        self.assertTrue(commands)
+        for command in commands:
+            self.assertFalse(command.startswith("::set-output"), command)
+            self.assertRegex(command, r"^::(error|warning|notice)[ :]")
+
+    @unittest.skipIf(os.name == "nt", "Windows file names can't hold a newline")
+    def test_the_report_quoting_the_repository_is_fenced_off(self):
+        self.secret_in(f"pwn\n{self.INJECTED}\nx/server.js")
+        self.run_action()
+        log = self.out.getvalue()
+        self.assertIn("::stop-commands::", log)
+        self.assertNotIn("\n" + self.INJECTED, log)
+
+    def test_a_comma_in_a_file_name_cannot_add_properties(self):
+        self.secret_in("a,line=99,title=spoofed.js")
+        self.run_action()
+        annotations = [c for c in commands_the_runner_would_run(self.out.getvalue())
+                       if c.startswith("::error file=")]
+        self.assertEqual(len(annotations), 1)
+        self.assertIn("file=a%2Cline=99%2Ctitle=spoofed.js,line=1,", annotations[0])
+
+    def test_scrub_replaces_control_characters(self):
+        from vibecheck.scanner import Finding, ScanResult
+        result = ScanResult(root="/x", findings=[Finding(
+            "r", "t", "high", "a\nb\r\x1b[2Jc", 1, "x\x07y", "in a\nb", "fix a\nb")])
+        ghaction._scrub(result)
+        f = result.findings[0]
+        self.assertEqual(f.path, "a?b??[2Jc")
+        self.assertEqual(f.excerpt, "x?y")
+        self.assertNotIn("\n", f.description + f.fix_prompt)
 
 
 class TestOutputsAndFiles(ActionCase):
