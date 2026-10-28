@@ -1,6 +1,6 @@
 """Visibility phase 3: the AI-answer probe.
 
-Asks Claude, with web search on, the questions a buyer would ask about your
+Asks Claude (Haiku by default, see websearch.py), with web search on, the questions a buyer would ask about your
 category ("best practice software for therapists in the UK", "alternatives
 to Cliniko") and records, for each answer: is the brand mentioned, is its
 site cited, where does it come among the named competitors, and which pages
@@ -23,6 +23,7 @@ from urllib.parse import urlsplit
 from .websearch import Answer, SearchUnavailable
 
 QUESTIONS = 5
+SEARCHES = 2      # per question: enough for a buyer-style answer, and each one is billed
 SNIPPET = 320
 COUNTRY_NAMES = {"GB": "the UK", "UK": "the UK", "US": "the US", "JP": "Japan", "IE": "Ireland",
                  "AU": "Australia", "NZ": "New Zealand", "CA": "Canada", "DE": "Germany", "FR": "France"}
@@ -139,7 +140,8 @@ def run_probe(scan, search, inp: ProbeInput) -> str:
 
     try:
         with ThreadPoolExecutor(max_workers=QUESTIONS) as pool:
-            answers = list(pool.map(lambda q: search.ask(q, country=inp.country, system=SYSTEM), questions(inp)))
+            answers = list(pool.map(lambda q: search.ask(q, country=inp.country, system=SYSTEM, max_uses=SEARCHES),
+                                    questions(inp)))
     except SearchUnavailable as e:
         return f"not run: {e}"
     readings = [read(a, inp) for a in answers]

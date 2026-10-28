@@ -35,7 +35,8 @@ class VisibilityCheck:
         probe = ctx.options.get("probe")          # (search, ProbeInput) for phases 3 and 4
         result = scan_visibility(target.url, fetch, now=ctx.timestamp(),
                                  budget=ctx.budget or config.BUDGET, reviewer=ctx.llm,
-                                 search=probe[0] if probe else None, probe_input=probe[1] if probe else None)
+                                 search=probe[0] if probe else None, probe_input=probe[1] if probe else None,
+                                 finder=ctx.options.get("footprint"))   # a SerperSearch, or Claude does it
         result.target.commit = target.commit
         return result
 

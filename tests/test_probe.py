@@ -236,19 +236,44 @@ def sdk_response(content, stop="end_turn"):
 
 
 class ClaudeSearchTest(unittest.TestCase):
-    def test_asks_opus_with_web_search_and_fallbacks(self):
+    def test_asks_haiku_with_web_search_by_default(self):
         create = mock.Mock(return_value=sdk_response([SimpleNamespace(type="text", text="Hi", citations=None)]))
         client = SimpleNamespace(beta=SimpleNamespace(messages=SimpleNamespace(create=create)))
         ans = ws.ClaudeSearch(client=client).ask("q?", country="GB", allowed_domains=["g2.com"], max_uses=2)
         self.assertEqual(ans.text, "Hi")
         kw = create.call_args.kwargs
-        self.assertEqual(kw["model"], "claude-opus-5-5")
+        self.assertEqual(kw["model"], "claude-haiku-5-5")
         self.assertEqual(kw["tools"][0]["type"], "web_search_20260209")
+        self.assertEqual(kw["tools"][0]["max_uses"], 2)
         self.assertEqual(kw["tools"][0]["user_location"], {"type": "approximate", "country": "GB"})
         self.assertEqual(kw["tools"][0]["allowed_domains"], ["g2.com"])
+        # Haiku has no server-side fallback: sending one would be refused.
+        self.assertNotIn("fallbacks", kw)
+        self.assertNotIn("betas", kw)
+        self.assertNotIn("temperature", kw)
+
+    def test_opus_gets_refusal_fallbacks(self):
+        create = mock.Mock(return_value=sdk_response([SimpleNamespace(type="text", text="Hi", citations=None)]))
+        client = SimpleNamespace(beta=SimpleNamespace(messages=SimpleNamespace(create=create)))
+        ws.ClaudeSearch(client=client, model="claude-opus-5-5").ask("q?")
+        kw = create.call_args.kwargs
+        self.assertEqual(kw["model"], "claude-opus-5-5")
         self.assertEqual(kw["fallbacks"], "default")
         self.assertIn("server-side-fallback-2026-07-01", kw["betas"])
-        self.assertNotIn("temperature", kw)
+
+    def test_usage_is_added_up_across_calls(self):
+        usage = SimpleNamespace(input_tokens=1200, output_tokens=300, cache_read_input_tokens=0,
+                                cache_creation_input_tokens=None, server_tool_use=SimpleNamespace(web_search_requests=2))
+        resp = SimpleNamespace(stop_reason="end_turn", content=[], usage=usage)
+        client = SimpleNamespace(beta=SimpleNamespace(messages=SimpleNamespace(create=mock.Mock(return_value=resp))))
+        search = ws.ClaudeSearch(client=client)
+        search.ask("a?")
+        search.ask("b?")
+        self.assertEqual(search.usage["input_tokens"], 2400)
+        self.assertEqual(search.usage["output_tokens"], 600)
+        self.assertEqual(search.usage["web_search_requests"], 4)
+        self.assertEqual(search.usage["cache_creation_input_tokens"], 0)
+        self.assertEqual(search.calls, 2)
 
     def test_a_paused_turn_is_resumed_and_every_block_kept(self):
         first = sdk_response([{"type": "web_search_tool_result", "content": [{"url": "https://a.test", "title": "A"}]}],

@@ -1,10 +1,11 @@
 """Visibility phase 4: the off-site footprint.
 
-Searches the web (through Claude's web search tool) for the brand, and for it
-on the directories buyers and AI assistants lean on, then counts what came
-back: pages about you that aren't on your own site, and which directories
-have a listing. The searches' result URLs are the evidence; the model's
-summary of them isn't used.
+Searches the web for the brand, and for it on the directories buyers and AI
+assistants lean on, then counts what came back: pages about you that aren't
+on your own site, and which directories have a listing. The searches' result
+URLs are the evidence. With a Serper key the searches are plain Google
+searches (serper.py, seven a run); without one, two Claude calls with web
+search, whose summaries aren't used either.
 
 What it can't do is list you: the output is a checklist with each
 directory's sign-up page and a description to paste, taken from your own
@@ -70,28 +71,44 @@ def describe(scan) -> str:
     return ((home.description if home is not None else "") or "").strip()[:300]
 
 
-def run_footprint(scan, search, brand: str, domain: str) -> str:
-    """Add the off-site findings to the scan. Returns a status line."""
+def _with_claude(search, brand: str):
+    """Two Claude calls: one general search, one across the directories."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        general_f = pool.submit(search.ask, f'Search the web for "{brand}" and list what you find about it.',
+                                max_uses=2, system="Search, then list the pages you found in one line each.")
+        listed_f = pool.submit(search.ask, f'Search each of these sites for "{brand}": '
+                               + ", ".join(d.host for d in DIRECTORIES) + ".",
+                               allowed_domains=[d.host for d in DIRECTORIES], max_uses=len(DIRECTORIES),
+                               system="Run one search per site. Then list the pages you found in one line each.")
+        return general_f.result().results, listed_f.result().results
+
+
+def _with_serper(finder, brand: str):
+    """Seven plain searches: the brand, then the brand on each directory."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    queries = [f'"{brand}"'] + [f'site:{d.host} "{brand}"' for d in DIRECTORIES]
+    with ThreadPoolExecutor(max_workers=len(queries)) as pool:
+        found = list(pool.map(lambda q: finder.results(q, num=20 if q.startswith('"') else 5), queries))
+    return found[0], [r for rs in found[1:] for r in rs]
+
+
+def run_footprint(scan, search, brand: str, domain: str, finder=None) -> str:
+    """Add the off-site findings to the scan. Returns a status line. Uses
+    ``finder`` (a SerperSearch) when given, else Claude through ``search``."""
     brand = re.sub(r"\s+", " ", brand or "").strip()[:80]
     domain = (domain or "").lower()
     domain = domain[4:] if domain.startswith("www.") else domain
     if not brand:
         return "not run: needs a brand name"
-    from concurrent.futures import ThreadPoolExecutor
-
     try:
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            general_f = pool.submit(search.ask, f'Search the web for "{brand}" and list what you find about it.',
-                                    max_uses=2, system="Search, then list the pages you found in one line each.")
-            listed_f = pool.submit(search.ask, f'Search each of these sites for "{brand}": '
-                                   + ", ".join(d.host for d in DIRECTORIES) + ".",
-                                   allowed_domains=[d.host for d in DIRECTORIES], max_uses=len(DIRECTORIES),
-                                   system="Run one search per site. Then list the pages you found in one line each.")
-            general, listed = general_f.result(), listed_f.result()
+        general, listed = _with_serper(finder, brand) if finder is not None else _with_claude(search, brand)
     except SearchUnavailable as e:
         return f"not run: {e}"
 
-    elsewhere = sorted({_host(r["url"]) for r in general.results
+    elsewhere = sorted({_host(r["url"]) for r in general
                         if _host(r["url"]) and _host(r["url"]) != domain and not _host(r["url"]).endswith("." + domain)
                         and about_brand(r["url"], r["title"], brand)})
     if not elsewhere:
@@ -103,7 +120,7 @@ def run_footprint(scan, search, brand: str, domain: str) -> str:
 
     found, missing = [], []
     for d in DIRECTORIES:
-        hit = next((r for r in listed.results + general.results
+        hit = next((r for r in listed + general
                     if (_host(r["url"]) == d.host or _host(r["url"]).endswith("." + d.host))
                     and about_brand(r["url"], r["title"], brand)), None)
         (found if hit else missing).append((d, hit))
@@ -118,4 +135,4 @@ def run_footprint(scan, search, brand: str, domain: str) -> str:
     scan.ran.add("offsite")
     scan.footprint = {"brand": brand, "elsewhere": elsewhere[:20],
                       "listed": [d.name for d, _ in found], "missing": [d.name for d, _ in missing]}
-    return "searched"
+    return "searched" if finder is None else "searched (Google, through Serper)"

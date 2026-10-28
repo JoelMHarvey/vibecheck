@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import sys
 from pathlib import Path
@@ -58,7 +59,11 @@ def main(argv=None) -> int:
                         help="with a visibility check, also ask Claude (with web search) the questions buyers ask "
                              "about your category and see if it names you, and search for you off-site. "
                              "Needs --category, the anthropic package and your own ANTHROPIC_API_KEY; "
-                             "seven web-searching calls per run")
+                             "five web-searching calls per run, plus seven plain searches on your SERPER_API_KEY "
+                             "if set (else two more Claude calls)")
+    parser.add_argument("--probe-model", metavar="MODEL", default=os.environ.get("VIBECHECK_PROBE_MODEL") or None,
+                        help="the Claude model that answers the buyer questions (default claude-haiku-5-5, "
+                             "or VIBECHECK_PROBE_MODEL)")
     parser.add_argument("--category", metavar="TEXT",
                         help='what you are, as a buyer would ask for it: "practice software for therapists"')
     parser.add_argument("--country", metavar="CC", default="GB", help="two-letter country for the questions (default GB)")
@@ -208,10 +213,14 @@ def _unified(parser, args) -> int:
         from urllib.parse import urlsplit
 
         from .checks.visibility.probe import ProbeInput
-        from .checks.visibility.websearch import ClaudeSearch
+        from .checks.visibility.serper import SerperSearch
+        from .checks.visibility.websearch import MODEL as PROBE_MODEL, ClaudeSearch
 
-        options["probe"] = (ClaudeSearch(), ProbeInput(args.brand, urlsplit(url).hostname or "", args.category,
-                                                       args.country, args.competitor[:3]))
+        search = ClaudeSearch(model=args.probe_model or PROBE_MODEL)
+        options["probe"] = (search, ProbeInput(args.brand, urlsplit(url).hostname or "", args.category,
+                                               args.country, args.competitor[:3]))
+        if os.environ.get("SERPER_API_KEY", "").strip():
+            options["footprint"] = SerperSearch(os.environ["SERPER_API_KEY"].strip())
     ctx = Context(guard=False, exclude=args.exclude, provenance="self", llm=reviewer, options=options)
     results = [c.run(target, ctx) for c in runnable]
 

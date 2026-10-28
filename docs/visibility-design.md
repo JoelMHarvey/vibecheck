@@ -152,7 +152,8 @@ the list of audiences the page addresses.
 
 `checks/visibility/probe.py`. Given a brand, a category ("booking software
 for dog groomers"), a country and up to three competitors, it asks Claude
-(Opus, with the `web_search` tool, `user_location` set to the country)
+(Haiku 5.5 by default, with the `web_search` tool capped at two searches a
+question and `user_location` set to the country)
 five buyer-style questions that never name the brand: best in the country,
 recommendations with prices, alternatives to the first competitor, the first
 two competitors head to head, flat price and no commission. Each answer is
@@ -171,11 +172,24 @@ Findings fill Brand clarity: never named (medium), rarely named (low), named
 but never cited (low), a competitor named more often (low). Model answers
 move run to run, so nothing here is worse than medium.
 
+Why Haiku: the answer is driven by what the searches return, and every
+model searches the same index. A larger model names more alternatives and
+weighs them better, which matters less here than in the copy review: the
+question is whether you come up at all. At Haiku's token price ($0.10 /
+$0.50 per million) the searches ($10 per 1,000) are most of a run's cost,
+about $0.10 against about $0.35 on Opus 5.5. `VIBECHECK_PROBE_MODEL` picks
+another model (Opus and Sonnet get server-side refusal fallbacks; Haiku has
+none), and `scripts/compare_probe_models.py` asks the questions on two
+models side by side over a suite config, with the cost of each.
+
 ## Phase 4: the off-site footprint
 
-`checks/visibility/footprint.py`. Two more web-searching questions: the
-brand on the open web, and the brand on Product Hunt, AlternativeTo, G2,
-Capterra, Crunchbase and Reddit (`allowed_domains`). A result counts only
+`checks/visibility/footprint.py`. Searches for the brand on the open web,
+and for it on Product Hunt, AlternativeTo, G2, Capterra, Crunchbase and
+Reddit. It's a lookup, so with `SERPER_API_KEY` set it's seven plain Google
+searches through Serper (`serper.py`: the quoted brand, then `site:` each
+directory), about a tenth of a penny each. Without the key it's two more
+Claude calls with web search (`allowed_domains` for the directories). A result counts only
 when its address or title names the brand, so a directory's category page
 isn't a listing. Pages about the brand off its own site fill Off-site; every
 directory without a listing goes in one finding with where to list (each
@@ -184,10 +198,11 @@ taken from the site's own llms.txt summary or meta description.
 
 ## Running phases 3 and 4
 
-One unit of a daily budget per run, all seven questions in parallel,
+One unit of a daily budget per run, the questions and searches in parallel,
 `MAX_CONTINUATIONS` resumes of a paused server-side turn, server-side
 refusal fallbacks on. `/api/visibility` takes an optional `probe` object;
-it needs `ANTHROPIC_API_KEY`, is capped at `PROBE_DAILY_CAP` runs a day
+it needs `ANTHROPIC_API_KEY` (plus `SERPER_API_KEY` for the plain
+searches, and optionally `VIBECHECK_PROBE_MODEL`), is capped at `PROBE_DAILY_CAP` runs a day
 (default 40) and two a day per visitor, and is cached for 24 hours by URL
 and inputs. Over the cap, Brand clarity and Off-site say "not run this
 time" and why, and nothing else changes. The function's `maxDuration` is

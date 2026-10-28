@@ -160,7 +160,15 @@ site, and names your competitors instead, with what it actually said. Then it
 searches for you off your own site and on Product Hunt, AlternativeTo, G2,
 Capterra, Crunchbase and Reddit, and lists where you're missing with where to
 sign up and a description to paste. The answers are a snapshot: they vary from
-run to run. Seven web-searching calls per run, on your key.
+run to run.
+
+The questions go to Claude Haiku 5.5 with up to two searches each, a few
+pence a run on your key; `--probe-model claude-opus-5-5` (or
+`VIBECHECK_PROBE_MODEL`) asks a larger model instead. With `SERPER_API_KEY`
+set, the directory searches are seven plain Google searches through
+[Serper](https://serper.dev) instead of two more Claude calls.
+`scripts/compare_probe_models.py` runs the questions on two models side by
+side.
 
 ## Integrity: is it well built and looked after?
 
