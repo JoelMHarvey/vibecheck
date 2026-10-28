@@ -47,6 +47,8 @@ STATIC = {
     "/guides/openai-api-key-exposed": ("guides/openai-api-key-exposed.html", "text/html; charset=utf-8"),
     "/guides/lovable-app-invisible-to-google": ("guides/lovable-app-invisible-to-google.html", "text/html; charset=utf-8"),
     "/guides/llms-txt": ("guides/llms-txt.html", "text/html; charset=utf-8"),
+    "/guides/app-not-in-chatgpt": ("guides/app-not-in-chatgpt.html", "text/html; charset=utf-8"),
+    "/guides/block-gptbot-claudebot": ("guides/block-gptbot-claudebot.html", "text/html; charset=utf-8"),
 }
 
 

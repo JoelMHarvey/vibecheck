@@ -147,7 +147,19 @@ class RobotsTest(unittest.TestCase):
         self.assertEqual(f.severity, "info")
         self.assertIn("GPTBot", f.evidence)
         self.assertIn("ClaudeBot", f.evidence)   # listed as allowed
+        self.assertNotIn("ai-search-blocked", ids(result), "GPTBot is a training crawler")
         self.assertEqual(result.total, 100, "blocking AI crawlers is a choice, not a fault")
+
+    def test_ai_search_crawlers_are_reported_apart_from_training(self):
+        site = self.site_with(ROBOTS + "\nUser-agent: OAI-SearchBot\nDisallow: /\n")
+        result = run(site)
+        f = finding(result, "ai-search-blocked")
+        self.assertEqual(f.severity, "info")
+        self.assertIn("OAI-SearchBot", f.evidence)
+        self.assertIn("Claude-SearchBot", f.evidence)   # listed as allowed
+        self.assertNotIn("ai-crawlers-blocked", ids(result))
+        self.assertNotIn("ai-crawlers-allowed", ids(result))
+        self.assertEqual(result.total, 100, "reported, not scored")
 
     def test_missing_robots_and_html_robots_both_count_as_missing(self):
         site = healthy_site()
