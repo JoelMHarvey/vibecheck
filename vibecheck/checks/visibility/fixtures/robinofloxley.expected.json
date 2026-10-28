@@ -37,7 +37,7 @@
       "evidence": "11 sections at #fragments of the home page (#all, #myownsession, #myownedu, #myownteach, #myownarc, #myownmenu, ...), against 4 other pages with an address of their own",
       "fix_prompt": "My site keeps 11 sections at #fragments of the home page (#all, #myownsession, #myownedu, #myownteach, #myownarc, #myownmenu, ...), against 4 other pages with an address of their own. Give each important section its own page with its own URL, <title>, meta description and H1 (for example /products/name), keep a short summary on the home page linking to it, and add the new pages to the sitemap.",
       "verify_hint": "Each section should have its own address you can paste into Google's URL Inspection, and appear in /sitemap.xml.",
-      "guide_url": null,
+      "guide_url": "/guides/app-not-in-chatgpt",
       "path": "/",
       "line": 0
     },
@@ -174,7 +174,7 @@
       "severity": "pass",
       "title": "AI crawlers are allowed",
       "why_it_matters": "",
-      "evidence": "robots.txt allows GPTBot, ClaudeBot, PerplexityBot, Google-Extended, CCBot",
+      "evidence": "robots.txt allows GPTBot, ClaudeBot, Google-Extended, Applebot-Extended, CCBot, OAI-SearchBot, Claude-SearchBot, PerplexityBot",
       "fix_prompt": "",
       "verify_hint": "",
       "guide_url": null,

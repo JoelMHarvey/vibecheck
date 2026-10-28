@@ -15,6 +15,8 @@ from typing import Dict, Optional, Tuple
 
 GUIDE_LOVABLE = "/guides/lovable-app-invisible-to-google"
 GUIDE_LLMS = "/guides/llms-txt"
+GUIDE_CHATGPT = "/guides/app-not-in-chatgpt"
+GUIDE_BOTS = "/guides/block-gptbot-claudebot"
 
 
 @dataclass(frozen=True)
@@ -350,14 +352,32 @@ _RULES = [
         GUIDE_LLMS,
     ),
     VisRule(
-        "ai-crawlers-blocked", "Some AI crawlers are blocked", "info", "ai",
-        "Your robots.txt blocks some AI companies' crawlers. That's a fair "
-        "choice and we don't score it, but it means those assistants can't read "
-        "your site, so they'll describe you from other people's pages or not "
-        "at all.",
+        "ai-crawlers-blocked", "AI training crawlers are blocked", "info", "ai",
+        "Your robots.txt keeps some AI companies' training crawlers out, so your "
+        "future pages won't be used to train their models. That's a fair choice "
+        "and we don't score it. It doesn't affect whether assistants can find "
+        "and cite you when they search; their search crawlers are separate.",
         "",
         "If you want them in, remove their Disallow lines in robots.txt. If you "
         "want them out, nothing to do.",
+        GUIDE_BOTS,
+    ),
+    VisRule(
+        "ai-search-blocked", "AI search crawlers are blocked", "info", "ai",
+        "Your robots.txt blocks the crawlers AI assistants use to search the web "
+        "while they answer ({excerpt}). Those assistants can't cite your site, so "
+        "when someone asks about your category they'll quote other people's pages. "
+        "It's your call and we don't score it, but it's often left over from a "
+        "rule meant only for training crawlers.",
+        "My robots.txt blocks AI search crawlers ({excerpt}). If I only meant to "
+        "keep my site out of AI training, change it so the training crawlers "
+        "(GPTBot, ClaudeBot, Google-Extended, Applebot-Extended, CCBot) stay "
+        "blocked and the search crawlers (OAI-SearchBot, Claude-SearchBot, "
+        "PerplexityBot) fall through to 'User-agent: *' and are allowed. Also "
+        "check my host's or CDN's bot settings for an AI crawler block.",
+        "Open /robots.txt and check no group naming a search crawler has "
+        "'Disallow: /'.",
+        GUIDE_BOTS,
     ),
     VisRule(
         "jsonld-missing", "No structured data", "medium", "ai",
@@ -525,6 +545,7 @@ _RULES = [
         "who it's for), the same words my title and description use.",
         "Read the H1 aloud to someone who's never seen the site: can they say "
         "what you sell?",
+        GUIDE_CHATGPT,
     ),
     VisRule(
         "heading-skip", "Headings skip levels", "low", "content",
@@ -576,6 +597,7 @@ _RULES = [
         "and add the new pages to the sitemap.",
         "Each section should have its own address you can paste into Google's "
         "URL Inspection, and appear in /sitemap.xml.",
+        GUIDE_CHATGPT,
     ),
     VisRule(
         "few-internal-links", "Few links between pages", "low", "content",

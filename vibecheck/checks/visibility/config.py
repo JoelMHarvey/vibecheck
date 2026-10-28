@@ -46,7 +46,11 @@ ALT_COVERAGE_MIN = 0.9
 LASTMOD_SLACK_DAYS = 3    # content newer than lastmod by more than this is stale
 FRAGMENT_SECTIONS_MIN = 4
 
-# AI crawlers whose access is reported (never scored).
-AI_CRAWLERS = ("GPTBot", "ClaudeBot", "PerplexityBot", "Google-Extended", "CCBot")
+# AI crawlers whose access is reported (never scored). Training crawlers
+# gather data for future models; search crawlers decide whether an assistant
+# can cite the site when it answers. Names as each company documents them.
+AI_TRAINING_CRAWLERS = ("GPTBot", "ClaudeBot", "Google-Extended", "Applebot-Extended", "CCBot")
+AI_SEARCH_CRAWLERS = ("OAI-SearchBot", "Claude-SearchBot", "PerplexityBot")
+AI_CRAWLERS = AI_TRAINING_CRAWLERS + AI_SEARCH_CRAWLERS
 SEARCH_CRAWLERS = ("Googlebot", "Bingbot")
 

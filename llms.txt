@@ -15,6 +15,8 @@ vibecheck is open source (MIT). It runs on this site, as a command-line tool (`p
 
 - [The AI app security checklist](https://www.psychosecurity.io/guides/ai-app-security-checklist): A security checklist for apps built with AI coding tools: leaked API keys, secrets in frontend code, missing database rules, exposed .env files.
 - [My API key leaked. What now?](https://www.psychosecurity.io/guides/api-key-leaked): You committed an API key or got a secret-scanning alert. What to do first, in order: rotate it, check for abuse, clean up. Steps for each provider.
+- [Why your vibe-coded app doesn't show up in ChatGPT](https://www.psychosecurity.io/guides/app-not-in-chatgpt): Five reasons a vibe-coded app never gets mentioned by ChatGPT, Claude or Perplexity, how to tell which one is yours, and what to fix first.
+- [Should I block GPTBot and ClaudeBot?](https://www.psychosecurity.io/guides/block-gptbot-claudebot): Training crawlers and search crawlers are different bots. Which AI crawlers to block, which to let in, and a robots.txt that does both.
 - [Is my Bolt app secure?](https://www.psychosecurity.io/guides/bolt-app-security): The security mistakes Bolt.new apps ship with most often: secrets in VITE_ variables, keys called from the browser, .env files in the deploy.
 - [Is my Cursor or Claude Code project secure?](https://www.psychosecurity.io/guides/cursor-claude-code-security): Coding agents read your whole repo and run commands: secrets in context, prompt injection from files they read, and why auto-accept matters.
 - [Is my Firebase app secure?](https://www.psychosecurity.io/guides/firebase-app-security): Why a public Firebase config is fine, why that makes Security Rules your whole security model, and the rules mistakes that leave Firestore open.

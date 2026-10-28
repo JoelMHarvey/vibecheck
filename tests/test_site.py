@@ -115,6 +115,12 @@ class TestGuidesAreWiredIn(unittest.TestCase):
             with self.subTest(guide.name):
                 self.assertIn(f'href="/guides/{guide.stem}"', INDEX)
 
+    def test_every_guide_is_in_llms_txt(self):
+        llms = (ROOT / "llms.txt").read_text(encoding="utf-8")
+        for guide in GUIDES:
+            with self.subTest(guide.name):
+                self.assertIn(f"({SITE}/guides/{guide.stem})", llms)
+
     def test_the_sitemap_lists_nothing_that_does_not_exist(self):
         listed = set(re.findall(rf"{re.escape(SITE)}/guides/([\w-]+)<", SITEMAP))
         self.assertEqual(listed - {g.stem for g in GUIDES}, set())

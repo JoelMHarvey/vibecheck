@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Should I block GPTBot and ClaudeBot? — vibecheck</title>
+<meta name="description" content="Training crawlers and search crawlers are different bots. Which AI crawlers to block, which to let in, and a robots.txt that does both.">
+<link rel="canonical" href="https://www.psychosecurity.io/guides/block-gptbot-claudebot">
+<meta name="theme-color" content="#0b0e14">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="vibecheck">
+<meta property="og:url" content="https://www.psychosecurity.io/guides/block-gptbot-claudebot">
+<meta property="og:title" content="Should I block GPTBot and ClaudeBot?">
+<meta property="og:description" content="Training crawlers and search crawlers are different bots. Which to block, which to let in, and a robots.txt that does both.">
+<meta property="og:image" content="https://www.psychosecurity.io/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://www.psychosecurity.io/og.png">
+<link rel="stylesheet" href="/guide.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="logo" href="/">vibe<span>check</span> 🔒</a>
+    <div class="byline">a psychosecurity.io tool</div>
+  </div>
+</header>
+
+<div class="wrap">
+<article>
+  <h1>Should I block GPTBot and ClaudeBot?</h1>
+  <p class="standfirst">Block them if you like: they gather training data, and
+  saying no costs you little. What costs you is blocking the <em>other</em> bots
+  from the same companies, the ones that decide whether you turn up in their
+  answers. Most robots.txt files that block AI get this the wrong way round.</p>
+
+  <h2>Three kinds of bot</h2>
+
+  <p>Each of the big AI companies now runs more than one crawler, and they do
+  different jobs:</p>
+
+  <ul>
+    <li><strong>Training crawlers</strong> collect pages that may be used to train
+    future models. Blocking one keeps your future pages out of that training. It
+    doesn't remove anything already collected.</li>
+    <li><strong>Search crawlers</strong> build the index an assistant searches when
+    it answers a question. Block one and that assistant can't cite you.</li>
+    <li><strong>User fetchers</strong> load a page because someone asked the
+    assistant to read it, there and then. They aren't crawling, and OpenAI says
+    robots.txt may not apply to them.</li>
+  </ul>
+
+  <p>As the companies document them today:</p>
+
+  <div class="table-scroll">
+  <table>
+    <tr><th>Company</th><th>Training</th><th>Search</th><th>User fetch</th></tr>
+    <tr><td>OpenAI</td><td><code>GPTBot</code></td><td><code>OAI-SearchBot</code></td><td><code>ChatGPT-User</code></td></tr>
+    <tr><td>Anthropic</td><td><code>ClaudeBot</code></td><td><code>Claude-SearchBot</code></td><td><code>Claude-User</code></td></tr>
+    <tr><td>Google</td><td><code>Google-Extended</code>*</td><td><code>Googlebot</code></td><td></td></tr>
+    <tr><td>Perplexity</td><td></td><td><code>PerplexityBot</code></td><td><code>Perplexity-User</code></td></tr>
+    <tr><td>Apple</td><td><code>Applebot-Extended</code>*</td><td><code>Applebot</code></td><td></td></tr>
+    <tr><td>Common Crawl</td><td><code>CCBot</code></td><td></td><td></td></tr>
+  </table>
+  </div>
+
+  <p>* Not a crawler: a name you put in robots.txt to say how content the
+  ordinary crawler already fetched may be used. Google says blocking
+  <code>Google-Extended</code> doesn't affect Google Search or rankings. Common
+  Crawl publishes a free archive of the web that many AI training sets are
+  built from, so <code>CCBot</code> belongs with the training crawlers.</p>
+
+  <h2>A robots.txt that does both</h2>
+
+  <p>If you'd rather not be training data but do want to be found, block the
+  training names and leave the rest alone:</p>
+
+<pre><code># Stay out of AI training
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+# Everyone else, AI search included
+User-agent: *
+Allow: /
+
+Sitemap: https://yourdomain.com/sitemap.xml</code></pre>
+
+  <p>A crawler obeys the most specific group that names it, so
+  <code>OAI-SearchBot</code> and <code>Claude-SearchBot</code> fall through to
+  <code>*</code> and get in. Keep any <code>Disallow</code> lines you already have
+  for admin or private paths in the <code>*</code> group.</p>
+
+  <h2>Things robots.txt can't do</h2>
+
+  <ul>
+    <li><strong>It's a request.</strong> The companies above say they honour it.
+    Not every crawler does, and a scraper that wants your pages won't ask.</li>
+    <li><strong>It isn't retroactive.</strong> Blocking today doesn't pull your
+    pages out of a model trained last year.</li>
+    <li><strong>It isn't the only switch.</strong> Hosts and CDNs have their own
+    bot blocking. Cloudflare can block AI crawlers before they ever read your
+    robots.txt, so check your host's settings as well as the file.</li>
+    <li><strong>It doesn't hide anything.</strong> A <code>Disallow</code> line is
+    public, and it lists the paths you didn't want looked at. Private pages need
+    a login, not a robots.txt entry.</li>
+  </ul>
+
+  <h2>So, should you?</h2>
+
+  <p>For most small products, the question that matters is the search one, and
+  the answer is to let those bots in: being quotable is how a new app gets
+  mentioned at all. Whether to block training is a matter of taste, not of
+  visibility. If you sell writing, art or anything else that is the content
+  itself, blocking training crawlers is a reasonable line to draw. If you sell
+  software, being in the training data does little for you either way.</p>
+
+  <p>The visibility check reports which AI crawlers your robots.txt blocks and
+  doesn't score it, because either choice is fair. It does flag a block on the
+  search engines themselves, which is almost always a mistake.</p>
+
+  <div class="cta">
+    <h2>See what yours allows</h2>
+    <p>The visibility check reads your robots.txt the way each of these bots
+    would and lists who's in and who's out.</p>
+    <a class="btn" href="/visibility">Check my site, free</a>
+  </div>
+
+  <div class="related">
+    <h2>Related</h2>
+    <ul>
+      <li><a href="/guides/app-not-in-chatgpt">Why your vibe-coded app doesn't show up in ChatGPT</a>: five reasons, and what to fix first</li>
+      <li><a href="/guides/llms-txt">What llms.txt is, and whether you need one</a>: the file AI assistants read, not the one that keeps them out</li>
+      <li><a href="/guides/lovable-app-invisible-to-google">Is my Lovable app invisible to Google?</a>: why most AI crawlers see a blank page</li>
+    </ul>
+  </div>
+</article>
+
+<footer>
+  <p>vibecheck · a <strong>psychosecurity.io</strong> tool · <a href="/visibility">visibility check</a> · <a href="/">security scan</a> · <a href="/privacy">privacy</a></p>
+</footer>
+</div>
+
+</body>
+</html>

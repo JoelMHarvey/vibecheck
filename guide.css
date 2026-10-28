@@ -58,6 +58,9 @@ footer { margin-top: 56px; padding: 28px 0 40px; border-top: 1px solid var(--bor
   font: 700 14px/1 var(--mono); }
 .steps > li > strong:first-child { display: block; font-size: 17px; margin-bottom: 4px; }
 table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 15px; }
+.table-scroll { overflow-x: auto; margin: 18px 0; }
+.table-scroll table { margin: 0; }
+.table-scroll code { white-space: nowrap; }
 th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
 th { color: var(--muted); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; }
 .checklist { list-style: none; padding-left: 0; }

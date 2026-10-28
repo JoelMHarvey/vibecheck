@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why your app doesn't show up in ChatGPT — vibecheck</title>
+<meta name="description" content="Five reasons a vibe-coded app never gets mentioned by ChatGPT, Claude or Perplexity, how to tell which one is yours, and what to fix first.">
+<link rel="canonical" href="https://www.psychosecurity.io/guides/app-not-in-chatgpt">
+<meta name="theme-color" content="#0b0e14">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="vibecheck">
+<meta property="og:url" content="https://www.psychosecurity.io/guides/app-not-in-chatgpt">
+<meta property="og:title" content="Why your vibe-coded app doesn't show up in ChatGPT">
+<meta property="og:description" content="Five reasons ChatGPT, Claude and Perplexity never mention your app, and what to fix first.">
+<meta property="og:image" content="https://www.psychosecurity.io/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://www.psychosecurity.io/og.png">
+<link rel="stylesheet" href="/guide.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="logo" href="/">vibe<span>check</span> 🔒</a>
+    <div class="byline">a psychosecurity.io tool</div>
+  </div>
+</header>
+
+<div class="wrap">
+<article>
+  <h1>Why your vibe-coded app doesn't show up in ChatGPT</h1>
+  <p class="standfirst">You ask ChatGPT for the best tool for exactly the thing you
+  built, and it names three competitors and not you. Usually it's one of five
+  reasons, most of them fixable in an afternoon, and one of them isn't about
+  your site at all.</p>
+
+  <h2>How an assistant finds anything</h2>
+
+  <p>An AI assistant knows about a product in one of two ways. Either it was in
+  the training data, which was gathered months or years ago and won't include
+  an app you launched last spring. Or the assistant searches the web while it
+  answers, reads a handful of pages, and quotes them. ChatGPT, Claude and
+  Perplexity all do the second when a question needs current facts, and it's
+  the only one you can do anything about.</p>
+
+  <p>So the question isn't "does ChatGPT know me". It's "when ChatGPT searches
+  for my category, does it find a page of mine it can read, and does that page
+  say plainly that I'm the answer".</p>
+
+  <h2>1. Your page is empty to them</h2>
+
+  <p>Most AI builders (Lovable, Bolt, v0 on some settings) make an app that
+  draws itself with JavaScript after it loads. The page your server sends is an
+  empty <code>&lt;div&gt;</code>. Google runs the JavaScript eventually; the
+  fetchers behind AI search mostly don't. They read a blank page and move on.
+  <a href="/guides/lovable-app-invisible-to-google">Is my Lovable app invisible to
+  Google?</a> shows how to check in ten seconds and how to fix it without
+  rebuilding the app.</p>
+
+  <h2>2. You've told them to go away</h2>
+
+  <p>A <code>Disallow</code> line in robots.txt for <code>OAI-SearchBot</code>,
+  <code>Claude-SearchBot</code> or <code>PerplexityBot</code> keeps you out of
+  those assistants' search answers. Often nobody wrote it on purpose: a
+  template, a plugin, or a host setting did. Cloudflare, for one, has a switch
+  that blocks AI crawlers at the edge, and your robots.txt never gets a say.
+  Blocking the <em>training</em> crawlers is a different matter and costs you
+  much less; <a href="/guides/block-gptbot-claudebot">Should I block GPTBot and
+  ClaudeBot?</a> sorts out which is which.</p>
+
+  <h2>3. The page doesn't say what it is</h2>
+
+  <p>People ask assistants the way they'd ask a friend: "booking software for
+  dog groomers in the UK", "a cheaper alternative to Calendly". The assistant
+  searches, reads, and picks the pages that answer in those words. A home page
+  that says "Reimagine your workflow" answers nothing. Say what it is, who it's
+  for and what it costs, in the title, the main heading and the first
+  paragraph, in the words your customers use.</p>
+
+  <h2>4. Everything lives on one URL</h2>
+
+  <p>If your pricing, features and FAQ are sections of the home page reached by
+  <code>#pricing</code> and <code>#faq</code>, you have one page, and one page can
+  only be the answer to one kind of question. A search for "Groomly pricing"
+  wants a page about pricing. Give the things people ask about their own real
+  URLs, each with its own title and description.</p>
+
+  <h2>5. Nobody else mentions you</h2>
+
+  <p>This is the one that isn't about your site. Search answers lean on pages
+  that rank for the question, and a new site with no links from anywhere else
+  rarely ranks. Assistants also like to quote comparison pages, directories
+  and forum threads, because those are where people compare things. If you
+  aren't on any of them, you aren't in the comparison. A listing on the
+  directories for your category, a Product Hunt page, an honest answer in the
+  right subreddit: none of it is glamorous and all of it counts.</p>
+
+  <h2>What to fix first</h2>
+
+  <ul class="checklist">
+    <li>The raw HTML of your home page contains your headline and description (view source, not inspect)</li>
+    <li>robots.txt and your host's bot settings let the search crawlers in</li>
+    <li>The title and H1 say what it is and who it's for, in plain words</li>
+    <li>Pricing, features and the FAQ each have their own URL</li>
+    <li>A <a href="/guides/llms-txt">llms.txt</a> and structured data state the facts an assistant should get right</li>
+    <li>You're listed in at least the two or three directories people in your category actually use</li>
+  </ul>
+
+  <p>Then ask again, and expect a different answer each time: these tools vary
+  run to run, and one mention, or one absence, proves little. What you're
+  after is being a page they can read and quote whenever they look.</p>
+
+  <div class="cta">
+    <h2>Check yours</h2>
+    <p>The visibility check covers the first four in one go: whether your page
+    is readable without JavaScript, what robots.txt allows, how your titles and
+    headings read, and which sections hide behind a <code>#</code>.</p>
+    <a class="btn" href="/visibility">Check my site, free</a>
+  </div>
+
+  <div class="related">
+    <h2>Related</h2>
+    <ul>
+      <li><a href="/guides/block-gptbot-claudebot">Should I block GPTBot and ClaudeBot?</a>: training crawlers, search crawlers, and which to let in</li>
+      <li><a href="/guides/lovable-app-invisible-to-google">Is my Lovable app invisible to Google?</a>: why most AI crawlers see a blank page</li>
+      <li><a href="/guides/llms-txt">What llms.txt is, and whether you need one</a>: the plain-text summary for AI assistants</li>
+    </ul>
+  </div>
+</article>
+
+<footer>
+  <p>vibecheck · a <strong>psychosecurity.io</strong> tool · <a href="/visibility">visibility check</a> · <a href="/">security scan</a> · <a href="/privacy">privacy</a></p>
+</footer>
+</div>
+
+</body>
+</html>

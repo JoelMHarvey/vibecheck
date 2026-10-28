@@ -51,11 +51,21 @@
   },
   "ai-crawlers-blocked": {
    "c": "ai",
-   "d": "Your robots.txt blocks some AI companies' crawlers. That's a fair choice and we don't score it, but it means those assistants can't read your site, so they'll describe you from other people's pages or not at all.",
+   "d": "Your robots.txt keeps some AI companies' training crawlers out, so your future pages won't be used to train their models. That's a fair choice and we don't score it. It doesn't affect whether assistants can find and cite you when they search; their search crawlers are separate.",
    "f": "",
+   "g": "/guides/block-gptbot-claudebot",
    "s": "info",
-   "t": "Some AI crawlers are blocked",
+   "t": "AI training crawlers are blocked",
    "v": "If you want them in, remove their Disallow lines in robots.txt. If you want them out, nothing to do."
+  },
+  "ai-search-blocked": {
+   "c": "ai",
+   "d": "Your robots.txt blocks the crawlers AI assistants use to search the web while they answer ({excerpt}). Those assistants can't cite your site, so when someone asks about your category they'll quote other people's pages. It's your call and we don't score it, but it's often left over from a rule meant only for training crawlers.",
+   "f": "My robots.txt blocks AI search crawlers ({excerpt}). If I only meant to keep my site out of AI training, change it so the training crawlers (GPTBot, ClaudeBot, Google-Extended, Applebot-Extended, CCBot) stay blocked and the search crawlers (OAI-SearchBot, Claude-SearchBot, PerplexityBot) fall through to 'User-agent: *' and are allowed. Also check my host's or CDN's bot settings for an AI crawler block.",
+   "g": "/guides/block-gptbot-claudebot",
+   "s": "info",
+   "t": "AI search crawlers are blocked",
+   "v": "Open /robots.txt and check no group naming a search crawler has 'Disallow: /'."
   },
   "alt-ok": {
    "c": "content",
@@ -181,6 +191,7 @@
    "c": "content",
    "d": "Each part of your offer lives at a #section of one page rather than at its own URL. Search engines ignore everything after #, so one URL can only rank once: none of these sections can be the page that answers a search for it, and an AI can't cite or link one.",
    "f": "My site keeps {excerpt}. Give each important section its own page with its own URL, <title>, meta description and H1 (for example /products/name), keep a short summary on the home page linking to it, and add the new pages to the sitemap.",
+   "g": "/guides/app-not-in-chatgpt",
    "s": "medium",
    "t": "Key sections only exist as #fragments",
    "v": "Each section should have its own address you can paste into Google's URL Inspection, and appear in /sitemap.xml."
@@ -205,6 +216,7 @@
    "c": "content",
    "d": "Your H1 shares no words with your title or description. A clever headline is fine for people, but search engines and AI read the H1 to learn what the page is about, and these words aren't telling them.",
    "f": "My home page H1 ({excerpt}) doesn't say what the product is. Keep the voice, but work in the category words people search for (what it is and who it's for), the same words my title and description use.",
+   "g": "/guides/app-not-in-chatgpt",
    "s": "low",
    "t": "The headline doesn't say what you sell",
    "v": "Read the H1 aloud to someone who's never seen the site: can they say what you sell?"

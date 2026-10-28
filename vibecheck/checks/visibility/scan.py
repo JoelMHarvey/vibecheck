@@ -423,12 +423,20 @@ class _Scan:
         # AI crawler access: reported, never scored.
         if self.robots is not None:
             home = self.origin + "/"
-            blocked = [a for a in config.AI_CRAWLERS if not self.robots.can_fetch(a, home)]
-            allowed = [a for a in config.AI_CRAWLERS if a not in blocked]
+            def split(names):
+                out = [a for a in names if not self.robots.can_fetch(a, home)]
+                return out, [a for a in names if a not in out]
+
+            blocked, allowed = split(config.AI_TRAINING_CRAWLERS)
             if blocked:
                 self.add("ai-crawlers-blocked", "/robots.txt",
                          f"Blocked: {', '.join(blocked)}" + (f". Allowed: {', '.join(allowed)}" if allowed else ""))
-            else:
+            search_blocked, search_allowed = split(config.AI_SEARCH_CRAWLERS)
+            if search_blocked:
+                self.add("ai-search-blocked", "/robots.txt",
+                         f"Blocked: {', '.join(search_blocked)}"
+                         + (f". Allowed: {', '.join(search_allowed)}" if search_allowed else ""))
+            if not blocked and not search_blocked:
                 self.ok("ai-crawlers-allowed", "robots.txt allows " + ", ".join(config.AI_CRAWLERS))
         else:
             self.ok("ai-crawlers-allowed", "no robots.txt, so nothing is blocked")
