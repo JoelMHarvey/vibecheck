@@ -170,6 +170,61 @@ class RobotsTest(unittest.TestCase):
         self.assertIn("robots-missing", ids(run(site)))
 
 
+class AppPagesAndNoindexTest(unittest.TestCase):
+    """Account screens and noindex pages aren't content, so they aren't judged."""
+
+    BLANK = ('<!doctype html><html lang="en"><head><title>Sign in</title></head><body>'
+             '<div id="root"></div><script type="module" src="/assets/index-abc.js"></script></body></html>')
+
+    def test_sign_in_and_sign_up_pages_are_not_crawled(self):
+        site = healthy_site()
+        site.add(f"{BASE}/", html(f"{BASE}/", good_home(extra_body=(
+            '<a href="/sign-in">Sign in</a> <a href="/signup">Start free</a> '
+            '<a href="/en/login">Log in</a> <a href="/sign-in/sso-callback">x</a>'))))
+        for path in ("/sign-in", "/signup", "/en/login", "/sign-in/sso-callback"):
+            site.add(f"{BASE}{path}", html(f"{BASE}{path}", self.BLANK))
+        result = run(site)
+        fetched = {u for _m, u in site.requests}
+        for path in ("/sign-in", "/signup", "/en/login", "/sign-in/sso-callback"):
+            self.assertNotIn(f"{BASE}{path}", fetched)
+        self.assertEqual(result.problems, [])
+
+    def test_a_page_called_signing_or_authors_is_still_content(self):
+        site = healthy_site()
+        site.add(f"{BASE}/", html(f"{BASE}/", good_home(extra_body='<a href="/authors">Authors</a>')))
+        site.add(f"{BASE}/authors", html(f"{BASE}/authors", sub_page(f"{BASE}/authors", "Authors")))
+        run(site)
+        self.assertIn(f"{BASE}/authors", {u for _m, u in site.requests})
+
+    def test_a_noindex_page_is_left_out_of_the_content_checks(self):
+        site = healthy_site()
+        site.add(f"{BASE}/", html(f"{BASE}/", good_home(extra_body='<a href="/thanks">x</a>')))
+        site.add(f"{BASE}/thanks", html(f"{BASE}/thanks", '<!doctype html><html lang="en"><head>'
+                                         '<meta name="robots" content="noindex, nofollow"></head>'
+                                         '<body><p>Thanks.</p></body></html>'))
+        result = run(site)
+        self.assertEqual(result.problems, [], "no title, H1 or description findings for /thanks")
+
+    def test_an_x_robots_tag_header_counts_too(self):
+        site = healthy_site()
+        site.add(f"{BASE}/", html(f"{BASE}/", good_home(extra_body='<a href="/draft">x</a>')))
+        site.add(f"{BASE}/draft", html(f"{BASE}/draft", "<!doctype html><html><body>tiny</body></html>",
+                                       headers={"x-robots-tag": "googlebot: noindex"}))
+        self.assertEqual(run(site).problems, [])
+
+    def test_a_noindex_home_page_is_critical(self):
+        site = healthy_site()
+        site.add(f"{BASE}/", html(f"{BASE}/", good_home(extra_head='<meta name="robots" content="noindex">')))
+        f = finding(run(site), "home-noindex")
+        self.assertEqual(f.severity, "critical")
+        self.assertIn("meta", f.evidence)
+
+    def test_a_noindex_header_on_the_home_page_is_critical(self):
+        site = healthy_site()
+        site.add(f"{BASE}/", html(f"{BASE}/", good_home(), headers={"x-robots-tag": "noindex"}))
+        self.assertIn("X-Robots-Tag", finding(run(site), "home-noindex").evidence)
+
+
 class RenderingTest(unittest.TestCase):
     def test_fingerprints(self):
         cases = {

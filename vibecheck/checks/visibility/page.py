@@ -69,6 +69,20 @@ class Page:
         return [t for level, t in self.headings if level == 1]
 
 
+def is_noindex(page: "Page", headers: Optional[Dict[str, str]] = None) -> bool:
+    """The page asks search engines not to index it: <meta name="robots"> (or
+    googlebot) or an X-Robots-Tag header saying noindex or none."""
+    values = [page.meta.get("robots", ""), page.meta.get("googlebot", "")]
+    if headers:
+        values.append(headers.get("x-robots-tag", ""))
+    for v in values:
+        # X-Robots-Tag may name a bot first: "googlebot: noindex".
+        tokens = {t.strip().split(":")[-1].strip() for t in v.lower().split(",")}
+        if "noindex" in tokens or "none" in tokens:
+            return True
+    return False
+
+
 def _collapse(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 

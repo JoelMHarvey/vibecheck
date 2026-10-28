@@ -6,24 +6,24 @@
   },
   "scanned_at": "2026-10-27T22:52:51Z",
   "category_scores": {
-    "technical": 5,
+    "technical": 7,
     "ai": 8,
-    "content": 6,
+    "content": 7,
     "positioning": null,
     "offsite": null,
     "brand": null
   },
-  "total": 62,
+  "total": 73,
   "grade": "C",
   "counts": {
     "critical": 0,
     "high": 0,
     "medium": 1,
-    "low": 9,
+    "low": 6,
     "info": 0
   },
   "meta": {
-    "pages_crawled": 5,
+    "pages_crawled": 4,
     "final_url": "https://robinofloxley.com/"
   },
   "findings": [
@@ -39,20 +39,6 @@
       "verify_hint": "Each section should have its own address you can paste into Google's URL Inspection, and appear in /sitemap.xml.",
       "guide_url": "/guides/app-not-in-chatgpt",
       "path": "/",
-      "line": 0
-    },
-    {
-      "id": "canonical-missing",
-      "check_id": "visibility",
-      "category": "technical",
-      "severity": "low",
-      "title": "No canonical URL",
-      "why_it_matters": "A canonical tag tells search engines which address is the real one when a page is reachable several ways (with and without www, a trailing slash, tracking parameters). Without it they guess, and can split your ranking between copies.",
-      "evidence": "/brand",
-      "fix_prompt": "Add <link rel=\"canonical\" href=\"...\"> to the <head> of every page, pointing at that page's own full URL on my main domain (/brand). Generate it from the route so each page gets its own.",
-      "verify_hint": "View source on each page and check the canonical is the page's own address.",
-      "guide_url": null,
-      "path": "/brand",
       "line": 0
     },
     {
@@ -112,20 +98,6 @@
       "line": 0
     },
     {
-      "id": "og-incomplete",
-      "check_id": "visibility",
-      "category": "content",
-      "severity": "low",
-      "title": "Link previews are incomplete",
-      "why_it_matters": "Open Graph and Twitter tags decide what a shared link looks like on LinkedIn, Slack, X, WhatsApp and iMessage. Missing ones give a bare URL with no picture.",
-      "evidence": "/brand: og:title, og:description, og:image, og:url, twitter:card",
-      "fix_prompt": "These pages are missing link-preview tags: /brand: og:title, og:description, og:image, og:url, twitter:card. Add them to each page's <head>: og:title, og:description, og:url (the page's own full URL), og:image (a full URL to a 1200x630 image) and twitter:card set to summary_large_image. Generate them from the same title and description the page already uses.",
-      "verify_hint": "Paste the URL into opengraph.xyz or LinkedIn's Post Inspector.",
-      "guide_url": null,
-      "path": "/brand",
-      "line": 0
-    },
-    {
       "id": "org-incomplete",
       "check_id": "visibility",
       "category": "ai",
@@ -137,20 +109,6 @@
       "verify_hint": "Paste the page into validator.schema.org and check the fields appear.",
       "guide_url": null,
       "path": "/",
-      "line": 0
-    },
-    {
-      "id": "sitemap-incomplete",
-      "check_id": "visibility",
-      "category": "technical",
-      "severity": "low",
-      "title": "Pages missing from the sitemap",
-      "why_it_matters": "Your site links to pages your sitemap doesn't list. Crawlers can still find them by following links, but the sitemap is your statement of what matters, and pages left out of it get crawled less often.",
-      "evidence": "sitemap lists 4 URLs; the crawl found 5 pages. Not listed: /brand",
-      "fix_prompt": "My sitemap.xml is missing pages my site links to (sitemap lists 4 URLs; the crawl found 5 pages. Not listed: /brand). Generate the sitemap from my routes rather than by hand, so every public page is listed, and leave out only pages that shouldn't be found (admin, thank-you pages).",
-      "verify_hint": "Open /sitemap.xml and check each page your navigation links to is listed.",
-      "guide_url": null,
-      "path": "/sitemap.xml",
       "line": 0
     },
     {
@@ -188,7 +146,21 @@
       "severity": "pass",
       "title": "Images have alt text",
       "why_it_matters": "",
-      "evidence": "all 32 images have an alt attribute",
+      "evidence": "all 24 images have an alt attribute",
+      "fix_prompt": "",
+      "verify_hint": "",
+      "guide_url": null,
+      "path": "",
+      "line": 0
+    },
+    {
+      "id": "canonical-ok",
+      "check_id": "visibility",
+      "category": "technical",
+      "severity": "pass",
+      "title": "Canonical URLs point at their own page",
+      "why_it_matters": "",
+      "evidence": "every page's canonical is its own URL",
       "fix_prompt": "",
       "verify_hint": "",
       "guide_url": null,
@@ -216,7 +188,7 @@
       "severity": "pass",
       "title": "One H1 per page",
       "why_it_matters": "",
-      "evidence": "one H1 on each of 5 pages",
+      "evidence": "one H1 on each of 4 pages",
       "fix_prompt": "",
       "verify_hint": "",
       "guide_url": null,
@@ -342,7 +314,7 @@
       "severity": "pass",
       "title": "Every page has a title of a sensible length",
       "why_it_matters": "",
-      "evidence": "5 pages, each with its own title",
+      "evidence": "4 pages, each with its own title",
       "fix_prompt": "",
       "verify_hint": "",
       "guide_url": null,

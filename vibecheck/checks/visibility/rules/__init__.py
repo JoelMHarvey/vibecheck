@@ -48,6 +48,19 @@ _RULES = [
         "Google Search Console's URL Inspection and check 'Crawl allowed? Yes'.",
     ),
     VisRule(
+        "home-noindex", "The home page tells search engines not to index it", "critical", "technical",
+        "Your home page says noindex ({excerpt}). Google and Bing will drop it from "
+        "results, and AI assistants that search the web won't find it either. This "
+        "is usually a staging setting that shipped to production.",
+        "My home page is marked noindex ({excerpt}). Find where that's set (a "
+        "<meta name=\"robots\" content=\"noindex\"> in the layout, a robots setting "
+        "in the framework's metadata, or an X-Robots-Tag header in the host config "
+        "or middleware) and remove it for production, keeping it only on preview "
+        "and staging deployments.",
+        "View the page source and the response headers of the live home page: "
+        "neither should say noindex. Then ask Google to recrawl it in Search Console.",
+    ),
+    VisRule(
         "robots-blocks-us", "This site asks crawlers like vibecheck to stay out", "info", "technical",
         "robots.txt disallows our crawler, so we only read the crawl files "
         "(robots.txt, sitemap.xml, llms.txt). Search engines may still be allowed; "
