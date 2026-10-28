@@ -25,7 +25,7 @@ SITEMAP = (ROOT / "sitemap.xml").read_text(encoding="utf-8")
 DEVSERVER = (ROOT / "scripts" / "devserver.py").read_text(encoding="utf-8")
 INDEX = (ROOT / "index.html").read_text(encoding="utf-8")
 
-SITE = "https://psychosecurity.io"
+SITE = "https://www.psychosecurity.io"
 
 
 def text(path: Path) -> str:
@@ -35,6 +35,25 @@ def text(path: Path) -> str:
 def tag(html: str, pattern: str) -> str:
     found = re.search(pattern, html)
     return found.group(1).strip() if found else ""
+
+
+class TestOneAddress(unittest.TestCase):
+    """The site is served at www.psychosecurity.io; the bare domain
+    redirects there. A canonical, og:url or sitemap entry on the bare domain
+    tells search engines the real page is one that redirects away, which is
+    the exact mistake our own visibility check flags."""
+
+    BARE = "https://psychosecurity.io"
+
+    def test_pages_name_the_address_they_are_served_from(self):
+        self.assertEqual(SITE, "https://www.psychosecurity.io")
+        pages = [ROOT / "index.html", ROOT / "visibility.html", ROOT / "check.html", ROOT / "report.html",
+                 ROOT / "sitemap.xml", ROOT / "robots.txt", *GUIDES, *POSTS]
+        for page in pages:
+            # The crawler's user agent is quoted as it is sent; that's not a link.
+            body = text(page).replace("vibecheck-visibility/1.0 (+https://psychosecurity.io/visibility)", "")
+            with self.subTest(page.name):
+                self.assertNotRegex(body, r"https://psychosecurity\.io(?=[\"'/<\s]|$)")
 
 
 class TestVisibilityPageIsWiredIn(unittest.TestCase):

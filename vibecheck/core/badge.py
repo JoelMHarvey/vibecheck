@@ -28,7 +28,7 @@ from . import signing
 from .models import CheckResult
 from .report import level as result_level
 
-SITE = "https://psychosecurity.io"
+SITE = "https://www.psychosecurity.io"
 EXPIRY_DAYS = 30
 LEVEL_ORDER = ["bronze", "silver", "gold"]
 RUN_URL_RE = re.compile(r"^https://github\.com/[\w.-]+/[\w.-]+/actions/runs/\d+(/attempts/\d+)?$")

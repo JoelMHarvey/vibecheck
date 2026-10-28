@@ -167,7 +167,7 @@ CI_COMMENT_MARKER = "<!-- vibecheck-report -->"
 def render_ci_markdown(
     result: ScanResult,
     limit: int = 30,
-    footer_link: str = "https://psychosecurity.io",
+    footer_link: str = "https://www.psychosecurity.io",
     path_prefix: str = "",
 ) -> str:
     """A compact report for a job summary or a pull request comment.

@@ -38,7 +38,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SITE = "https://psychosecurity.io"
+SITE = "https://www.psychosecurity.io"
 PLACEHOLDER_RE = re.compile(r"\{\{[A-Z0-9_]+\}\}")
 COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
 

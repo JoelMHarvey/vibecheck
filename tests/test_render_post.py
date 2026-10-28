@@ -150,8 +150,8 @@ class TestEndToEnd(unittest.TestCase):
         self.assertEqual(code, 0)
         page = out.read_text(encoding="utf-8")
         self.assertIn('<link rel="stylesheet" href="/guide.css">', page)
-        self.assertIn('<link rel="canonical" href="https://psychosecurity.io/posts/a-post">', page)
-        self.assertIn('<meta property="og:url" content="https://psychosecurity.io/posts/a-post">', page)
+        self.assertIn('<link rel="canonical" href="https://www.psychosecurity.io/posts/a-post">', page)
+        self.assertIn('<meta property="og:url" content="https://www.psychosecurity.io/posts/a-post">', page)
         self.assertIn("vibe<span>check</span>", page)
 
     def test_an_unfilled_placeholder_is_refused(self):
