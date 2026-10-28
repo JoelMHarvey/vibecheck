@@ -50,6 +50,10 @@ def main(argv=None) -> int:
                         help="with a visibility check, also review the home page's copy with Claude "
                              "(who it's for, price, differentiator, social proof, call to action). "
                              "Needs the anthropic package and your own ANTHROPIC_API_KEY; one small call per run.")
+    parser.add_argument("--architecture", action="store_true",
+                        help="with the integrity check, also send a capped, redacted digest of the code at its "
+                             "boundaries (routes, webhooks, auth, database clients) to Claude for an architecture "
+                             "read. Your own ANTHROPIC_API_KEY; cached on disk by content")
     parser.add_argument("--brand", metavar="NAME",
                         help="with a visibility check, also ask Claude (with web search) the questions buyers ask "
                              "about your category and see if it names you, and search for you off-site. "
@@ -89,7 +93,7 @@ def main(argv=None) -> int:
     parser.add_argument("--version", action="version", version=f"vibecheck {__version__}")
     args = parser.parse_args(argv)
 
-    if args.visibility or args.checks or args.badge or args.positioning or args.brand or _looks_like_url(args.path):
+    if args.visibility or args.checks or args.badge or args.positioning or args.brand or args.architecture or _looks_like_url(args.path):
         return _unified(parser, args)
     args.path = args.path or "."
 
@@ -166,6 +170,8 @@ def _unified(parser, args) -> int:
         wanted = [c.strip() for c in args.checks.split(",") if c.strip()]
     elif args.visibility:
         wanted = ["visibility"]
+    elif args.architecture:
+        wanted = ["integrity"]
     else:
         wanted = [c.id for c in registry.available_for(target)]
     try:
@@ -188,6 +194,12 @@ def _unified(parser, args) -> int:
 
         reviewer = ClaudeReviewer()
     options = {}
+    if args.architecture:
+        if not repo:
+            parser.error("--architecture needs a folder to read")
+        from .checks.integrity.architecture import ClaudeArchitect
+
+        options["architecture"] = ClaudeArchitect()
     if args.brand:
         if not args.category:
             parser.error("--brand needs --category")

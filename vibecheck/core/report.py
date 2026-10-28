@@ -61,6 +61,8 @@ def meta_line(result: CheckResult) -> str:
         bits.append(f"{n} page{'s' if n != 1 else ''} crawled")
     if result.meta.get("positioning"):
         bits.append(f"positioning review: {result.meta['positioning']}")
+    if result.meta.get("architecture"):
+        bits.append(f"architecture read: {result.meta['architecture']}")
     probe = result.meta.get("probe")
     if isinstance(probe, dict) and str(probe.get("status", "")).startswith("not run"):
         bits.append(f"AI answers: {probe['status']}")

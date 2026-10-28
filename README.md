@@ -168,6 +168,7 @@ run to run. Seven web-searching calls per run, on your key.
 vibecheck ./app --checks integrity                 # one check
 vibecheck ./app --checks security,integrity        # both, one exit code
 vibecheck ./app --checks integrity --badge         # badge Markdown (CI-attested in GitHub Actions)
+ANTHROPIC_API_KEY=... vibecheck ./app --architecture   # plus a model's read of the boundary code
 ```
 
 Reads the repository, never uploads it, and scores six categories:
@@ -177,7 +178,10 @@ alerting (an uptime monitor or alert rule, a runbook), how it was built
 pull request, end-to-end), code quality (linter, formatter, TypeScript
 `strict`, very long or branchy functions, duplication) and tech debt
 (TODO density, huge files, leftover copies). It rewards what's wired up, not
-how much there is. Design notes: [`docs/integrity-design.md`](docs/integrity-design.md).
+how much there is. `--architecture` adds an opt-in read by Claude of the code
+at the boundaries (routes, webhooks, auth, database clients), sent redacted
+and capped on your own key; every problem it reports must quote a real line,
+or it's dropped. Design notes: [`docs/integrity-design.md`](docs/integrity-design.md).
 
 ## Several checks, one report
 
