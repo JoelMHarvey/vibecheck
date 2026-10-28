@@ -23,7 +23,7 @@ from vibecheck.core.signing import public_keys  # noqa: E402
 
 COLORS = [(90, "#3fb950"), (75, "#9acd32"), (60, "#d29922"), (40, "#db8a34"), (0, "#f85149")]
 LABEL = "vibe score"
-LABELS = {"vibe": "vibe score", "visibility": "visibility"}
+LABELS = {"vibe": "vibe score", "visibility": "visibility", "integrity": "integrity"}
 
 
 def grade_for(score: int) -> str:

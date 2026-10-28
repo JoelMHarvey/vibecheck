@@ -1,0 +1,374 @@
+{
+ "blurbs": {
+  "A": "Well built and well looked after. Keep it that way.",
+  "B": "Solid, with a few gaps. Work through the list and it's ready for real users.",
+  "C": "It works, but you'd hear about problems late and fix them slowly. Start at the top.",
+  "D": "Fragile: little to catch a broken change or tell you something's down.",
+  "F": "Nothing is watching this code. Start with tests and error tracking.",
+  "–": "We couldn't read the project."
+ },
+ "categories": [
+  [
+   "observability",
+   "Observability",
+   0.2
+  ],
+  [
+   "alerting",
+   "Alerting",
+   0.15
+  ],
+  [
+   "build",
+   "How it was built",
+   0.15
+  ],
+  [
+   "tests",
+   "Tests",
+   0.25
+  ],
+  [
+   "quality",
+   "Code quality",
+   0.15
+  ],
+  [
+   "debt",
+   "Tech debt",
+   0.1
+  ]
+ ],
+ "check": "integrity",
+ "check_version": "1.0.0",
+ "footer": "Scores reward what's wired up (tests that CI runs, errors that reach a tracker), not how much there is.",
+ "not_run": "needs your code",
+ "rules": {
+  "alert-configured": {
+   "c": "alerting",
+   "s": "pass",
+   "t": "Something alerts a person"
+  },
+  "alert-no-runbook": {
+   "c": "alerting",
+   "d": "There's no runbook or incident doc. At 2am, the person (or AI) fixing an outage does better with a page that says how to roll back, where the logs are and who to tell.",
+   "f": "Write docs/RUNBOOK.md for my app: how to tell what's broken (logs, error tracker, status), how to roll back a deploy, how to put up a maintenance page, where backups are and how to restore one, and who to tell. Use only what's true of my setup.",
+   "s": "low",
+   "t": "No runbook",
+   "v": "Ask someone who didn't write it to follow it for a pretend outage."
+  },
+  "alert-none": {
+   "c": "alerting",
+   "d": "There's no sign of an uptime monitor, alert rule or paging integration in the repository. Errors can be tracked and still go unread; something has to wake a person when the site is down.",
+   "f": "Set up alerting for my app: an uptime check on /api/health every few minutes (Better Stack, Checkly or a scheduled GitHub Action), an alert rule in my error tracker for new or spiking errors, and both sending to email or my phone. Keep the configuration in the repository where the tool allows it.",
+   "s": "high",
+   "t": "Nothing alerts anyone",
+   "v": "Take a preview deployment's health route down on purpose and check the alert arrives."
+  },
+  "alert-runbook": {
+   "c": "alerting",
+   "s": "pass",
+   "t": "Has a runbook"
+  },
+  "build-deploy-config": {
+   "c": "build",
+   "s": "pass",
+   "t": "Deploy configuration is in the repo"
+  },
+  "build-env-example": {
+   "c": "build",
+   "s": "pass",
+   "t": "Environment variables are documented"
+  },
+  "build-floating-versions": {
+   "c": "build",
+   "d": "Some dependencies accept any version at all ({excerpt}). Even with a lockfile, the next update can jump a major version.",
+   "f": "In package.json these dependencies use '*' or 'latest': {excerpt}. Pin each to the version the lockfile has now with a caret range (for example ^4.2.0).",
+   "s": "low",
+   "t": "Dependencies on any version",
+   "v": "Search package.json for \"*\" and \"latest\": none left."
+  },
+  "build-lockfile": {
+   "c": "build",
+   "s": "pass",
+   "t": "Dependencies are locked"
+  },
+  "build-migrations": {
+   "c": "build",
+   "s": "pass",
+   "t": "Schema changes go through migrations"
+  },
+  "build-no-deploy-config": {
+   "c": "build",
+   "d": "There's no deploy configuration (vercel.json, Dockerfile, fly.toml and so on). Zero-config hosting is fine; just know that how it's deployed lives only in a dashboard.",
+   "f": "",
+   "s": "info",
+   "t": "No deploy configuration in the repo",
+   "v": "Nothing to do if your host deploys it with no configuration."
+  },
+  "build-no-env-example": {
+   "c": "build",
+   "d": "The code reads environment variables ({excerpt}) but there's no .env.example saying which. The next person, or the next AI session, has to guess.",
+   "f": "Create .env.example listing every environment variable my code reads, each with a placeholder value and a one-line comment saying what it's for. No real values. Make sure .env itself is in .gitignore.",
+   "s": "low",
+   "t": "No .env.example",
+   "v": "Compare .env.example with a search for process.env / os.environ: nothing missing."
+  },
+  "build-no-lockfile": {
+   "c": "build",
+   "d": "{excerpt} has no lockfile, so every install can pull different versions of your dependencies. A build that worked yesterday can break, or pick up a compromised release, today.",
+   "f": "My project has no lockfile ({excerpt}). Generate one with my package manager (npm install, pnpm install, uv lock, poetry lock), commit it, and make CI install from it (npm ci, pnpm install --frozen-lockfile).",
+   "s": "medium",
+   "t": "No lockfile",
+   "v": "Check the lockfile is committed and CI uses the frozen install."
+  },
+  "build-no-migrations": {
+   "c": "build",
+   "d": "There's a database schema ({excerpt}) but no migrations folder. Without migrations, every schema change in production is done by hand or by a tool that may drop data.",
+   "f": "My project has a schema ({excerpt}) and no migrations. Set up the migration tool for it (prisma migrate, drizzle-kit, alembic, Django migrations), create a baseline migration from the current production schema without changing it, and commit the migrations folder.",
+   "s": "medium",
+   "t": "Database schema without migrations",
+   "v": "Run the migration tool's status command against a copy of production: it should report nothing pending."
+  },
+  "build-stack": {
+   "c": "build",
+   "s": "pass",
+   "t": "Stack identified"
+  },
+  "debt-large-files": {
+   "c": "debt",
+   "d": "Some source files are very long ({excerpt}). Big files collect unrelated code and are hard to review or change safely.",
+   "f": "These files are very long: {excerpt}. Propose how to split each by responsibility, then do it one file at a time without changing behaviour.",
+   "s": "low",
+   "t": "Very large source files",
+   "v": "Re-run this check."
+  },
+  "debt-leftover-files": {
+   "c": "debt",
+   "d": "{excerpt} look like old copies or backups. They confuse search, reviews and AI tools that read the whole repo.",
+   "f": "Check whether these files are used anywhere: {excerpt}. Delete the ones that aren't; git keeps the history.",
+   "s": "low",
+   "t": "Leftover copies and backups",
+   "v": "Re-run this check."
+  },
+  "debt-todo-density": {
+   "c": "debt",
+   "d": "{excerpt}. Each is a known problem nobody has scheduled.",
+   "f": "List every TODO, FIXME and HACK in my code with its file and line, group them by what they're about, and tell me which look like real bugs. Fix those first; turn the rest into issues and delete the comments.",
+   "s": "low",
+   "t": "A lot of TODOs and FIXMEs",
+   "v": "Re-run this check."
+  },
+  "obs-error-tracking": {
+   "c": "observability",
+   "s": "pass",
+   "t": "Errors are tracked"
+  },
+  "obs-error-tracking-not-initialised": {
+   "c": "observability",
+   "d": "{excerpt} is a dependency, but nothing calls its init. Installed and never started, it reports nothing.",
+   "f": "My project depends on {excerpt} but never initialises it. Add the init call where my framework expects it (for Next.js, instrumentation.ts and the sentry.*.config files), reading the DSN from an environment variable.",
+   "s": "high",
+   "t": "Error tracker installed but never started",
+   "v": "Throw a test error in a preview deployment and check it reaches the tracker."
+  },
+  "obs-health-endpoint": {
+   "c": "observability",
+   "s": "pass",
+   "t": "Has a health endpoint"
+  },
+  "obs-health-not-responding": {
+   "c": "observability",
+   "d": "None of /api/health, /health or /healthz answered 200 on the live site, so an uptime monitor has nothing reliable to watch.",
+   "f": "Add or fix a public GET /api/health that returns 200 when the app is up, and check my hosting doesn't put it behind auth.",
+   "s": "low",
+   "t": "Health endpoint doesn't answer",
+   "v": "curl -i https://yoursite/api/health should return 200."
+  },
+  "obs-health-responding": {
+   "c": "observability",
+   "s": "pass",
+   "t": "Health endpoint answers on the live site"
+  },
+  "obs-no-error-tracking": {
+   "c": "observability",
+   "d": "Nothing in the code reports errors to a tracker (Sentry, OpenTelemetry, Datadog and the like). When something breaks in production you'll hear about it from a user, if at all, and without the stack trace that says where.",
+   "f": "My app has no error tracking. Add Sentry (or OpenTelemetry if I already use a tracing backend) for my stack: install the SDK, initialise it once at startup with the DSN from an environment variable, report unhandled errors on the server and in the browser, set the release to the git commit, and turn off sending personal data by default. Show me where each piece goes.",
+   "s": "high",
+   "t": "No error tracking",
+   "v": "Throw a test error from a route in a preview deployment and check it arrives in the tracker with a stack trace."
+  },
+  "obs-no-health-endpoint": {
+   "c": "observability",
+   "d": "There's no /health (or /api/health) route. Uptime monitors and load balancers need a cheap address that says the app is up, and ideally whether its database is.",
+   "f": "Add a GET /api/health route that returns 200 with {{\"ok\": true}} when the app can serve requests, without auth. Add a second, cached check of the database if I have one, so a monitor can tell 'app down' from 'database down'. Keep it fast and free of secrets.",
+   "s": "low",
+   "t": "No health endpoint",
+   "v": "curl -i https://yoursite/api/health should return 200 in well under a second."
+  },
+  "obs-no-structured-logging": {
+   "c": "observability",
+   "d": "No structured logger (pino, winston, structlog and the like) is in use. Plain console or print lines are hard to search when you're trying to find the one request that failed.",
+   "f": "Add a structured logger to my server code (pino for Node, structlog or the logging module with a JSON formatter for Python). Log one JSON line per event with a level, a message, a request id and the route, and never log secrets or personal data.",
+   "s": "low",
+   "t": "Logs are plain text",
+   "v": "Hit a route and check the log line is JSON with a level and a request id."
+  },
+  "obs-sourcemaps-public": {
+   "c": "observability",
+   "d": "{excerpt} publishes source maps with the production build, so anyone can read your original source in DevTools. Error trackers want the maps; browsers don't need them.",
+   "f": "My build publishes source maps publicly ({excerpt}). Stop serving them: turn the setting off, or generate them hidden and upload them to my error tracker during the build, then delete them from the output.",
+   "s": "medium",
+   "t": "Source maps shipped to the browser",
+   "v": "Open a production page, look for a .map request in DevTools' Network tab: there should be none."
+  },
+  "obs-status-page": {
+   "c": "observability",
+   "s": "pass",
+   "t": "Links a status page"
+  },
+  "obs-structured-logging": {
+   "c": "observability",
+   "s": "pass",
+   "t": "Logs are structured"
+  },
+  "quality-complex-functions": {
+   "c": "quality",
+   "d": "Some functions have a very large number of branches ({excerpt}). Every branch is a path that needs a test, and few have them.",
+   "f": "These functions branch a lot: {excerpt}. Simplify each: early returns, lookup tables instead of long if/else chains, and small helpers for the separate cases. Keep behaviour identical.",
+   "s": "low",
+   "t": "Functions with a lot of branches",
+   "v": "Re-run this check."
+  },
+  "quality-duplication": {
+   "c": "quality",
+   "d": "{excerpt}. Copied blocks drift apart: a fix lands in one copy and not the others.",
+   "f": "My codebase has duplicated blocks ({excerpt}). Find the repeated logic, move it into one shared function or component, and call it from each place.",
+   "s": "low",
+   "t": "Duplicated code",
+   "v": "Re-run this check."
+  },
+  "quality-formatter": {
+   "c": "quality",
+   "s": "pass",
+   "t": "A formatter is configured"
+  },
+  "quality-lint-in-ci": {
+   "c": "quality",
+   "s": "pass",
+   "t": "CI runs the linter"
+  },
+  "quality-lint-not-in-ci": {
+   "c": "quality",
+   "d": "A linter is configured, but no CI workflow runs it, so it only catches what someone remembers to run it on.",
+   "f": "Add a lint step to my CI workflow that runs on pull requests and fails on errors.",
+   "s": "low",
+   "t": "Linter not run in CI",
+   "v": "Open a pull request with an unused variable and check the lint step fails."
+  },
+  "quality-linter": {
+   "c": "quality",
+   "s": "pass",
+   "t": "A linter is configured"
+  },
+  "quality-long-functions": {
+   "c": "quality",
+   "d": "Some functions run to hundreds of lines ({excerpt}). Long functions are where bugs hide and where AI edits go wrong, because the whole thing doesn't fit in view.",
+   "f": "These functions are very long: {excerpt}. Split each into smaller named steps without changing behaviour, with tests around it first if it has none.",
+   "s": "low",
+   "t": "Very long functions",
+   "v": "Re-run this check."
+  },
+  "quality-no-formatter": {
+   "c": "quality",
+   "d": "No formatter is configured (Prettier, Biome, Black, Ruff format). Without one, diffs fill with whitespace churn and reviews get harder.",
+   "f": "Add a formatter (Prettier or Biome; Ruff format or Black for Python), format the codebase once in its own commit, and add a format check to CI.",
+   "s": "low",
+   "t": "No formatter",
+   "v": "Run the formatter's check mode: no files to change."
+  },
+  "quality-no-linter": {
+   "c": "quality",
+   "d": "No linter is configured (ESLint, Biome, Ruff and the like). A linter catches unused variables, missing awaits and suspicious comparisons before they ship, and keeps AI-written code honest.",
+   "f": "Add a linter for my stack (ESLint with my framework's recommended config, or Biome; Ruff for Python), fix or explicitly disable what it reports today, add a lint script, and run it in CI.",
+   "s": "medium",
+   "t": "No linter",
+   "v": "Run the lint command: it should exit 0."
+  },
+  "quality-ts-not-strict": {
+   "c": "quality",
+   "d": "{excerpt} doesn't set \"strict\": true. Without it TypeScript lets null and undefined through everywhere, which is most of what it's for.",
+   "f": "Turn on \"strict\": true in {excerpt}. Fix the errors it reports in small commits, starting with the code that handles money and auth; where a fix is large, leave a typed TODO rather than any.",
+   "s": "medium",
+   "t": "TypeScript isn't in strict mode",
+   "v": "Run tsc --noEmit: it should pass with strict on."
+  },
+  "quality-ts-strict": {
+   "c": "quality",
+   "s": "pass",
+   "t": "TypeScript is strict"
+  },
+  "tests-coverage": {
+   "c": "tests",
+   "s": "pass",
+   "t": "Coverage is configured"
+  },
+  "tests-e2e": {
+   "c": "tests",
+   "s": "pass",
+   "t": "Has end-to-end tests"
+  },
+  "tests-few": {
+   "c": "tests",
+   "d": "{excerpt}. Not a target to hit, and generated tests are worth little, but large untested areas are where regressions live.",
+   "f": "My project has {excerpt}. Find the five modules where a bug would cost most (money, access, data loss, the main user journey) and write focused tests for each, testing behaviour rather than implementation.",
+   "s": "low",
+   "t": "Few tests for the size of the code",
+   "v": "Re-run this check."
+  },
+  "tests-in-ci": {
+   "c": "tests",
+   "s": "pass",
+   "t": "CI runs the tests"
+  },
+  "tests-no-coverage": {
+   "c": "tests",
+   "d": "Coverage isn't configured. It's no target, but it shows which files no test touches.",
+   "f": "",
+   "s": "info",
+   "t": "No coverage report",
+   "v": "Optional: add coverage to the test command and look at which files show 0%."
+  },
+  "tests-no-e2e": {
+   "c": "tests",
+   "d": "Unit tests don't catch a broken sign-up page. One end-to-end test that clicks through the main journey in a real browser catches what they miss.",
+   "f": "Add Playwright to my project and write one end-to-end test of the main journey (sign up, do the core thing, see the result) against a local build. Run it in CI on pull requests.",
+   "s": "low",
+   "t": "No end-to-end tests",
+   "v": "Break the journey on purpose (rename a button) and check the end-to-end test fails."
+  },
+  "tests-none": {
+   "c": "tests",
+   "d": "There are no test files. Every change, yours or an AI's, goes out with nothing checking that the parts that worked still do.",
+   "f": "My project has no tests. Add a test runner that fits my stack (vitest for Vite or Next.js, pytest for Python), then write tests for the code where a bug costs most: money (billing, payments), access (auth, permissions) and anything that deletes data. Start with a handful that run in seconds, and add a test script to package.json or the README.",
+   "s": "critical",
+   "t": "No tests",
+   "v": "Run the test command: it should find and pass the new tests."
+  },
+  "tests-not-in-ci": {
+   "c": "tests",
+   "d": "The tests exist, but {excerpt}. Tests that only run when someone remembers stop being run, and the first sign of a broken change is a broken site.",
+   "f": "Make my tests run on every pull request and every push to the main branch: a GitHub Actions workflow that installs dependencies from the lockfile and runs the test command, and fails the check if a test fails. Then require that check before merging.",
+   "s": "high",
+   "t": "Tests don't run on every change",
+   "v": "Open a pull request with a deliberately failing test and check the workflow goes red."
+  },
+  "tests-present": {
+   "c": "tests",
+   "s": "pass",
+   "t": "Has tests"
+  }
+ },
+ "title": "Integrity",
+ "version": 2
+}

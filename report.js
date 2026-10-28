@@ -14,7 +14,7 @@
   const PROBLEMS = ["critical", "high", "medium", "low", "info"];
   const NOT_RUN = "not checked";  // a manifest's own not_run wording wins
   const FIX_LABEL = "FIX PROMPT — PASTE INTO CURSOR / CLAUDE CODE / LOVABLE / BOLT";
-  const MANIFEST_URLS = { security: "/rules.json", visibility: "/visibility-rules.json" };
+  const MANIFEST_URLS = { security: "/rules.json", visibility: "/visibility-rules.json", integrity: "/integrity-rules.json" };
   // Points a category loses per finding: vibecheck/core/scoring.py.
   const PENALTY = { critical: 10, high: 4, medium: 2, low: 1, info: 0, pass: 0 };
   const manifests = {};
@@ -370,7 +370,7 @@
         const img = `${location.origin}/badge/${r.check_id}.svg?r=${utf8b64url(JSON.stringify(r.signed.badge))}`;
         lines.push(`[![vibecheck ${r.check_id}: ${claim.level || "no badge yet"}](${img})](${await reportLink([r.signed.report])})`);
       } else {
-        const [alt, label] = r.check_id === "security" ? ["Vibe Score", "vibe"] : ["Visibility", "visibility"];
+        const [alt, label] = { security: ["Vibe Score", "vibe"], integrity: ["Integrity", "integrity"] }[r.check_id] || ["Visibility", "visibility"];
         lines.push(`[![${alt}](${location.origin}/api/badge?score=${r.total}&label=${label})](${page})`);
       }
     }

@@ -28,6 +28,7 @@ STATIC = {
     "/report.js": ("report.js", "text/javascript; charset=utf-8"),
     "/report.css": ("report.css", "text/css; charset=utf-8"),
     "/visibility-rules.json": ("visibility-rules.json", "application/json; charset=utf-8"),
+    "/integrity-rules.json": ("integrity-rules.json", "application/json; charset=utf-8"),
     "/privacy": ("privacy.html", "text/html; charset=utf-8"),
     "/guide.css": ("guide.css", "text/css; charset=utf-8"),
     "/og.png": ("og.png", "image/png"),

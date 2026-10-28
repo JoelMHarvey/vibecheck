@@ -32,7 +32,7 @@ SITE = "https://www.psychosecurity.io"
 EXPIRY_DAYS = 30
 LEVEL_ORDER = ["bronze", "silver", "gold"]
 RUN_URL_RE = re.compile(r"^https://github\.com/[\w.-]+/[\w.-]+/actions/runs/\d+(/attempts/\d+)?$")
-CHECK_IDS = {"security", "visibility", "vibechecked"}
+CHECK_IDS = {"security", "visibility", "integrity", "vibechecked"}
 MAX_PARAM = 4000
 
 COLORS = {"gold": "#c9a227", "silver": "#8f98a6", "bronze": "#b0703a", "grey": "#9f9f9f"}

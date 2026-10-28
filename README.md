@@ -146,6 +146,23 @@ connects only to the address it vetted. It allows 10 scans an hour per visitor
 and one a minute per site, and keeps results for 24 hours. Design notes:
 [`docs/visibility-design.md`](docs/visibility-design.md).
 
+## Integrity: is it well built and looked after?
+
+```bash
+vibecheck ./app --checks integrity                 # one check
+vibecheck ./app --checks security,integrity        # both, one exit code
+vibecheck ./app --checks integrity --badge         # badge Markdown (CI-attested in GitHub Actions)
+```
+
+Reads the repository, never uploads it, and scores six categories:
+observability (error tracking started, a health route, structured logs),
+alerting (an uptime monitor or alert rule, a runbook), how it was built
+(lockfile, migrations, `.env.example`), tests (present and run by CI on every
+pull request, end-to-end), code quality (linter, formatter, TypeScript
+`strict`, very long or branchy functions, duplication) and tech debt
+(TODO density, huge files, leftover copies). It rewards what's wired up, not
+how much there is. Design notes: [`docs/integrity-design.md`](docs/integrity-design.md).
+
 ## Several checks, one report
 
 Security and visibility run on one framework (`vibecheck/core`, see

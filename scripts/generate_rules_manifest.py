@@ -28,6 +28,7 @@ from vibecheck.urlscan import iter_url_rules  # noqa: E402
 
 MANIFEST_PATH = Path(__file__).resolve().parent.parent / "rules.json"
 VIS_MANIFEST_PATH = Path(__file__).resolve().parent.parent / "visibility-rules.json"
+INTEGRITY_MANIFEST_PATH = Path(__file__).resolve().parent.parent / "integrity-rules.json"
 
 
 def build_manifest() -> dict:
@@ -69,6 +70,31 @@ def render() -> str:
     return json.dumps(build_manifest(), indent=1, sort_keys=True) + "\n"
 
 
+def _table_manifest(check_id: str, RULES, PASSES, categories) -> dict:
+    """A check whose prose is a rule table (visibility, integrity)."""
+    rules = {}
+    for rule in RULES.values():
+        entry = {"t": rule.title, "s": rule.severity, "c": rule.category,
+                 "d": rule.description, "f": rule.fix_prompt, "v": rule.verify}
+        if rule.guide:
+            entry["g"] = rule.guide
+        rules[rule.id] = entry
+    for pass_id, (title, category) in PASSES.items():
+        rules[pass_id] = {"t": title, "s": "pass", "c": category}
+    return {"version": 2, **_check_header(check_id), "rules": rules,
+            "categories": [[c.id, c.label, c.weight] for c in categories]}
+
+
+def build_integrity_manifest() -> dict:
+    from vibecheck.checks.integrity.rules import CATEGORIES, PASSES, RULES
+
+    return _table_manifest("integrity", RULES, PASSES, CATEGORIES)
+
+
+def render_integrity() -> str:
+    return json.dumps(build_integrity_manifest(), indent=1, sort_keys=True, ensure_ascii=False) + "\n"
+
+
 def build_visibility_manifest() -> dict:
     from vibecheck.checks.visibility import config
     from vibecheck.checks.visibility.rules import PASSES, RULES
@@ -95,3 +121,5 @@ if __name__ == "__main__":
     print(f"wrote {MANIFEST_PATH} ({len(build_manifest()['rules'])} rules)")
     VIS_MANIFEST_PATH.write_text(render_visibility(), encoding="utf-8")
     print(f"wrote {VIS_MANIFEST_PATH} ({len(build_visibility_manifest()['rules'])} rules)")
+    INTEGRITY_MANIFEST_PATH.write_text(render_integrity(), encoding="utf-8")
+    print(f"wrote {INTEGRITY_MANIFEST_PATH} ({len(build_integrity_manifest()['rules'])} rules)")
