@@ -709,6 +709,85 @@ _RULES = [
         "and copy in their words, linked from the home page.",
         "Read the home page as each audience: is it obviously for you?",
     ),
+
+    # ---- Brand clarity (phase 3: the AI-answer probe) ---------------------
+    VisRule(
+        "probe-not-mentioned", "AI assistants don't mention you", "medium", "brand",
+        "We asked Claude, with web search on, the questions a buyer asks about your "
+        "category, and it didn't name you once ({excerpt}). A snapshot: answers vary "
+        "from run to run, but none in five is a pattern.",
+        "AI assistants don't mention my product when asked about my category "
+        "({excerpt}). Work through the usual causes in order: make sure my pages are "
+        "readable without JavaScript and not blocked to AI search crawlers; make my "
+        "title, H1 and first paragraph say the category in the words buyers use; give "
+        "pricing, features and comparisons their own pages; and list me in the "
+        "directories my competitors are in. Tell me which of these apply to my site.",
+        "Run the check again in a week or two; expect movement over weeks, not days.",
+        GUIDE_CHATGPT,
+    ),
+    VisRule(
+        "probe-rarely-mentioned", "AI assistants rarely mention you", "low", "brand",
+        "Asked the questions a buyer asks about your category, Claude named you "
+        "rarely ({excerpt}). A snapshot: answers vary from run to run.",
+        "AI assistants only sometimes mention my product ({excerpt}). Compare my site "
+        "with the competitors they do name: what pages do they have that I don't "
+        "(comparisons, pricing, a page per use case), and where are they listed that "
+        "I'm not? Suggest the three changes most likely to help.",
+        "Run the check again in a week or two.",
+        GUIDE_CHATGPT,
+    ),
+    VisRule(
+        "probe-not-cited", "Mentioned, but your site isn't cited", "low", "brand",
+        "The AI named you but cited other pages, not yours ({excerpt}). People "
+        "click the cited link, and an AI that can't read your page describes you "
+        "from other people's.",
+        "AI answers name my product but cite other sites, not mine ({excerpt}). Make "
+        "sure the page that answers each buyer question exists on my site, is "
+        "server-rendered, has a clear title and description, and is in my sitemap "
+        "and llms.txt.",
+        "Run the check again and look at the cited pages under each answer.",
+        GUIDE_CHATGPT,
+    ),
+    VisRule(
+        "probe-behind-competitors", "Competitors come up more often than you", "low", "brand",
+        "Across the same questions, a competitor was named more often than you "
+        "({excerpt}).",
+        "In AI answers about my category a competitor comes up more often than me "
+        "({excerpt}). Look at what that competitor publishes that I don't (comparison "
+        "pages, directory listings, reviews, a clear pricing page) and suggest what "
+        "I could do in the next month, honestly and without copying them.",
+        "Run the check again in a few weeks.",
+    ),
+
+    # ---- Off-site (phase 4: footprint) ------------------------------------
+    VisRule(
+        "offsite-no-mentions", "Nothing about you outside your own site", "medium", "offsite",
+        "A web search found no pages about you beyond your own site ({excerpt}). "
+        "Search engines and AI assistants trust what other sites say about you; "
+        "with nothing out there, they have only your word.",
+        "Nobody else on the web mentions my product yet ({excerpt}). Make me a plan "
+        "for the first ten honest mentions: the directories for my category, a "
+        "Product Hunt launch, answering real questions where my buyers ask them, "
+        "and the people or newsletters who cover my niche.",
+        "Search the web for your product's name: count the results that aren't your own site.",
+    ),
+    VisRule(
+        "offsite-few-mentions", "Few mentions outside your own site", "low", "offsite",
+        "Only a handful of other sites mention you ({excerpt}).",
+        "Few sites mention my product ({excerpt}). Suggest where else it should be "
+        "listed or discussed for my category, and draft a short, honest description "
+        "I can reuse.",
+        "Search for your product's name in a month and compare.",
+    ),
+    VisRule(
+        "offsite-missing-listings", "Not listed on the directories buyers use", "low", "offsite",
+        "Comparison sites and directories are where people (and the AI assistants "
+        "that read them) compare products. {excerpt}",
+        "Help me list my product on the directories I'm missing. {excerpt} For each, "
+        "tell me what the form will ask for and draft the answers from my site, "
+        "keeping every claim true.",
+        "Search each directory for your product's name after the listing is approved.",
+    ),
 ]
 
 RULES: Dict[str, VisRule] = {r.id: r for r in _RULES}
@@ -738,6 +817,11 @@ PASSES: Dict[str, Tuple[str, str]] = {
     "positioning-social-proof-ok": ("Shows social proof", "positioning"),
     "positioning-cta-ok": ("One main call to action", "positioning"),
     "positioning-focused": ("Speaks to a focused audience", "positioning"),
+    "probe-mentioned": ("AI assistants mention you", "brand"),
+    "probe-cited": ("AI answers cite your site", "brand"),
+    "probe-share-ok": ("You hold your own against the competitors", "brand"),
+    "offsite-mentions": ("Other sites talk about you", "offsite"),
+    "offsite-listed": ("Listed on directories buyers use", "offsite"),
 }
 
 assert len(RULES) == len(_RULES), "duplicate visibility rule id"

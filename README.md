@@ -146,6 +146,22 @@ connects only to the address it vetted. It allows 10 scans an hour per visitor
 and one a minute per site, and keeps results for 24 hours. Design notes:
 [`docs/visibility-design.md`](docs/visibility-design.md).
 
+### Would an AI recommend you?
+
+```bash
+ANTHROPIC_API_KEY=... vibecheck --visibility https://groomly.com \
+  --brand Groomly --category "booking software for dog groomers" \
+  --competitor Fresha --competitor Gingr --country GB
+```
+
+Asks Claude, with web search on, five questions a buyer would ask about your
+category without naming you, and reports how often it names you, cites your
+site, and names your competitors instead, with what it actually said. Then it
+searches for you off your own site and on Product Hunt, AlternativeTo, G2,
+Capterra, Crunchbase and Reddit, and lists where you're missing with where to
+sign up and a description to paste. The answers are a snapshot: they vary from
+run to run. Seven web-searching calls per run, on your key.
+
 ## Integrity: is it well built and looked after?
 
 ```bash

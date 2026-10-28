@@ -119,8 +119,15 @@
   footer { margin-top: 64px; padding: 28px 0 40px; border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; }
   .ok { color: var(--accent); }
   .hidden { display: none !important; }
+  .askai { max-width: 620px; margin: 4px auto 8px; text-align: left; }
+  .askai summary { cursor: pointer; color: var(--accent); font-size: 14px; }
+  .askgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .askgrid label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+  .askgrid input, .askgrid select { font: 14px/1.2 var(--mono); color: var(--text); background: var(--panel);
+    border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px; min-width: 0; }
   @media (max-width: 520px) {
     .urlbox { flex-direction: column; }
+    .askgrid { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -150,8 +157,25 @@
       <input type="text" id="urlInput" placeholder="https://myapp.com" spellcheck="false" autocomplete="off" aria-label="Site address">
       <button type="submit" id="urlBtn">Check it</button>
     </form>
+    <details class="askai" id="askAi">
+      <summary>Also ask the AIs whether they'd recommend you (optional)</summary>
+      <p class="privacy">We ask Claude, with web search on, five questions a buyer asks about your category, never naming you,
+      and count how often it names you, cites your site, and names your competitors instead. Then we search for you on the
+      directories buyers use. Two a day each; the answers are a snapshot, not a ranking.</p>
+      <div class="askgrid">
+        <label>Product name <input type="text" id="aiBrand" maxlength="80" placeholder="Groomly" autocomplete="off"></label>
+        <label>What it is, as a buyer would ask <input type="text" id="aiCategory" maxlength="160" placeholder="booking software for dog groomers" autocomplete="off"></label>
+        <label>Competitors, up to three <input type="text" id="aiCompetitors" maxlength="130" placeholder="Fresha, Gingr" autocomplete="off"></label>
+        <label>Country <select id="aiCountry">
+          <option value="GB">UK</option><option value="US">US</option><option value="IE">Ireland</option>
+          <option value="AU">Australia</option><option value="NZ">New Zealand</option><option value="CA">Canada</option>
+          <option value="JP">Japan</option><option value="DE">Germany</option><option value="FR">France</option>
+        </select></label>
+      </div>
+    </details>
     <p class="privacy">We read your home page and up to 20 more from our server, as <a href="#crawler">vibecheck-visibility</a>,
-    and follow your robots.txt. No sign-up. Nothing you type is stored; results are kept for 24 hours so a busy site isn't crawled again and again.</p>
+    and follow your robots.txt. No sign-up. Results are kept for 24 hours so a busy site isn't crawled again and again; if you
+    fill in the AI panel, what you typed there is kept with them and sent to Anthropic inside the questions. <a href="/privacy">Privacy</a>.</p>
 
     <div class="status" id="status" role="status"></div>
   </div>
@@ -220,14 +244,24 @@ $("urlForm").addEventListener("submit", e => {
   if (url) check(url, false);
 });
 
+function probeFields() {
+  const brand = $("aiBrand").value.trim(), category = $("aiCategory").value.trim();
+  if (!brand || !category) return null;
+  const competitors = $("aiCompetitors").value.split(",").map(s => s.trim()).filter(Boolean).slice(0, 3);
+  return { brand, category, competitors, country: $("aiCountry").value };
+}
+
 async function check(url, fresh) {
   $("urlBtn").disabled = true;
-  statusEl.textContent = `Reading ${url} the way a crawler does… this takes up to a minute.`;
+  const probe = probeFields();
+  statusEl.textContent = probe
+    ? `Reading ${url} and asking the AIs about ${probe.category}… this takes a minute or two.`
+    : `Reading ${url} the way a crawler does… this takes up to a minute.`;
   try {
     const res = await fetch("/api/visibility", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url, fresh }),
+      body: JSON.stringify(probe ? { url, fresh, probe } : { url, fresh }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "The check failed.");

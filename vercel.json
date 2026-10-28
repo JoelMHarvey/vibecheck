@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "functions": {
-    "api/visibility.py": { "maxDuration": 60 }
+    "api/visibility.py": { "maxDuration": 180 }
   },
   "rewrites": [
     { "source": "/badge/:check.svg", "destination": "/api/badge?check=:check" },

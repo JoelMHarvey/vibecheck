@@ -187,6 +187,8 @@
     if (ran && ran < scores.length) bits.push(`score based on ${ran} of ${scores.length} categories`);
     const pos = positioningSkipped(r);
     if (pos) bits.push(`positioning not reviewed: ${pos}`);
+    const ai = probeSkipped(r);
+    if (ai) bits.push(`AI answers not checked: ${ai}`);
     bits.push(when(r.scanned_at));
     meta.append(el("p", "", bits.filter(Boolean).join(" · ")));
     const pills = el("div", "vr-pills");
@@ -212,12 +214,37 @@
     return typeof p === "string" && p.startsWith("not run: ") ? p.slice(9) : "";
   }
 
+  function probeSkipped(r) {
+    const p = r.meta && r.meta.probe;
+    const s = p && typeof p.status === "string" ? p.status : "";
+    return s.startsWith("not run: ") ? s.slice(9) : "";
+  }
+
+  // The AI-answer probe's snapshot: what Claude said to each question.
+  function aiAnswers(r) {
+    const answers = (r.meta && r.meta.probe && Array.isArray(r.meta.probe.answers)) ? r.meta.probe.answers : [];
+    if (!answers.length) return null;
+    const box = el("div", "vr-answers");
+    box.append(el("h4", "vr-head", "What the AI said"));
+    box.append(el("p", "vr-note", "A snapshot: AI answers vary from run to run, so read these as a sample, not a ranking."));
+    for (const a of answers) {
+      const card = el("div", "vr-answer");
+      const tag = el("span", a.mentioned ? "vr-tag ok" : "vr-tag no", a.mentioned ? (a.cited ? "named, cited" : "named") : "not named");
+      card.append(tag, el("strong", "", " " + String(a.q || "")));
+      if (Array.isArray(a.competitors) && a.competitors.length) card.append(el("p", "vr-ev", "Also named: " + a.competitors.join(", ")));
+      if (a.snippet) card.append(el("blockquote", "", String(a.snippet)));
+      box.appendChild(card);
+    }
+    return box;
+  }
+
   function categoryGrid(r, m) {
     const grid = el("div", "vr-cats");
     for (const [id, label] of m.categories) {
       const s = r.category_scores[id];
       const none = s === null || s === undefined;
-      const noneLabel = id === "positioning" && positioningSkipped(r) ? "not run this time" : (m.not_run || NOT_RUN);
+      const skipped = id === "positioning" ? positioningSkipped(r) : (id === "brand" || id === "offsite") ? probeSkipped(r) : "";
+      const noneLabel = skipped ? "not run this time" : (m.not_run || NOT_RUN);
       const box = el("div", "vr-cat"); const top = el("div", "vr-top");
       top.append(el("span", "", label), el("span", none ? "vr-val none" : "vr-val", none ? noneLabel : `${s}/10`));
       const bar = el("div", "vr-bar"); const fill = el("span");
@@ -280,6 +307,8 @@
       }
       sec.append(ul);
     }
+    const answers = aiAnswers(r);
+    if (answers) sec.append(answers);
     if (m.footer) sec.append(el("p", "vr-footer", m.footer));
     return sec;
   }
