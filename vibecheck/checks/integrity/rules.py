@@ -229,6 +229,42 @@ _RULES = [
          "whole repo.",
          "Check whether these files are used anywhere: {excerpt}. Delete the ones that aren't; git keeps the history.",
          "Re-run this check."),
+
+    # ---- Architecture read (phase B: Claude, opt-in, --architecture) -------
+    Rule("arch-unhandled-boundary", "A call to an outside system can fail unhandled", "medium", "quality",
+         "{excerpt} (From the architecture read, a model's review of your code: check it before changing anything.)",
+         "In {path}: {excerpt} Handle the failure where the call is made: catch the error, log it with "
+         "enough context to find the request, return a clear response (or retry when it's safe to), and "
+         "never leave a half-finished write behind.",
+         "Make the outside call fail on purpose in a test and check the app answers sensibly."),
+    Rule("arch-unvalidated-input", "Request input used without validation", "medium", "quality",
+         "{excerpt} (From the architecture read, a model's review of your code: check it before changing anything.)",
+         "In {path}: {excerpt} Validate the input at the top of the handler with a schema (zod for "
+         "TypeScript, pydantic for Python): types, lengths, allowed values. Reject anything else with a "
+         "400 before it reaches the database or another service.",
+         "Send the route a request with a missing field and one with a 10,000-character string: both "
+         "should get a 400."),
+    Rule("arch-missing-auth", "A route changes data without checking who's asking", "medium", "quality",
+         "{excerpt} (From the architecture read, a model's review of your code: check it before changing anything.)",
+         "In {path}: {excerpt} Check the caller at the top of the handler: signed in, and allowed to change "
+         "this record (it's theirs, or they have the role). Return 401 or 403 otherwise, and add a test "
+         "for each.",
+         "Call the route signed out, and signed in as someone else: both should be refused."),
+    Rule("arch-unverified-webhook", "A webhook doesn't verify its sender", "medium", "quality",
+         "{excerpt} (From the architecture read, a model's review of your code: check it before changing anything.)",
+         "In {path}: {excerpt} Verify the provider's signature on the raw request body before doing "
+         "anything (for Stripe, stripe.webhooks.constructEvent with the endpoint secret), reject a bad one "
+         "with a 400, and make the handler safe to receive the same event twice.",
+         "Post a made-up event to the webhook: it should be rejected and change nothing."),
+    Rule("arch-no-timeout", "An outbound call has no timeout", "low", "quality",
+         "{excerpt} (From the architecture read, a model's review of your code: check it before changing anything.)",
+         "In {path}: {excerpt} Give the call a timeout (an AbortSignal.timeout for fetch, timeout= for "
+         "requests or httpx) so a slow service can't hold the request open until the platform kills it.",
+         "Point the call at an address that never answers and check it gives up in seconds."),
+    Rule("arch-risky-pattern", "A pattern likely to cause an outage or lose data", "low", "quality",
+         "{excerpt} (From the architecture read, a model's review of your code: check it before changing anything.)",
+         "In {path}: {excerpt} Change it as described, with a test that would have caught it.",
+         "Re-run the architecture read."),
 ]
 
 RULES: Dict[str, Rule] = {r.id: r for r in _RULES}

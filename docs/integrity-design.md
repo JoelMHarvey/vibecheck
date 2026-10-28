@@ -63,10 +63,28 @@ gold). A quick AI build with none of these scores in the 40s.
 - Tried on vibecheck itself and six of the family's repos before shipping;
   the false positives found that way are the ones fixed above.
 
-## Not in phase A
+## Phase B: the architecture read
+
+`checks/integrity/architecture.py`, opt-in with `--architecture` on the
+user's own key, never on the server. It builds a digest within 120,000
+characters: the file tree, then source files ranked boundary-first (money
+and webhooks, auth, routes and handlers, entry points, database and client
+code), each capped at 12,000 characters, with anything secret-shaped
+redacted (provider keys, JWTs, connection strings, quoted passwords) and
+`.env` files never included. Claude (Opus) returns at most eight problems
+against a JSON schema, each a kind (unhandled boundary, unvalidated input,
+missing auth, unverified webhook, no timeout, other risky pattern), a path,
+a quoted line and a note.
+
+The quote has to be a line in the file it names; we find the line number,
+and a problem whose quote isn't there is dropped (the report says how
+many). Severity comes from the kind, not the model. Findings are in Code
+quality and say they come from a model's review. Reviews are cached on disk
+(`~/.cache/vibecheck/architecture`, or `VIBECHECK_CACHE`) by a hash of the
+digest, rubric version and model.
+
+## Still to come
 
 Dependency age and known-vulnerable versions (needs a registry or OSV lookup,
 which sends dependency names off the machine, so it'll be opt-in); dead-file
-detection by import graph; the browser upload; phase B, a short model-written
-architecture read of the repo, capped and cached like the visibility
-positioning review.
+detection by import graph; the browser upload.

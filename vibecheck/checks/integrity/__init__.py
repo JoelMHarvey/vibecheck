@@ -62,6 +62,10 @@ class IntegrityCheck:
         signals.debt(repo, c)
         if target.url:
             signals.live(target.url, ctx.fetcher(**URL_FETCH), c)
+        architecture = None
+        if ctx.options.get("architecture") is not None:
+            from .architecture import run_architecture
+            architecture = run_architecture(repo, c, ctx.options["architecture"])
 
         findings = sorted(c.findings, key=lambda f: (SEVERITY_ORDER[f.severity], f.category, f.id))
         ran = {cat.id for cat in CATEGORIES}
@@ -76,7 +80,8 @@ class IntegrityCheck:
             category_scores=scores,
             total=weighted_total(scores, CATEGORIES),
             findings=findings,
-            meta={"files_scanned": len(repo.paths), "server_code": server},
+            meta={"files_scanned": len(repo.paths), "server_code": server,
+                  **({"architecture": architecture} if architecture else {})},
         )
 
 
