@@ -148,8 +148,55 @@ the list of audiences the page addresses.
   down) the category stays unscored and `meta.positioning` says why; the
   report shows it and the rest of the scan is untouched.
 
-## Not in phase 1 or 2
+## Phase 3: the AI-answer probe
 
-The AI-answer probe (phase 3), off-site
-footprint (phase 4) and suite mode. Rank tracking, backlinks and keyword
-volumes are out of scope; the report points to Google Search Console.
+`checks/visibility/probe.py`. Given a brand, a category ("booking software
+for dog groomers"), a country and up to three competitors, it asks Claude
+(Opus, with the `web_search` tool, `user_location` set to the country)
+five buyer-style questions that never name the brand: best in the country,
+recommendations with prices, alternatives to the first competitor, the first
+two competitors head to head, flat price and no commission. Each answer is
+capped at 200 words.
+
+Everything scored comes from parsing the response (`websearch.py`): the
+answer text, the URLs its sentences cite, the URLs the searches returned.
+Per answer: named (a whole-word match on the brand, or its domain written
+out), cited (a citation on the brand's domain), position among the brand and
+competitors, which competitors were named. Overall: mention rate, citation
+rate, share of voice against the named competitors. The answers are kept as
+320-character snippets in `meta.probe`, and every report shows them under
+"What the AI said" with the line that they're a snapshot.
+
+Findings fill Brand clarity: never named (medium), rarely named (low), named
+but never cited (low), a competitor named more often (low). Model answers
+move run to run, so nothing here is worse than medium.
+
+## Phase 4: the off-site footprint
+
+`checks/visibility/footprint.py`. Two more web-searching questions: the
+brand on the open web, and the brand on Product Hunt, AlternativeTo, G2,
+Capterra, Crunchbase and Reddit (`allowed_domains`). A result counts only
+when its address or title names the brand, so a directory's category page
+isn't a listing. Pages about the brand off its own site fill Off-site; every
+directory without a listing goes in one finding with where to list (each
+directory's sign-up route, checked October 2026) and a description to paste,
+taken from the site's own llms.txt summary or meta description.
+
+## Running phases 3 and 4
+
+One unit of a daily budget per run, all seven questions in parallel,
+`MAX_CONTINUATIONS` resumes of a paused server-side turn, server-side
+refusal fallbacks on. `/api/visibility` takes an optional `probe` object;
+it needs `ANTHROPIC_API_KEY`, is capped at `PROBE_DAILY_CAP` runs a day
+(default 40) and two a day per visitor, and is cached for 24 hours by URL
+and inputs. Over the cap, Brand clarity and Off-site say "not run this
+time" and why, and nothing else changes. The function's `maxDuration` is
+180 s to leave room for a crawl plus the questions. The CLI runs it with
+`--brand`, `--category`, `--country` and `--competitor` on your own key.
+Suite mode leaves it out: weekly issues need numbers that don't move by
+themselves.
+
+## Out of scope
+
+Rank tracking, backlinks and keyword volumes; the report points to Google
+Search Console.

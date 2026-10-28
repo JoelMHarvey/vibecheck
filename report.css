@@ -81,3 +81,12 @@
 .vr-pill.vr-level.silver { color: #c0c7d2; border-color: #c0c7d2; }
 .vr-pill.vr-level.bronze { color: #cd8a52; border-color: #cd8a52; }
 .vr-pill.vr-expired { color: var(--muted); border-style: dashed; }
+
+/* The AI-answer probe's snapshot */
+.vr-answers { margin-top: 18px; }
+.vr-answer { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin: 10px 0; }
+.vr-answer blockquote { margin: 8px 0 0; padding-left: 10px; border-left: 3px solid var(--border); opacity: .85; overflow-wrap: anywhere; }
+.vr-tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 10px; font-weight: 600; }
+.vr-tag.ok { background: rgba(63, 185, 80, .18); color: #3fb950; }
+.vr-tag.no { background: rgba(219, 138, 52, .18); color: #db8a34; }
+

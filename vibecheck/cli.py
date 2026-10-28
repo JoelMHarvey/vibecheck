@@ -50,6 +50,16 @@ def main(argv=None) -> int:
                         help="with a visibility check, also review the home page's copy with Claude "
                              "(who it's for, price, differentiator, social proof, call to action). "
                              "Needs the anthropic package and your own ANTHROPIC_API_KEY; one small call per run.")
+    parser.add_argument("--brand", metavar="NAME",
+                        help="with a visibility check, also ask Claude (with web search) the questions buyers ask "
+                             "about your category and see if it names you, and search for you off-site. "
+                             "Needs --category, the anthropic package and your own ANTHROPIC_API_KEY; "
+                             "seven web-searching calls per run")
+    parser.add_argument("--category", metavar="TEXT",
+                        help='what you are, as a buyer would ask for it: "practice software for therapists"')
+    parser.add_argument("--country", metavar="CC", default="GB", help="two-letter country for the questions (default GB)")
+    parser.add_argument("--competitor", metavar="NAME", action="append", default=[],
+                        help="a competitor to measure against (up to three; repeatable)")
     parser.add_argument("--badge", action="store_true",
                         help="print badge Markdown for each check. From your machine it says self-reported; "
                              "in GitHub Actions it names the run. Only scans run on psychosecurity.io are signed.")
@@ -79,7 +89,7 @@ def main(argv=None) -> int:
     parser.add_argument("--version", action="version", version=f"vibecheck {__version__}")
     args = parser.parse_args(argv)
 
-    if args.visibility or args.checks or args.badge or args.positioning or _looks_like_url(args.path):
+    if args.visibility or args.checks or args.badge or args.positioning or args.brand or _looks_like_url(args.path):
         return _unified(parser, args)
     args.path = args.path or "."
 
@@ -177,7 +187,20 @@ def _unified(parser, args) -> int:
         from .checks.visibility.positioning import ClaudeReviewer
 
         reviewer = ClaudeReviewer()
-    ctx = Context(guard=False, exclude=args.exclude, provenance="self", llm=reviewer)
+    options = {}
+    if args.brand:
+        if not args.category:
+            parser.error("--brand needs --category")
+        if not url:
+            parser.error("--brand needs a site: give --visibility URL")
+        from urllib.parse import urlsplit
+
+        from .checks.visibility.probe import ProbeInput
+        from .checks.visibility.websearch import ClaudeSearch
+
+        options["probe"] = (ClaudeSearch(), ProbeInput(args.brand, urlsplit(url).hostname or "", args.category,
+                                                       args.country, args.competitor[:3]))
+    ctx = Context(guard=False, exclude=args.exclude, provenance="self", llm=reviewer, options=options)
     results = [c.run(target, ctx) for c in runnable]
 
     threshold = CORE_ORDER[args.min_severity]

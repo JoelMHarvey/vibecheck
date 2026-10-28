@@ -61,6 +61,9 @@ def meta_line(result: CheckResult) -> str:
         bits.append(f"{n} page{'s' if n != 1 else ''} crawled")
     if result.meta.get("positioning"):
         bits.append(f"positioning review: {result.meta['positioning']}")
+    probe = result.meta.get("probe")
+    if isinstance(probe, dict) and str(probe.get("status", "")).startswith("not run"):
+        bits.append(f"AI answers: {probe['status']}")
     bits.append(result.scanned_at)
     return " · ".join(bits)
 
@@ -71,6 +74,15 @@ def level(result: CheckResult) -> Optional[str]:
 
 def _wrap(text: str, indent: str = "     ") -> str:
     return textwrap.fill(text, width=96, initial_indent=indent, subsequent_indent=indent)
+
+
+SNAPSHOT_NOTE = ("A snapshot: AI answers vary from run to run, so read these as a sample, "
+                 "not a ranking.")
+
+
+def probe_answers(result: CheckResult) -> list:
+    probe = result.meta.get("probe")
+    return probe.get("answers") or [] if isinstance(probe, dict) else []
 
 
 def render_terminal(result: CheckResult, use_color: bool = True) -> str:
@@ -117,6 +129,18 @@ def render_terminal(result: CheckResult, use_color: bool = True) -> str:
         for f in result.passes:
             lines.append("  " + c("pass", "✓ ") + f.title + c("dim", f"   {f.evidence}"))
         lines.append("")
+    answers = probe_answers(result)
+    if answers:
+        lines += [c("bold", "  WHAT THE AI SAID " + "─" * 44), c("dim", _wrap(SNAPSHOT_NOTE, indent="  ")), ""]
+        for a in answers:
+            mark = c("pass", "✓ named") if a.get("mentioned") else c("medium", "✗ not named")
+            cited = c("pass", ", cited") if a.get("cited") else ""
+            lines.append(f"  {mark}{cited}   " + c("bold", a.get("q", "")))
+            if a.get("competitors"):
+                lines.append(_wrap("Also named: " + ", ".join(a["competitors"])))
+            if a.get("snippet"):
+                lines.append(c("dim", _wrap(a["snippet"])))
+            lines.append("")
     footer = getattr(check, "footer", "")
     if footer:
         lines += [c("dim", _wrap(footer, indent="  ")), ""]
@@ -161,6 +185,16 @@ def render_markdown(result: CheckResult, heading_level: int = 1) -> str:
         lines += [f"{h}# Working", ""]
         lines += [f"- ✓ **{f.title}** — {f.evidence}" for f in result.passes]
         lines.append("")
+    answers = probe_answers(result)
+    if answers:
+        lines += [f"{h}# What the AI said", "", f"_{SNAPSHOT_NOTE}_", ""]
+        for a in answers:
+            mark = ("✓ named" if a.get("mentioned") else "✗ not named") + (", cited" if a.get("cited") else "")
+            lines += [f"**{a.get('q', '')}** ({mark})", ""]
+            if a.get("competitors"):
+                lines += [f"Also named: {', '.join(a['competitors'])}", ""]
+            if a.get("snippet"):
+                lines += [f"> {a['snippet']}", ""]
     footer = getattr(check, "footer", "")
     if footer:
         lines += ["---", "", f"_{footer}_"]

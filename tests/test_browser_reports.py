@@ -92,6 +92,23 @@ class SharedReportTest(unittest.TestCase):
         self.assertIn("Observability", text)
         self.assertIn("How it was built", text)
 
+    def test_ai_answers_render_as_a_snapshot_and_survive_a_share_link(self):
+        from test_probe import INPUT, FakeSearch, run
+        result = run(FakeSearch()).to_dict()
+        viewer, url = self.share_round_trip("/visibility", [result])
+        text = viewer.inner_text("#report")
+        self.assertIn("What the AI said", text)
+        self.assertIn("A snapshot", text)
+        self.assertIn("flat-priced newcomer", text)
+        self.assertLess(len(url), 8000)
+
+    def test_the_ai_panel_fits_a_phone(self):
+        page = self.page()
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.goto(tb.BASE + "/visibility")
+        page.click("#askAi summary")
+        self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), 390)
+
     def test_old_security_links_still_open(self):
         # A v1 link, as the home page made them before the framework.
         page = self.page()

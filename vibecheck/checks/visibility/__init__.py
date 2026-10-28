@@ -32,8 +32,10 @@ class VisibilityCheck:
     def run(self, target: Target, ctx: Context) -> CheckResult:
         fetch = ctx.fetcher(user_agent=config.USER_AGENT, timeout=config.TIMEOUT,
                             max_bytes=config.MAX_BYTES, max_redirects=config.MAX_REDIRECTS)
+        probe = ctx.options.get("probe")          # (search, ProbeInput) for phases 3 and 4
         result = scan_visibility(target.url, fetch, now=ctx.timestamp(),
-                                 budget=ctx.budget or config.BUDGET, reviewer=ctx.llm)
+                                 budget=ctx.budget or config.BUDGET, reviewer=ctx.llm,
+                                 search=probe[0] if probe else None, probe_input=probe[1] if probe else None)
         result.target.commit = target.commit
         return result
 

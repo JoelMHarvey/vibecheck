@@ -211,6 +211,7 @@ class Context:
     exclude: Sequence[str] = ()
     llm: Any = None
     budget: Optional[float] = None
+    options: Dict[str, Any] = field(default_factory=dict)   # per-check extras, e.g. visibility's "probe"
     provenance: str = "self"     # "server" | "ci" | "self": who ran the scan
 
     def fetcher(self, **options) -> Fetcher:
