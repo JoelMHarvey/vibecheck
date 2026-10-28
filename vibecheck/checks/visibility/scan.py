@@ -23,8 +23,10 @@ from ...core.fetcher import PERMANENT_CODES, Fetched
 from ...core.models import SEVERITY_ORDER, CheckResult, Finding, Target, iso
 from ...core.scoring import category_scores, weighted_total
 from . import config
-from .page import Page, fingerprint, parse_page
+from .page import Page, fingerprint, is_noindex, parse_page
 from .rules import PASSES, RULES
+
+APP_PATH = re.compile(config.APP_PATHS, re.I)
 
 SKIP_EXTS = (
     ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".svg", ".ico", ".css", ".js",
@@ -275,6 +277,7 @@ class _Scan:
         self.pages: Dict[str, Tuple[Fetched, Page]] = {}  # page_key -> (response, parsed)
         self.home: Optional[Page] = None
         self.csr_pages: Set[str] = set()
+        self.noindex_pages: List[str] = []
 
     # -- recording --
     def add(self, rule_id: str, path: str, excerpt: str) -> None:
@@ -372,6 +375,9 @@ class _Scan:
         self.input_chain = home.chain
         self.home = parse_page(home.url, home.text)
         self.pages[page_key(home.url)] = (home, self.home)
+        if is_noindex(self.home, home.headers):
+            how = "X-Robots-Tag header" if is_noindex(Page(url=home.url), home.headers) else "<meta name=\"robots\">"
+            self.add("home-noindex", "/", f"the home page's {how} says noindex")
         for u in extra:
             r = got.get(u)
             if r is not None and r.ok and r.is_html and self.internal(r.url):
@@ -523,6 +529,8 @@ class _Scan:
             return None
         if p.query or p.path.lower().endswith(SKIP_EXTS):
             return None
+        if APP_PATH.match(p.path or "/"):
+            return None
         clean = urlunsplit((p.scheme, p.netloc, p.path or "/", "", ""))
         return clean if self.crawlable(clean) else None
 
@@ -554,6 +562,12 @@ class _Scan:
                 if key in self.pages:
                     continue
                 page = parse_page(resp.url, resp.text)
+                if is_noindex(page, resp.headers):
+                    # The page has asked not to be indexed, so it isn't judged
+                    # as content. Its links still lead to pages that are.
+                    self.noindex_pages.append(self.path(resp.url))
+                    new_links.extend(l.href for l in page.links)
+                    continue
                 self.pages[key] = (resp, page)
                 new_links.extend(l.href for l in page.links)
             budget -= len(batch)

@@ -37,6 +37,12 @@ MAX_REDIRECTS = 5
 WORKERS = 6               # requests in flight at once
 BUDGET = 40.0             # seconds for the whole crawl
 
+# Sign-in, sign-up and other account screens. They're app, not content: a
+# login form rendered in the browser is normal and nobody needs it to rank,
+# so the crawl doesn't spend its page budget on them or judge their copy.
+APP_PATHS = (r"^/(?:[a-z]{2}(?:-[a-z]{2})?/)?(?:log-?in|sign-?in|sign-?up|register|log-?out|sign-?out"
+             r"|forgot(?:-password)?|reset(?:-password)?|password-reset|auth|sso|oauth|callback)(?:/|$)")
+
 # Thresholds.
 MIN_BODY_TEXT = 200       # characters of text in the raw HTML
 TITLE_MAX = 60

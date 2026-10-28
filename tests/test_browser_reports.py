@@ -67,7 +67,7 @@ class SharedReportTest(unittest.TestCase):
     def test_visibility_report_round_trips(self):
         _security, visibility = self.results()
         viewer, url = self.share_round_trip("/visibility", [visibility])
-        self.assertEqual(viewer.inner_text("#scoreNum"), "62")
+        self.assertEqual(viewer.inner_text("#scoreNum"), "73")
         self.assertIn("deeper check coming soon", viewer.inner_text("#report"))
         self.assertLess(len(url), 4000)
 

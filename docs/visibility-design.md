@@ -58,6 +58,15 @@ Six requests in flight at most, a 10 s timeout on each, and an overall budget
 of 40 s; the function's `maxDuration` is 60 s. A page that doesn't come back in
 time is left out and the report says how many were crawled.
 
+Two kinds of page aren't judged as content. Sign-in, sign-up and other
+account screens (`config.APP_PATHS`: login, sign-in, sign-up, register,
+forgot, reset, auth, sso, oauth, callback, with or without a language prefix)
+aren't crawled at all: a login form drawn in the browser is normal and
+nothing needs it to rank. Pages marked noindex (meta robots or googlebot, or
+an X-Robots-Tag header) are fetched, their links followed, and then left out
+of every page check. A noindex home page is the exception, and critical
+(`home-noindex`).
+
 An SPA host often answers every path with `index.html`. An HTML answer to
 `/robots.txt`, `/sitemap.xml` or `/llms.txt` counts as missing, the same rule
 `urlscan` uses for `/.env`.
@@ -94,7 +103,9 @@ Recorded responses live in `tests/fixtures/robinofloxley.json.gz`
 `tests/test_visibility_fixture.py` replays them and checks:
 
 - fragment-only app sections (`fragment-sections`)
-- sitemap has 4 URLs against the pages found (`sitemap-incomplete`)
+- sitemap has 4 URLs against the pages found (`sitemap-incomplete`); since
+  noindex pages are left out of the content checks this one no longer
+  fires: the fifth page, /brand, is noindex, so the sitemap is right
 - home lastmod older than the content (`sitemap-lastmod-stale`)
 - bare vs www mismatch for myowntrader.com and myownlingo.com between the page
   and llms.txt (`external-host-mixed`)
