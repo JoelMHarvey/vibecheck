@@ -22,7 +22,7 @@ from vibecheck.core import fetcher as vfetch  # noqa: E402
 from vibecheck.checks.visibility.page import fingerprint, parse_page  # noqa: E402
 from vibecheck.core.report import render_markdown, render_terminal  # noqa: E402
 from vibecheck.checks.visibility.rules import PASSES, RULES  # noqa: E402
-from vibecheck.checks.visibility.scan import image_size, parse_sitemap  # noqa: E402
+from vibecheck.checks.visibility.scan import gunzip_capped, image_size, parse_sitemap  # noqa: E402
 
 FIXTURES = Path(__file__).resolve().parent.parent / "vibecheck" / "checks" / "visibility" / "fixtures"
 BASE = "https://groomly.test"
@@ -420,6 +420,22 @@ class SitemapTest(unittest.TestCase):
         bomb = b'<?xml version="1.0"?><!DOCTYPE x [<!ENTITY a "aaaa">]><urlset>&a;</urlset>'
         with self.assertRaises(ValueError):
             parse_sitemap(bomb)
+
+    def test_a_gzip_bomb_is_never_fully_unpacked(self):
+        import gzip
+        bomb = gzip.compress(b"\0" * 50_000_000)  # ~50 KB on the wire
+        self.assertEqual(len(gunzip_capped(bomb, 1000)), 1000)
+        with self.assertRaises(ValueError):
+            parse_sitemap(bomb)
+
+    def test_broken_gzip_is_a_value_error(self):
+        import gzip
+        whole = gzip.compress(SITEMAP.encode("utf-8"))
+        with self.assertRaises(ValueError):
+            gunzip_capped(whole[: len(whole) // 2], 10_000)
+        with self.assertRaises(ValueError):
+            gunzip_capped(b"\x1f\x8b" + b"not gzip at all", 10_000)
+        self.assertEqual(parse_sitemap(whole)[0], "urlset")
 
     def test_invalid_and_missing(self):
         site = healthy_site()

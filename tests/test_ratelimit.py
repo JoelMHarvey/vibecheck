@@ -92,6 +92,25 @@ class RateLimiterTest(unittest.TestCase):
         limiter = RateLimiter("t", [(1, 60)], backend=Broken(), clock=FakeClock())
         self.assertTrue(limiter.check("ip").allowed, "a broken limiter must not break the API")
 
+    def test_a_spending_cap_fails_closed(self):
+        class Broken:
+            def incr(self, key, window):
+                raise RuntimeError("kv down")
+
+        limiter = RateLimiter("t", [(1000, 86400)], backend=Broken(), clock=FakeClock(),
+                              disabled=False, fail_closed=True)
+        self.assertFalse(limiter.check("all").allowed, "a broken counter must not lift a spending cap")
+
+    def test_the_paid_api_caps_fail_closed(self):
+        import importlib.util
+        from pathlib import Path
+        spec = importlib.util.spec_from_file_location(
+            "visibility_api", Path(__file__).resolve().parent.parent / "api" / "visibility.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertTrue(module.POSITIONING_LIMITER.fail_closed)
+        self.assertTrue(module.PROBE_LIMITER.fail_closed)
+
     def test_message_mentions_cli_escape_hatch(self):
         limiter = RateLimiter("t", [(1, 60)], backend=MemoryBackend(), clock=FakeClock())
         limiter.check("ip")

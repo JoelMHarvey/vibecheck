@@ -39,6 +39,13 @@ class NetGuardTest(unittest.TestCase):
         for host in ("10.0.0.5", "192.168.1.1", "172.16.4.4"):
             self.assertRejected(f"http://{host}/")
 
+    def test_shared_address_space_blocked(self):
+        # 100.64.0.0/10 isn't "private" to ipaddress, but it isn't the public
+        # internet either: Alibaba Cloud's metadata service lives there.
+        for host in ("100.100.100.200", "100.64.0.1"):
+            ok, _ = check_url(f"http://{host}/")
+            self.assertFalse(ok, host)
+
     def test_cloud_metadata_blocked(self):
         # The classic SSRF target: AWS/GCP instance metadata.
         self.assertRejected("http://169.254.169.254/latest/meta-data/")

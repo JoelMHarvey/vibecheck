@@ -196,6 +196,24 @@ class SignedReportTest(unittest.TestCase):
         viewer.wait_for_selector(".vr-prov.bad")
         self.assertIn("Tampered", viewer.inner_text(".vr-prov"))
 
+    def test_an_unsigned_run_link_is_only_ever_a_github_link(self):
+        # The run URL in an unsigned claim is whatever the sender wrote.
+        import json
+        from vibecheck.core import badge, signing
+        claim = json.loads(self.signed_results()[1]["signed"]["report"]["p"])
+        for run, linked in (("javascript:alert(document.domain)", False),
+                            ("https://github.com.evil.test/x", False),
+                            ("https://github.com/o/r/actions/runs/1", True)):
+            claim["provenance"] = {"by": "ci", "run": run}
+            viewer = self.page()
+            viewer.goto(BASE + "/report#r=" + badge.encode_report_link([signing.unsigned_envelope(claim)]),
+                        wait_until="domcontentloaded")
+            viewer.wait_for_selector(".vr-prov")
+            viewer.wait_for_function("document.querySelector('.vr-prov').textContent.includes('GitHub Actions')")
+            hrefs = viewer.eval_on_selector_all(".vr-prov a", "as => as.map(a => a.getAttribute('href'))")
+            self.assertEqual(hrefs, [run] if linked else [], run)
+            self.assertIn(run.replace("https://github.com/", "") if linked else run, viewer.inner_text(".vr-prov"))
+
     def test_badges_and_key_are_served(self):
         from vibecheck.core import badge
         page = self.page()

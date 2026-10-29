@@ -9,11 +9,11 @@ recorded responses.
 from __future__ import annotations
 
 import datetime as _dt
-import gzip
 import json
 import re
 import time
 import urllib.robotparser
+import zlib
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, wait
 from typing import Callable, Dict, Iterable, List, Optional, Sequence, Set, Tuple
@@ -223,11 +223,28 @@ def has_price(node: dict) -> bool:
     return False
 
 
+def gunzip_capped(body: bytes, limit: int) -> bytes:
+    """Decompress gzip without ever holding more than ``limit`` bytes of it.
+
+    A 2 MB response can unpack to gigabytes (a "zip bomb"), and the site
+    being checked is whoever asked. Raises ValueError when the data isn't
+    gzip or stops short.
+    """
+    d = zlib.decompressobj(wbits=31)
+    try:
+        out = d.decompress(body, limit)
+    except zlib.error as e:
+        raise ValueError(f"not valid gzip: {e}") from None
+    if len(out) < limit and not d.eof:
+        raise ValueError("gzip data ends early")
+    return out
+
+
 def parse_sitemap(body: bytes) -> Tuple[str, List[Tuple[str, Optional[str]]]]:
     """('urlset' | 'index', [(loc, lastmod)]). Raises ValueError if it isn't
     a sitemap."""
     if body[:2] == b"\x1f\x8b":
-        body = gzip.decompress(body)[: config.MAX_BYTES]
+        body = gunzip_capped(body, config.MAX_BYTES)
     head = body[:4000].lower()
     # The standard library's XML parser expands entities; a sitemap never
     # needs a DOCTYPE, so refuse one rather than risk an entity bomb.

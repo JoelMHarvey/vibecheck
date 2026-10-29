@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import secrets
 import sys
 import urllib.error
 import urllib.request
@@ -55,18 +57,48 @@ def _escape_annotation(text: str) -> str:
     return text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
 
 
+def _escape_property(text: str) -> str:
+    """A property value (file=, title=) also ends at ',' and '::'."""
+    return _escape_annotation(text).replace(":", "%3A").replace(",", "%2C")
+
+
+# Everything below a space, and DEL. File names and excerpts come from the
+# repository being scanned, which on a pull request is a stranger's: a
+# newline in a file name would otherwise start a line of its own in the log,
+# and the runner reads any line starting with "::" as a workflow command.
+_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0a-\x1f\x7f]")
+
+
+def _scrub(result) -> None:
+    """Replace control characters in everything a finding will print."""
+    for f in result.findings:
+        for name in ("path", "excerpt", "title", "description", "fix_prompt"):
+            value = getattr(f, name, None)
+            if isinstance(value, str):
+                setattr(f, name, _CONTROL_CHARS.sub("?", value))
+
+
 def _emit_annotations(result, path_prefix: str, out) -> None:
     prefix = path_prefix.strip("/")
     prefix = prefix + "/" if prefix else ""
     for f in result.findings:
         level = ANNOTATION_LEVEL[f.severity]
-        title = _escape_annotation(f"vibecheck: {f.title}")
+        title = _escape_property(f"vibecheck: {f.title}")
         message = _escape_annotation(f.description)
         line = max(1, f.line)
         print(
-            f"::{level} file={prefix}{f.path},line={line},title={title}::{message}",
+            f"::{level} file={_escape_property(prefix + f.path)},line={line},title={title}::{message}",
             file=out,
         )
+
+
+def _print_untrusted(text: str, out) -> None:
+    """Print text that quotes the scanned repository with workflow commands
+    switched off, so no line of it can be read as one."""
+    token = secrets.token_hex(16)
+    print(f"::stop-commands::{token}", file=out)
+    print(text, file=out)
+    print(f"::{token}::", file=out)
 
 
 def _write_outputs(result, sarif_path: str, env) -> None:
@@ -188,13 +220,14 @@ def main(argv=None, env=None, out=None) -> int:
     exclude = [line.strip() for line in raw_exclude.splitlines() if line.strip()]
 
     result = scan(str(target), exclude=exclude)
+    _scrub(result)
     threshold = SEVERITY_ORDER[min_severity]
     result.findings = [f for f in result.findings if SEVERITY_ORDER[f.severity] <= threshold]
 
     prefix = _path_prefix(scan_path, env)
 
     # Actions renders ANSI, so the log gets the same coloured report as a terminal.
-    print(render_terminal(result, use_color=not _flag(env, "NO_COLOR")), file=out)
+    _print_untrusted(render_terminal(result, use_color=not _flag(env, "NO_COLOR")), out)
     _emit_annotations(result, prefix, out)
 
     ci_markdown = render_ci_markdown(result, path_prefix=prefix)

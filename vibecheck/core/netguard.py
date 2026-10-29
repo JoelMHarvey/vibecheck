@@ -34,7 +34,10 @@ def _ip_is_public(ip: ipaddress._BaseAddress) -> bool:
     mapped = getattr(ip, "ipv4_mapped", None)
     if mapped is not None:
         ip = mapped
-    return not (
+    # is_global also catches what is_private doesn't: 100.64.0.0/10, the
+    # carrier-grade NAT range, which holds Alibaba Cloud's metadata service
+    # (100.100.100.200) and other providers' internal endpoints.
+    return ip.is_global and not (
         ip.is_private
         or ip.is_loopback
         or ip.is_link_local
