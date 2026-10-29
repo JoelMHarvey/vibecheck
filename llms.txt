@@ -39,7 +39,7 @@ vibecheck is open source (MIT). It runs on this site, as a command-line tool (`p
 
 - [Privacy](https://www.psychosecurity.io/privacy): what the site keeps (an IP address in a rate-limit counter for up to an hour, and nothing of your code)
 - Run by Faresay Ltd, registered in England, 167-169 Great Portland Street, London W1W 5PF
-- [Contact](mailto:hello@psychosecurity.io)
+- [Contact](mailto:hello@robinofloxley.com)
 
 ## Source
 

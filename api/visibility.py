@@ -68,7 +68,8 @@ try:
 except ValueError:
     POSITIONING_DAILY_CAP = 1000
 # A spending cap, so the local-development off switch doesn't lift it.
-POSITIONING_LIMITER = RateLimiter("positioning-day", [(POSITIONING_DAILY_CAP, 86400)], disabled=False)
+POSITIONING_LIMITER = RateLimiter("positioning-day", [(POSITIONING_DAILY_CAP, 86400)], disabled=False,
+                                  fail_closed=True)
 POSITIONING_CACHE = ResultCache(namespace="pos", ttl=POSITIONING_CACHE_SECONDS)
 
 
@@ -78,7 +79,7 @@ except ValueError:
     PROBE_DAILY_CAP = 40
 # Five web-searching questions a run, plus the footprint's searches: about
 # ten pence on Haiku with Serper, so a tighter cap than the copy review.
-PROBE_LIMITER = RateLimiter("probe-day", [(PROBE_DAILY_CAP, 86400)], disabled=False)
+PROBE_LIMITER = RateLimiter("probe-day", [(PROBE_DAILY_CAP, 86400)], disabled=False, fail_closed=True)
 PROBE_IP_LIMITER = RateLimiter("probe-ip", [(2, 86400)])
 MAX_FIELD = 80
 

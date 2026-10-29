@@ -144,8 +144,15 @@
       p.textContent = "⚠ Signed with a key psychosecurity.io doesn't publish. Treat it as unverified.";
     } else if (by === "ci" && c.provenance.run) {
       p.append("Reported by a GitHub Actions run, not by psychosecurity.io, so it isn't signed. Open the run to see its log: ");
-      const a = el("a", "", c.provenance.run.replace("https://github.com/", "")); a.href = c.provenance.run;
-      p.append(a);
+      // An unsigned claim, so the link is whatever the sender wrote: only
+      // ever make it a link to github.com (never javascript: or a lookalike).
+      const run = String(c.provenance.run);
+      if (/^https:\/\/github\.com\//.test(run)) {
+        const a = el("a", "", run.replace("https://github.com/", "")); a.href = run; a.rel = "noopener nofollow";
+        p.append(a);
+      } else {
+        p.append(run);
+      }
     } else if (by === "self") {
       p.textContent = "Self-reported: run on someone's own machine with the command-line tool, so it isn't signed.";
     } else if (status === "unchecked") {

@@ -68,6 +68,17 @@ class TestCiMarkdown(unittest.TestCase):
         text = render_ci_markdown(result(finding()))
         self.assertIn("Vibe Score 75/100 (grade B)", text)
 
+    def test_a_file_name_cannot_break_out_of_its_code_span(self):
+        # On a pull request the file names are the author's, and this text is
+        # posted as a comment under the workflow's name.
+        path = "a`[click here](https://evil.test)`|b\nc.js"
+        text = render_ci_markdown(result(finding(path=path, fix="Fix ``` it")))
+        row = next(line for line in text.splitlines() if line.startswith("| 🔴"))
+        self.assertIn("``a`[click here](https://evil.test)`\\|b c.js:3``", row)
+        self.assertEqual(row.count("|") - row.count("\\|"), 4)  # still three cells
+        self.assertIn("````text\nFix ``` it\n````", text)
+        self.assertNotIn("\nc.js", text)
+
 
 if __name__ == "__main__":
     unittest.main()

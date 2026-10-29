@@ -17,7 +17,9 @@ AND 10 an hour"). Two backends:
   urllib, so there's still no dependency to install.
 
 Never let a limiter failure take the API down: if the KV call errors, we
-fail open and serve the request.
+fail open and serve the request. The exception is a spending cap
+(``fail_closed=True``): there a broken counter would lift the cap on paid
+API calls, so it says no until the counter works again.
 """
 
 from __future__ import annotations
@@ -105,7 +107,8 @@ class KVBackend:
 
 class RateLimiter:
     def __init__(self, name: str, windows: Sequence[Window], backend=None,
-                 clock: Callable[[], float] = time.time, disabled: Optional[bool] = None):
+                 clock: Callable[[], float] = time.time, disabled: Optional[bool] = None,
+                 fail_closed: bool = False):
         if not windows:
             raise ValueError("a rate limiter needs at least one window")
         self.name = name
@@ -116,6 +119,7 @@ class RateLimiter:
         # arrives from the same address and would share one bucket. Never set
         # this in production.
         self.disabled = limiting_disabled() if disabled is None else disabled
+        self.fail_closed = fail_closed
 
     def check(self, identity: str) -> Decision:
         if self.disabled:
@@ -129,6 +133,8 @@ class RateLimiter:
             try:
                 count = self.backend.incr(key, window)
             except Exception:
+                if self.fail_closed:
+                    return Decision(allowed=False, retry_after=60, limit=limit, window=window)
                 # Fail open: a broken limiter must not break the product.
                 continue
             if count > limit:
