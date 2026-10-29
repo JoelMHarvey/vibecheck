@@ -1083,7 +1083,7 @@ class _Scan:
         return f"{hops} ({len(chain)} hops)"
 
 
-def run_ai_checks(scan, search, probe_input) -> dict:
+def run_ai_checks(scan, search, probe_input, finder=None) -> dict:
     """Phases 3 and 4: the AI-answer probe and the off-site footprint, on one
     unit of the daily budget. Returns what goes in the report's meta."""
     from .footprint import run_footprint
@@ -1101,7 +1101,7 @@ def run_ai_checks(scan, search, probe_input) -> dict:
     domain = probe_input.clean().domain or scan.host
     with ThreadPoolExecutor(max_workers=2) as pool:   # all seven questions in flight at once
         p = pool.submit(run_probe, scan, search, probe_input)
-        f = pool.submit(run_footprint, scan, search, probe_input.brand, domain)
+        f = pool.submit(run_footprint, scan, search, probe_input.brand, domain, finder)
         status, fp_status = p.result(), f.result()
     probe = dict(getattr(scan, "probe", None) or {}, status=status)
     footprint = dict(getattr(scan, "footprint", None) or {}, status=fp_status)
@@ -1111,7 +1111,7 @@ def run_ai_checks(scan, search, probe_input) -> dict:
 def scan_visibility(url: str, fetch: Callable[..., Optional[Fetched]],
                     now: Optional[_dt.datetime] = None, budget: float = config.BUDGET,
                     target: Optional[Target] = None, reviewer=None, search=None,
-                    probe_input=None) -> CheckResult:
+                    probe_input=None, finder=None) -> CheckResult:
     """Run every phase-1 check against ``url``, then the positioning review
     when a ``reviewer`` is given (phase 2, see positioning.py)."""
     from . import CHECK
@@ -1120,7 +1120,7 @@ def scan_visibility(url: str, fetch: Callable[..., Optional[Fetched]],
     scan = _Scan(url, fetch, now, budget)
     scan.run()
     positioning = review_positioning(scan, reviewer)
-    ai_checks = run_ai_checks(scan, search, probe_input) if (search is not None and probe_input is not None) else None
+    ai_checks = run_ai_checks(scan, search, probe_input, finder) if (search is not None and probe_input is not None) else None
     findings = sorted(scan.findings, key=lambda f: (SEVERITY_ORDER[f.severity], f.id, f.path))
     ran = scan.ran if scan.reachable else set()
     scores = category_scores(findings, config.CATEGORIES, ran)

@@ -1,22 +1,27 @@
 """One question to Claude with web search, and what came back.
 
-Used by the AI-answer probe (phase 3) and the off-site footprint (phase 4).
-Everything the checks score comes from parsing the response here: the
+Used by the AI-answer probe (phase 3), and by the off-site footprint (phase 4)
+when no Serper key is set (serper.py). Everything the checks score comes from parsing the response here: the
 answer's text, the pages its sentences cite, and the URLs the searches
 returned. Nothing is taken from the model's own account of what it found.
 """
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass, field
-from typing import Any, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
-MODEL = "claude-opus-5-5"
+# Haiku: the answers are driven by what the searches return, and at a
+# fortieth of Opus's token price the searches become most of the bill.
+# VIBECHECK_PROBE_MODEL (or --probe-model) picks another.
+MODEL = "claude-haiku-5-5"
 MAX_TOKENS = 4000
 MAX_CONTINUATIONS = 3
 # Server-side fallback: if a request is declined by a safety classifier, the
-# API retries it on a model that routes by refusal category.
+# API retries it on a model that routes by refusal category. Haiku has none.
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
+FALLBACK_MODELS = {"claude-opus-5-5", "claude-opus-5", "claude-fable-5-1", "claude-sonnet-5-5"}
 
 
 class SearchUnavailable(Exception):
@@ -67,6 +72,20 @@ class ClaudeSearch:
         self.model = model
         self.limiter = limiter      # one check per probe, before the first call
         self.calls = 0
+        self.usage: Dict[str, int] = {"input_tokens": 0, "output_tokens": 0, "cache_read_input_tokens": 0,
+                                      "cache_creation_input_tokens": 0, "web_search_requests": 0}
+        self._lock = threading.Lock()   # the probe asks its questions in parallel
+
+    def _count(self, response) -> None:
+        usage = _get(response, "usage")
+        if usage is None:
+            return
+        tools = _get(usage, "server_tool_use")
+        with self._lock:
+            for k in self.usage:
+                n = _get(tools, k) if k == "web_search_requests" else _get(usage, k)
+                if isinstance(n, int):
+                    self.usage[k] += n
 
     def _get_client(self):
         if self._client is None:
@@ -92,7 +111,9 @@ class ClaudeSearch:
             tool["allowed_domains"] = list(allowed_domains)
         messages = [{"role": "user", "content": question}]
         kwargs = dict(model=self.model, max_tokens=MAX_TOKENS, tools=[tool], messages=messages,
-                      output_config={"effort": "low"}, betas=[FALLBACK_BETA], fallbacks="default")
+                      output_config={"effort": "low"})
+        if self.model in FALLBACK_MODELS:
+            kwargs.update(betas=[FALLBACK_BETA], fallbacks="default")
         if system:
             kwargs["system"] = system
         content: List[Any] = []
@@ -100,10 +121,12 @@ class ClaudeSearch:
         stop = ""
         for _ in range(MAX_CONTINUATIONS + 1):
             try:
-                self.calls += 1
+                with self._lock:
+                    self.calls += 1
                 response = client.beta.messages.create(**kwargs)
             except Exception as e:   # anthropic.APIError and friends: never fail the scan
                 raise SearchUnavailable(f"the AI service didn't answer ({type(e).__name__})") from e
+            self._count(response)
             stop = _get(response, "stop_reason", "")
             content = list(_get(response, "content", []) or [])
             seen.extend(content)

@@ -5,9 +5,11 @@ site looks to search engines and AI crawlers: rendering, robots.txt,
 sitemap, llms.txt, structured data, titles, link previews, hosts.
 
 With "probe": {"brand", "category", "country", "competitors": [...]} it also
-runs phases 3 and 4 (the AI-answer probe and the off-site footprint): seven
-questions to Claude with web search, in parallel. Those cost real money, so
-they need ANTHROPIC_API_KEY, are limited to PROBE_DAILY_CAP runs a day across
+runs phases 3 and 4 (the AI-answer probe and the off-site footprint): five
+questions to Claude with web search (VIBECHECK_PROBE_MODEL, default Claude
+Haiku 5.5), and seven plain Google searches through Serper when
+SERPER_API_KEY is set (else two more Claude calls), all in parallel. Those
+cost real money, so they need ANTHROPIC_API_KEY, are limited to PROBE_DAILY_CAP runs a day across
 everyone and two a day per visitor, and are cached for 24 hours by URL and
 inputs. Over the cap, the report says "back tomorrow" for those categories.
 
@@ -25,6 +27,7 @@ report is unchanged.
 
 import json
 import os
+import re
 import sys
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlsplit
@@ -33,7 +36,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from vibecheck.checks.visibility import CHECK  # noqa: E402
 from vibecheck.checks.visibility.probe import ProbeInput  # noqa: E402
-from vibecheck.checks.visibility.websearch import ClaudeSearch  # noqa: E402
+from vibecheck.checks.visibility.serper import SerperSearch  # noqa: E402
+from vibecheck.checks.visibility.websearch import MODEL as PROBE_MODEL, ClaudeSearch  # noqa: E402
 from vibecheck.checks.visibility.positioning import (  # noqa: E402
     CACHE_SECONDS as POSITIONING_CACHE_SECONDS,
     CachingReviewer,
@@ -73,7 +77,8 @@ try:
     PROBE_DAILY_CAP = int(os.environ.get("PROBE_DAILY_CAP", "40"))
 except ValueError:
     PROBE_DAILY_CAP = 40
-# Seven web-searching questions a run: a few pence each, so a tighter cap.
+# Five web-searching questions a run, plus the footprint's searches: about
+# ten pence on Haiku with Serper, so a tighter cap than the copy review.
 PROBE_LIMITER = RateLimiter("probe-day", [(PROBE_DAILY_CAP, 86400)], disabled=False, fail_closed=True)
 PROBE_IP_LIMITER = RateLimiter("probe-ip", [(2, 86400)])
 MAX_FIELD = 80
@@ -100,10 +105,22 @@ def probe_input(raw, url):
     return ProbeInput(brand, host, category, country.upper(), comps).clean()
 
 
+def probe_model():
+    """VIBECHECK_PROBE_MODEL when it looks like a Claude model id, else Haiku."""
+    model = os.environ.get("VIBECHECK_PROBE_MODEL", "").strip()
+    return model if re.fullmatch(r"claude-[a-z0-9-]{1,40}", model) else PROBE_MODEL
+
+
 def prober():
     if not os.environ.get("ANTHROPIC_API_KEY") or PROBE_DAILY_CAP <= 0:
         return None
-    return ClaudeSearch(limiter=PROBE_LIMITER)
+    return ClaudeSearch(model=probe_model(), limiter=PROBE_LIMITER)
+
+
+def finder():
+    """Plain search for the footprint, or None to let Claude do it."""
+    key = os.environ.get("SERPER_API_KEY", "").strip()
+    return SerperSearch(key) if key else None
 
 
 def reviewer():
@@ -120,6 +137,9 @@ def scan(target, probe=None):
         search = prober()
         if search is not None:
             options["probe"] = (search, probe)
+            plain = finder()
+            if plain is not None:
+                options["footprint"] = plain
     return CHECK.run(Target(url=target), Context(guard=True, provenance="server", llm=reviewer(),
                                                  options=options))
 
@@ -159,7 +179,8 @@ class handler(BaseHTTPRequestHandler):
         parts = urlsplit(target)
         cache_url = f"{parts.scheme}://{(parts.hostname or '').lower()}{parts.path or '/'}"
         if probe is not None:
-            cache_url += "#probe=" + json.dumps([probe.brand, probe.category, probe.country, probe.competitors])
+            cache_url += "#probe=" + json.dumps([probe.brand, probe.category, probe.country, probe.competitors,
+                                                 probe_model()])
         if not fresh:
             cached = CACHE.get(cache_url)
             if cached:
