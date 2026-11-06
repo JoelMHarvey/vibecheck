@@ -421,6 +421,46 @@ There's also a score badge for READMEs:
 [![Vibe Score](https://www.psychosecurity.io/api/badge?score=94)](https://www.psychosecurity.io)
 ```
 
+### Running on your own server
+
+The site runs on Vercel, but it doesn't need to. `server/app.py` is the
+whole site as one WSGI app, standard library only: the static pages with
+`vercel.json`'s clean URLs (`/check` serves `check.html`, `/check.html`
+answers 308), its rewrites and headers read from `vercel.json` itself, and
+every `api/<name>.py` mounted at `/api/<name>` through its own unchanged
+handler class. It serves nothing a Vercel deployment leaves out:
+`.vercelignore` and `.gitignore` apply, dotfiles and `server/` are never
+served. `GET /api/health/live` touches nothing, for health checks. A
+setting it doesn't implement added to `vercel.json` stops it at start-up
+rather than being ignored.
+
+```bash
+docker build -t psychosecurity .
+docker run --rm -p 127.0.0.1:8000:8000 --env-file /etc/psychosecurity/app.env psychosecurity
+```
+
+The image is gunicorn on Python 3.12, as a non-root user, with
+`--timeout 300` (`api/visibility.py` has 180 s on Vercel). In the family's
+Flask kit (JoelMHarvey/projects, `infra/apps/_flask`) it's one row of
+`apps.tsv`: repo `vibecheck`, folder `.`, WSGI `server.app:app`, health
+`/api/health/live`, deployed `VIBECHECK_DEPLOYED`. Put it behind a proxy
+that sets `X-Real-IP` to the visitor's address (the kit's Caddy does): the
+rate limits key on it. Off Vercel, `X-Vercel-Forwarded-For` is dropped.
+
+Environment, the same names as the Vercel project. All optional, but a
+public deployment wants the first three:
+
+| Variable | What it does |
+|---|---|
+| `VIBECHECK_DEPLOYED=1` | Stands in for Vercel. Refuses to start with `VIBECHECK_RATE_LIMIT_OFF` set; warns if there's no signing key or KV store. |
+| `VIBECHECK_SIGNING_KEY` | Secret. Signs reports and badges (`scripts/make_signing_key.py`); without it they go out unsigned and `/api/vibechecked` answers 503. |
+| `KV_REST_API_URL`, `KV_REST_API_TOKEN` (or `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`) | Token is secret. Rate limits and the 24-hour cache shared across workers. Without them both are per worker process (two workers in the image). |
+| `VIBECHECK_OLD_PUBLIC_KEYS` | Retired public keys still accepted, comma-separated. |
+| `ANTHROPIC_API_KEY` | Secret. The positioning review and the AI-answer probe on `/api/visibility`. |
+| `SERPER_API_KEY` | Secret. Plain Google searches for the off-site footprint. |
+| `VIBECHECK_PROBE_MODEL`, `PROBE_DAILY_CAP`, `POSITIONING_DAILY_CAP` | The probe's model and the daily spending caps (defaults 40 and 1000). |
+| `VIBECHECK_RATE_LIMIT_OFF` | Local development only. Never on a server. |
+
 ## Research harness
 
 Two scripts produce the data behind the writeup in `content/`: one builds

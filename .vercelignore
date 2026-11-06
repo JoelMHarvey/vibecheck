@@ -3,3 +3,8 @@ PLAN.md
 .gitignore
 pyproject.toml
 vibecheck/checks/*/fixtures/
+# Only for running the site on a server of its own (server/app.py); Vercel
+# has no use for them and would otherwise publish them as static files.
+server/
+Dockerfile
+.dockerignore
