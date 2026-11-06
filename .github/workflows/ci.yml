@@ -19,7 +19,9 @@ jobs:
       matrix:
         # 3.9 is the floor the package declares; the action runs on whatever
         # interpreter the runner already has, so all three OSes matter.
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # ubuntu-24.04, not -latest: Ubuntu 26.04 runners have no Python 3.9
+        # for setup-python (from November 2026), and 3.9 is the floor.
+        os: [ubuntu-24.04, macos-latest, windows-latest]
         python-version: ['3.9', '3.13']
     steps:
       - uses: actions/checkout@v4
