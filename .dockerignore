@@ -1,0 +1,19 @@
+# Kept out of the image built by ./Dockerfile. The server never serves any
+# of it anyway (server/app.py reads .vercelignore and .gitignore, which stay
+# in), but there's no reason to ship it.
+.git
+.github
+tests
+research
+targets.txt
+report.md
+report.json
+**/__pycache__
+**/*.pyc
+*.egg-info
+dist
+build
+.venv
+venv
+.env
+.env.*
