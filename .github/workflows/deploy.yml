@@ -1,0 +1,63 @@
+# Deploy psychosecurity.io to apps-01 on a push to main (JoelMHarvey/projects,
+# infra/deploy/README.md, "Other repos"). The DEPLOY_SSH_KEY secret's key may
+# deploy psychosecurity and nothing else.
+name: deploy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-apps-01
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  DEPLOY_HOST: 46.225.39.190
+  # The app(s) this repo runs on apps-01, by their names in the kits' apps.tsv.
+  APPS: "psychosecurity"
+  # The app's folder in this repo ("." for the whole repo).
+  APP_DIR: "."
+  # apps-01's SSH host key (ed25519), so the job can't be pointed elsewhere.
+  KNOWN_HOST: "46.225.39.190 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPbmVZMOmaQmvIn3StVU26NRO1cDU02DSNZA8lWslQSD"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SSH key
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          [ -n "$DEPLOY_SSH_KEY" ] || { echo "::error::the DEPLOY_SSH_KEY secret isn't set"; exit 1; }
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$KNOWN_HOST" > ~/.ssh/known_hosts
+
+      - name: Deploy
+        run: |
+          set -uo pipefail
+          if [ "$APP_DIR" = . ]; then tree="$GITHUB_SHA"; else tree="$GITHUB_SHA:$APP_DIR"; fi
+          failed=""
+          for app in $APPS; do
+            echo "::group::$app"
+            if git archive "$tree" | ssh -i ~/.ssh/deploy -o BatchMode=yes -o ServerAliveInterval=30 \
+                 ops@"$DEPLOY_HOST" deploy "$app" "$GITHUB_SHA"; then
+              echo "- $app: deployed" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "- $app: **failed** (the server kept the previous version)" >> "$GITHUB_STEP_SUMMARY"
+              failed="$failed $app"
+            fi
+            echo "::endgroup::"
+          done
+          [ -z "$failed" ] || { echo "::error::failed:$failed"; exit 1; }
