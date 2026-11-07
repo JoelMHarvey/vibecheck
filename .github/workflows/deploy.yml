@@ -19,13 +19,17 @@ permissions:
   contents: read
 
 env:
-  DEPLOY_HOST: 46.225.39.190
+  # apps-01's address. The repository variable, when set, points deploys at a
+  # new server without editing this file (set-deploy-host.sh in
+  # JoelMHarvey/projects, infra/deploy); unset, today's address applies.
+  DEPLOY_HOST: ${{ vars.DEPLOY_HOST || '46.225.39.190' }}
   # The app(s) this repo runs on apps-01, by their names in the kits' apps.tsv.
   APPS: "psychosecurity"
   # The app's folder in this repo ("." for the whole repo).
   APP_DIR: "."
-  # apps-01's SSH host key (ed25519), so the job can't be pointed elsewhere.
-  KNOWN_HOST: "46.225.39.190 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPbmVZMOmaQmvIn3StVU26NRO1cDU02DSNZA8lWslQSD"
+  # apps-01's SSH host key (ed25519), so the job can't be pointed elsewhere;
+  # the DEPLOY_KNOWN_HOST variable replaces it along with DEPLOY_HOST.
+  KNOWN_HOST: ${{ vars.DEPLOY_KNOWN_HOST || '46.225.39.190 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPbmVZMOmaQmvIn3StVU26NRO1cDU02DSNZA8lWslQSD' }}
 
 jobs:
   deploy:
