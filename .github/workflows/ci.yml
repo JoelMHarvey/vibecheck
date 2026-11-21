@@ -32,6 +32,31 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: python -m unittest discover -s tests -v
 
+  # The same suite with the server's own dependencies and a browser. The
+  # matrix above installs nothing, so the tests that need `cryptography` (the
+  # real signing library the site signs with) and Playwright (the report and
+  # check pages driven in Chromium) skip there: 21 of them. Here they run.
+  server:
+    name: tests with requirements.txt and Chromium (nothing skips)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'   # the Dockerfile's
+          cache: pip
+      - run: pip install -r requirements.txt playwright
+      - run: python -m playwright install --with-deps chromium
+      - name: tests, failing if any was skipped
+        run: |
+          python -m unittest discover -s tests 2>&1 | tee unittest.log
+          test "${PIPESTATUS[0]}" -eq 0
+          if grep -qE '^OK \(.*skipped=' unittest.log; then
+            echo "::error::tests were skipped in the job that exists to run them"
+            exit 1
+          fi
+
   # Dogfooding: the action runs against its own repository. It scores 100/100
   # on itself, so a drop is a real regression and should fail the build.
   self-scan:
