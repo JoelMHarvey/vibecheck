@@ -52,10 +52,10 @@ class ScrubTest(unittest.TestCase):
             self.assertNotIn(secret, blob)
         value = event["exception"]["values"][0]
         self.assertEqual(value["type"], "ValueError")
-        # the useful parts survive
-        self.assertIn("'email'", value["value"])
-        self.assertIn('"users"', value["value"])
+        # quoted text goes whole, even a single word: it may be a name
+        self.assertNotIn("'email'", value["value"])
         self.assertIn("[email]", value["value"])
+        self.assertIn("[text]", value["value"])
         self.assertEqual(event["transaction"], "POST /notes/<int:id>")
         self.assertEqual(value["stacktrace"]["frames"][-1]["function"], "handler")
 
@@ -68,6 +68,24 @@ class ScrubTest(unittest.TestCase):
         for frame in event["exception"]["values"][0]["stacktrace"]["frames"]:
             self.assertEqual(set(frame), {"filename", "function", "lineno", "in_app"})
             self.assertNotIn(os.path.expanduser("~"), frame["filename"])
+
+    def test_a_dumped_query_and_short_amounts_do_not_survive(self):
+        message = ("\nInvalid `prisma.entry.create()` invocation:\n\n"
+                   "{ data: { name: 'Tofu', payee: \"Jane\", amount: 1284.5, note: 'see you at 9' } }\n\n"
+                   "Unique constraint failed on the fields: (`payee`), amount 284.50 on 2026-11-22 at 09:15")
+        out = errorreport.scrub(message)
+        for secret in ("Tofu", "Jane", "1284", "284.50", "see you", "2026", "09:15", "data:"):
+            self.assertNotIn(secret, out)
+        self.assertIn("`prisma.entry.create()`", out)
+        self.assertIn("Unique constraint failed", out)
+        self.assertEqual(errorreport.scrub("KeyError: 'Jane'"), "KeyError: [text]")
+
+    def test_a_machine_code_is_kept_as_a_tag(self):
+        exc = sample_error()
+        exc.sqlstate = "23505"
+        self.assertEqual(errorreport.build_event(exc, app="t")["tags"]["code"], "23505")
+        exc.sqlstate = "Jane Doe said hello"
+        self.assertNotIn("code", errorreport.build_event(exc, app="t")["tags"])
 
     def test_message_is_capped(self):
         self.assertLessEqual(len(errorreport.scrub("word " * 500)), errorreport.MAX_MESSAGE)
@@ -179,7 +197,7 @@ class CrashedFunctionTest(unittest.TestCase):
         event = json.loads(sent)
         value = event["exception"]["values"][0]
         self.assertEqual(value["type"], "RuntimeError")
-        self.assertIn("'findings'", value["value"])                     # the useful part survives
+        self.assertNotIn("'findings'", value["value"])  # quoted text goes whole
         self.assertEqual(value["stacktrace"]["frames"][-1]["function"], "scan_error")
         self.assertEqual(event["transaction"], "POST /api/scan-url")
         self.assertEqual(event["tags"], {"app": "psychosecurity", "where": "request"})

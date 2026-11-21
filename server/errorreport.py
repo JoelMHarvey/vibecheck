@@ -5,7 +5,7 @@ environment, so tests, local runs and a server without the setting send
 nothing. The DSN is a secret of the server's env file; it is never in the repo.
 
 What leaves the app, and nothing else: the exception's class name, its message
-after scrub() (emails, IPs, numbers, tokens and quoted free text removed), and
+after scrub() (first and last line only; quoted text, numbers, emails, links, IPs and tokens removed), and
 the stack as file, function and line. No request body, query string, cookie,
 header, user, IP address or local variable is ever read, so none can be sent.
 The route is sent as its pattern ("/item/<int:id>"), never the address asked for.
@@ -29,7 +29,7 @@ import urllib.parse
 import urllib.request
 import uuid
 
-MAX_MESSAGE = 300
+MAX_MESSAGE = 200
 MAX_FRAMES = 40
 MAX_EVENTS_PER_MINUTE = 20
 TIMEOUT_SECONDS = 3
@@ -40,39 +40,50 @@ _lock = threading.Lock()
 
 _EMAIL = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
 _URL = re.compile(r"\b[a-z][a-z0-9+.\-]*://[^\s'\"<>)]+", re.I)
-_IPV4 = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b")
 _IPV6 = re.compile(r"(?<![\w:.])(?:[0-9A-Fa-f]{0,4}:){2,7}[0-9A-Fa-f]{0,4}(?![\w:])")
 _PG_VALUE = re.compile(r"=\s*\([^)]*\)")
+_QUOTED = re.compile(r"\"[^\"\n]*\"|'[^'\n]*'")
+_BACKTICK = re.compile(r"`([^`\n]*)`")
+_CODE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]{0,60}(?:\(\))?$")
 _TOKEN = re.compile(r"\b[A-Za-z0-9_\-]{24,}\b")
-_NUMBER = re.compile(r"\d{5,}")
-_QUOTED = re.compile(r"\"([^\"\n]*)\"|'([^'\n]*)'|`([^`\n]*)`")
-_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_.\-/]{0,60}$")
-
-
-def _quoted(match: "re.Match[str]") -> str:
-    inner = next((g for g in match.groups() if g is not None), "")
-    quote = match.group(0)[0]
-    # A lone identifier (a column, a key, a module) is kept: it is the useful
-    # part of most messages. Anything with spaces or odd characters is treated
-    # as something a person typed.
-    if _IDENT.match(inner):
-        return match.group(0)
-    return f"{quote}[text]{quote}"
+_NUMBER = re.compile(r"\d[\d.,:/\-]*")
+_ERROR_CODE = re.compile(r"^[A-Z0-9_]{2,24}$")
 
 
 def scrub(text: object) -> str:
-    """Remove personal data from an exception message. Order matters."""
+    """Remove personal data from an exception message. Order matters.
+
+    Strict on purpose: a message can quote what a person typed, or print the
+    whole query it was given. So only the first and last lines are kept (the
+    middle of a long message is where arguments are dumped), everything in
+    single or double quotes goes, every number goes, and so do emails, links,
+    IP addresses and long tokens. Code names in backticks stay. What cannot be
+    caught is free text with no quotes round it inside those two lines.
+    """
     s = str(text) if text is not None else ""
+    lines = [ln.strip() for ln in s.splitlines() if ln.strip()]
+    if len(lines) > 2:
+        lines = [lines[0], lines[-1]]
+    s = " | ".join(lines)
     s = _EMAIL.sub("[email]", s)
     s = _URL.sub("[url]", s)
     s = _PG_VALUE.sub("=([value])", s)
+    s = _QUOTED.sub("[text]", s)
+    s = _BACKTICK.sub(lambda m: m.group(0) if _CODE.match(m.group(1)) else "[text]", s)
     s = _IPV6.sub("[ip]", s)
-    s = _IPV4.sub("[ip]", s)
-    s = _QUOTED.sub(_quoted, s)
     s = _TOKEN.sub("[token]", s)
-    s = _NUMBER.sub("[number]", s)
+    s = _NUMBER.sub("[n]", s)
     s = " ".join(s.split())
     return s[:MAX_MESSAGE]
+
+
+def error_code(exc: BaseException) -> str:
+    """A machine code for the error (Postgres SQLSTATE, errno name), never text."""
+    for attr in ("sqlstate", "pgcode", "code"):
+        value = getattr(exc, attr, None)
+        if isinstance(value, str) and _ERROR_CODE.match(value):
+            return value
+    return ""
 
 
 def parse_dsn(dsn: str | None):
@@ -113,6 +124,9 @@ def build_event(exc: BaseException, where: str = "", route: str = "", app: str =
     tags = {"app": app or _APP["name"] or "app"}
     if where:
         tags["where"] = scrub(where)[:80]
+    code = error_code(exc)
+    if code:
+        tags["code"] = code
     event = {
         "event_id": uuid.uuid4().hex,
         "timestamp": time.time(),
