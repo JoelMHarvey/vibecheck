@@ -19,9 +19,10 @@ only be known there, it says "not verified".
 | Database | none. Nothing is stored |
 | DNS | GoDaddy, `psychosecurity.io` and `www` |
 
-Nobody is told when the site is down: it is on no watch and has no error
-tracker (audit, 21 November 2026). A crashed function prints a traceback to
-the container log and nothing else.
+Nobody is told when the site is down: it is on no watch (audit, 21 November
+2026). A crashed function prints a traceback to the container log, and sends
+it to GlitchTip once `SENTRY_DSN` is set in `/etc/psychosecurity/app.env`.
+Until then the container log is the only place.
 
 ## It is down
 
