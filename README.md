@@ -468,6 +468,7 @@ wants the first three:
 | `SERPER_API_KEY` | Secret. Plain Google searches for the off-site footprint. |
 | `VIBECHECK_PROBE_MODEL`, `PROBE_DAILY_CAP`, `POSITIONING_DAILY_CAP` | The probe's model and the daily spending caps (defaults 40 and 1000). |
 | `VIBECHECK_RATE_LIMIT_OFF` | Local development only. Never on a server. |
+| `SENTRY_DSN` | The DSN of the site's GlitchTip project. Set, a crashed function's traceback is sent there from `server/app.py`, with no request data and with URLs, host names and repository names removed. Unset, nothing is sent. |
 
 ## Research harness
 

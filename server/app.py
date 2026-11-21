@@ -42,7 +42,30 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from server import errorreport  # noqa: E402  (after the path line above)
+
 HEALTH_PATH = "/api/health/live"
+
+# What people submit here is a web address or a repository name, and a crash's
+# message can quote one. The reporter takes out full URLs; these take out a
+# bare host name and an owner/repo as well, before the reporter sees the text.
+_PATHLIKE = re.compile(r"[\w.\-]+(?:/[\w.\-]+)+")
+_HOSTLIKE = re.compile(r"(?:[\w\-]+\.)+[^\W\d_]{2,}")
+
+
+def report_crash(exc: BaseException, route: str = "") -> bool:
+    """Send a crashed function's traceback to GlitchTip. Nothing at all
+    unless SENTRY_DSN is set. Never raises. The message goes with URLs, host
+    names and repository names removed; the request itself is never read."""
+    try:
+        if not os.environ.get("SENTRY_DSN"):
+            return False
+        message = _HOSTLIKE.sub("[host]", _PATHLIKE.sub("[name]", errorreport.scrub(exc)))
+        # Same class name and stack, cleaned message: the reporter is unchanged.
+        clean = type(type(exc).__name__, (Exception,), {})(message).with_traceback(exc.__traceback__)
+        return errorreport.capture_exception(clean, where="request", route=route)
+    except Exception:
+        return False
 
 # Vercel refuses a function request body over 4.5 MB before the function
 # runs; api/scan.py is written to that limit.
@@ -316,8 +339,9 @@ class Site:
         query = environ.get("QUERY_STRING", "")
         try:
             status, headers, body = self.respond(method, path, query, environ)
-        except Exception:  # a handler crashed: say so, as Vercel would, and log where
+        except Exception as exc:  # a handler crashed: say so, as Vercel would, and log where
             traceback.print_exc(file=sys.stderr)
+            report_crash(exc, self.route(method, path))
             status, headers, body = text(500, "A server error has occurred")
         names = {k.lower() for k, _ in headers}
         for pattern, rule in self.header_rules:
@@ -329,6 +353,15 @@ class Site:
             headers.append(("Content-Length", str(len(body))))
         start_response(status_line(status), headers)
         return [b""] if method == "HEAD" else [body]
+
+    def route(self, method: str, path: str) -> str:
+        """"POST /api/scan" for an error report: a function's own address
+        (one of a fixed set), never the address asked for, and no query."""
+        for pattern, destination in self.rewrites:
+            if pattern.match(path):
+                path = destination.partition("?")[0]
+                break
+        return f"{method} {path}" if path in self.functions and method.isalpha() else ""
 
     def read_body(self, environ: dict) -> Tuple[Optional[bytes], int]:
         try:
@@ -439,4 +472,5 @@ def check_deployed_settings(env=None) -> List[str]:
 for _warning in check_deployed_settings():
     print("psychosecurity: " + _warning, file=sys.stderr)
 
+errorreport.install_excepthook("psychosecurity")   # names the app, and reports a crash outside a request
 app = Site()
