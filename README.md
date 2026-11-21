@@ -437,7 +437,8 @@ answers 308), its rewrites and headers read from `vercel.json` itself, and
 every `api/<name>.py` mounted at `/api/<name>` through its own unchanged
 handler class. It serves nothing a Vercel deployment leaves out:
 `.vercelignore` and `.gitignore` apply, dotfiles and `server/` are never
-served. `GET /api/health/live` touches nothing, for health checks. A
+served. `GET /api/health/live` touches nothing, for health checks; `GET /api/health`
+answers 503 unless the signing key loads. A
 setting it doesn't implement added to `vercel.json` stops it at start-up
 rather than being ignored.
 

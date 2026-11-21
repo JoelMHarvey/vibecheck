@@ -15,7 +15,8 @@ It does what Vercel does with this repository, driven by the same files:
   would hand it, and whatever it writes goes back as the response.
 
 Plus GET /api/health/live, which touches nothing, for the container's
-health check. Off Vercel nobody vouches for X-Vercel-Forwarded-For, so it is
+health check, and GET /api/health, which answers 503 unless the signing key
+loads, for whatever watches the site from outside. Off Vercel nobody vouches for X-Vercel-Forwarded-For, so it is
 dropped; the rate limits read X-Real-IP, which the server's Caddy sets.
 """
 
@@ -45,6 +46,7 @@ if str(ROOT) not in sys.path:
 from server import errorreport  # noqa: E402  (after the path line above)
 
 HEALTH_PATH = "/api/health/live"
+READY_PATH = "/api/health"
 
 # What people submit here is a web address or a repository name, and a crash's
 # message can quote one. The reporter takes out full URLs; these take out a
@@ -376,6 +378,11 @@ class Site:
     def respond(self, method: str, path: str, query: str, environ: dict) -> Response:
         if path == HEALTH_PATH:
             return 200, [("Content-Type", "application/json"), ("Cache-Control", "no-store")], b'{"ok":true}\n'
+        if path == READY_PATH:
+            signing = signing_ready()
+            body = json.dumps({"ok": signing, "signing": signing}).encode("ascii") + b"\n"
+            return (200 if signing else 503), [("Content-Type", "application/json"),
+                                               ("Cache-Control", "no-store")], body
 
         # Static files first, as on Vercel; then cleanUrls; then the rewrites.
         static = self.static(method, path, query, environ)
@@ -451,6 +458,29 @@ class Site:
             tag = '"' + hashlib.sha256(file_path.read_bytes()).hexdigest()[:32] + '"'
             self._etags[url_path] = tag
         return tag
+
+
+_signing_checked: Dict[str, bool] = {}
+
+
+def signing_ready(env=None) -> bool:
+    """Is there a signing key, and does it load? Without one every report and
+    badge goes out unsigned while each page still answers 200, so this is the
+    one thing worth asking the site from outside. Says yes or no and nothing
+    about the key. The answer is kept per key value, so a caller asking in a
+    loop costs one key derivation, not one each time."""
+    env = os.environ if env is None else env
+    raw = (env.get("VIBECHECK_SIGNING_KEY") or "").strip()
+    seen = hashlib.sha256(raw.encode("utf-8", "replace")).hexdigest()
+    if seen not in _signing_checked:
+        try:
+            from vibecheck.core.signing import load_signer
+            ok = load_signer({"VIBECHECK_SIGNING_KEY": raw}) is not None
+        except Exception:
+            ok = False      # set, but not a key: wrong length or not base64url
+        _signing_checked.clear()
+        _signing_checked[seen] = ok
+    return _signing_checked[seen]
 
 
 def check_deployed_settings(env=None) -> List[str]:
