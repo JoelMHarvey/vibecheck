@@ -1,0 +1,40 @@
+# Automatic dependency updates. Weekly; minor and patch updates arrive as one
+# pull request per ecosystem, majors one at a time, at most three open each.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:50"
+      timezone: Europe/London
+    open-pull-requests-limit: 3
+    groups:
+      pip-minor-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:50"
+      timezone: Europe/London
+    open-pull-requests-limit: 3
+    groups:
+      docker-minor-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:50"
+      timezone: Europe/London
+    open-pull-requests-limit: 3
+    groups:
+      github-actions-minor-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
