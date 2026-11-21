@@ -406,9 +406,9 @@ requests from your servers to a URL a stranger chose — so both are rate
 limited per IP (`/api/scan`: 10/min, 60/hour; `/api/scan-url`: 3/min,
 15/hour, plus a 300/hour global ceiling on outbound scanning).
 
-By default counters live in memory, per serverless instance — best-effort,
+By default counters live in memory, per worker process: best-effort,
 but it stops one client hammering one endpoint with zero setup. For exact
-limits across instances, add Vercel KV to the project; the limiter detects
+limits across workers, give it an Upstash Redis REST store; the limiter detects
 `KV_REST_API_URL` / `KV_REST_API_TOKEN` and switches to it automatically,
 with no code change and no dependency to install. If the store ever fails,
 the limiter fails **open** — a broken limiter must not break the product.
@@ -423,8 +423,15 @@ There's also a score badge for READMEs:
 
 ### Running on your own server
 
-The site runs on Vercel, but it doesn't need to. `server/app.py` is the
-whole site as one WSGI app, standard library only: the static pages with
+The site ran on Vercel until 7 November 2026. Since then it runs as one
+container on a server of the family's own (apps-01, Hetzner), and a push to
+`main` deploys it (`.github/workflows/deploy.yml`; a push that changes only
+Markdown or `docs/` doesn't). [`RUNBOOK.md`](RUNBOOK.md) says what to do when
+it is down, how to roll back, how to restore its settings and how to rotate
+each key. `vercel.json` stays in the repo because the server reads its
+routes and headers from it.
+
+`server/app.py` is the whole site as one WSGI app, standard library only: the static pages with
 `vercel.json`'s clean URLs (`/check` serves `check.html`, `/check.html`
 answers 308), its rewrites and headers read from `vercel.json` itself, and
 every `api/<name>.py` mounted at `/api/<name>` through its own unchanged
@@ -440,15 +447,16 @@ docker run --rm -p 127.0.0.1:8000:8000 --env-file /etc/psychosecurity/app.env ps
 ```
 
 The image is gunicorn on Python 3.12, as a non-root user, with
-`--timeout 300` (`api/visibility.py` has 180 s on Vercel). In the family's
+`--timeout 300` (`vercel.json` gives `api/visibility.py` 180 s). In the family's
 Flask kit (JoelMHarvey/projects, `infra/apps/_flask`) it's one row of
 `apps.tsv`: repo `vibecheck`, folder `.`, WSGI `server.app:app`, health
 `/api/health/live`, deployed `VIBECHECK_DEPLOYED`. Put it behind a proxy
 that sets `X-Real-IP` to the visitor's address (the kit's Caddy does): the
 rate limits key on it. Off Vercel, `X-Vercel-Forwarded-For` is dropped.
 
-Environment, the same names as the Vercel project. All optional, but a
-public deployment wants the first three:
+Environment, in `/etc/psychosecurity/app.env` on the server (mode 600), the
+same names the Vercel project had. All optional, but a public deployment
+wants the first three:
 
 | Variable | What it does |
 |---|---|

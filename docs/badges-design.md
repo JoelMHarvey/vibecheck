@@ -45,12 +45,14 @@ summary plus the SHA-256 of the report it was issued with.
 ## Before this goes live
 
 1. `python3 scripts/make_signing_key.py`, then set `VIBECHECK_SIGNING_KEY`
-   in Vercel (Production, sensitive). Without it everything still works and
-   says "unsigned"; `/api/vibechecked` answers 503.
+   in `/etc/psychosecurity/app.env` on apps-01 (mode 600), where the site has
+   run since 7 November 2026, and recreate the container. Without it
+   everything still works and says "unsigned"; `/api/vibechecked` answers 503.
 2. Check `/.well-known/vibecheck-key` shows the key, and that
    `/badge/visibility.svg?r=...` from a fresh scan renders.
 3. To rotate later: put the old public key in `VIBECHECK_OLD_PUBLIC_KEYS`
-   so reports signed with it still verify, then set the new secret.
+   so reports signed with it still verify, then set the new secret. The
+   steps are in [`RUNBOOK.md`](../RUNBOOK.md), "Rotate each key".
 
 ## Left open
 
