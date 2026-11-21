@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: '14 4 * * 3'   # Wednesdays, UTC: a quiet week is still tested
 
 # Read-only by default; only self-scan, which posts the PR comment, asks for
 # more. The test job runs the pull request's own code.
