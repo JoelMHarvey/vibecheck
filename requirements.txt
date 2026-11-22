@@ -4,7 +4,7 @@
 # its own standard-library Ed25519 (vibecheck/core/ed25519.py), which is
 # correct but not constant-time; on the server, signing uses this audited,
 # constant-time implementation instead. Verification needs neither.
-cryptography>=42
+cryptography>=50.0.2
 
 # The positioning review (vibecheck/checks/visibility/positioning.py) calls
 # Claude from /api/visibility when ANTHROPIC_API_KEY is set. Imported lazily,
