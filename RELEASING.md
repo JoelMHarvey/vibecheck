@@ -14,15 +14,14 @@ moves it by hand. Nothing in CI cuts a release.
 
 ## Where things stand (22 November 2026)
 
-- Tags: `v1.0.0` and `v1`, both made on 16 August 2026. There is one GitHub
-  release, v1.0.0.
-- `v1` has not moved since. `main` is 81 commits ahead of it, so the Action
-  at `@v1` and anything installed from `@v1` run August's code.
-- The version in the code is out of step with the tags: `pyproject.toml` and
-  `vibecheck/__init__.py` both say `0.1.0`, and that is what `--version` and
-  every report print. The next release puts this right (step 2 below).
-- Whether to move `v1` to today's `main` is the maintainer's decision and has
-  not been made. It hands every user of `@v1` three months of changes at once.
+- Tags: `v1.0.0` (16 August 2026), `v1.1.0` (22 November 2026) and `v1`,
+  which points at `v1.1.0`. Each numbered tag has a GitHub release.
+- `v1.1.0` was cut from `main` by the steps below. It carries three months
+  of changes, among them the 29 October fix to how the Action prints and
+  posts text from the scanned repository.
+- The version in the code matches the tag: `pyproject.toml` and
+  `vibecheck/__init__.py` both say `1.1.0`, and that is what `--version`
+  and every report print.
 
 ## The tags
 
@@ -94,9 +93,12 @@ Only the maintainer does this. Tags are pushed from a clean checkout of
 5. **Move `v1`:**
 
    ```bash
-   git tag -f -a v1 -m "v1 -> v1.1.0" v1.1.0
+   git tag -f -a v1 -m "v1 -> v1.1.0" 'v1.1.0^{}'
    git push --force origin v1
    ```
+
+   The `^{}` makes `v1` point at the commit. Without it `v1` would be a
+   tag of a tag.
 
    This is the one forced push the repository allows. Never force any other
    tag.
@@ -117,7 +119,7 @@ If a release breaks people's pipelines, move `v1` back to the last good tag.
 That is step 5 with the older version:
 
 ```bash
-git tag -f -a v1 -m "v1 -> v1.0.0" v1.0.0
+git tag -f -a v1 -m "v1 -> v1.0.0" 'v1.0.0^{}'
 git push --force origin v1
 ```
 
