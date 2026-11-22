@@ -14,14 +14,18 @@ moves it by hand. Nothing in CI cuts a release.
 
 ## Where things stand (22 November 2026)
 
-- Tags: `v1.0.0` (16 August 2026), `v1.1.0` (22 November 2026) and `v1`,
-  which points at `v1.1.0`. Each numbered tag has a GitHub release.
-- `v1.1.0` was cut from `main` by the steps below. It carries three months
-  of changes, among them the 29 October fix to how the Action prints and
-  posts text from the scanned repository.
+- Tags: `v1.0.0` (16 August 2026), `v1.1.0` and `v1.2.0` (both 22 November
+  2026), and `v1`, which points at `v1.2.0`. Each numbered tag has a GitHub
+  release.
+- `v1.1.0` carried three months of changes, among them the 29 October fix
+  to how the Action prints and posts text from the scanned repository.
+  `v1.2.0` added the scanner's commit to reports.
 - The version in the code matches the tag: `pyproject.toml` and
-  `vibecheck/__init__.py` both say `1.1.0`, and that is what `--version`
-  and every report print.
+  `vibecheck/__init__.py` both say `1.2.0`. `--version` and reports print
+  it with the commit, for example `1.2.0+0111204`.
+- Two weekly jobs in `ci.yml` watch the tag: `published-tag` runs the
+  Action from `v1`, and `tag-drift` fails when `v1` is behind `main` for
+  the scanner or the Action.
 
 ## The tags
 
@@ -129,6 +133,7 @@ Deleting a tag people have pinned breaks their builds a second time.
 
 ## What is not in place
 
-- Nothing fails when `v1` falls behind `main`.
-- No scheduled job runs the Action from the published tag.
-- A report does not carry the commit it was made by, only the version string.
+- The drift check runs weekly, so `v1` can be behind `main` for up to a
+  week before a job goes red, and a red scheduled job is the only notice.
+- The hosted site's own reports print the version without the commit: its
+  image is built without the git history.
