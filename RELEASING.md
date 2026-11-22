@@ -12,17 +12,19 @@ So merging to `main` releases the site and nothing else. The Action and the
 package reach people only through tags, and a tag moves only when someone
 moves it by hand. Nothing in CI cuts a release.
 
-## Where things stand (22 November 2026)
+## Where things stand
 
-- Tags: `v1.0.0` (16 August 2026), `v1.1.0` and `v1.2.0` (both 22 November
-  2026), and `v1`, which points at `v1.2.0`. Each numbered tag has a GitHub
-  release.
-- `v1.1.0` carried three months of changes, among them the 29 October fix
-  to how the Action prints and posts text from the scanned repository.
-  `v1.2.0` added the scanner's commit to reports.
-- The version in the code matches the tag: `pyproject.toml` and
-  `vibecheck/__init__.py` both say `1.2.0`. `--version` and reports print
-  it with the commit, for example `1.2.0+0111204`.
+The list of releases is on the repository's
+[releases page](https://github.com/JoelMHarvey/vibecheck/releases); this
+file does not repeat it, so it cannot fall behind.
+
+- `v1` points at the newest `v1.x.y`. The first release, `v1.0.0`, was
+  16 August 2026; `v1` then stood still until 22 November 2026, through a
+  security fix, which is why the checks below exist.
+- The version in the code matches the newest tag: `pyproject.toml` and
+  `vibecheck/__init__.py`. `--version` and reports print it with the
+  commit, for example `1.2.0+0111204`, and the hosted site's reports and
+  its `/api/health` do the same.
 - Two weekly jobs in `ci.yml` watch the tag: `published-tag` runs the
   Action from `v1`, and `tag-drift` fails when `v1` is behind `main` for
   the scanner or the Action.
@@ -135,5 +137,3 @@ Deleting a tag people have pinned breaks their builds a second time.
 
 - The drift check runs weekly, so `v1` can be behind `main` for up to a
   week before a job goes red, and a red scheduled job is the only notice.
-- The hosted site's own reports print the version without the commit: its
-  image is built without the git history.

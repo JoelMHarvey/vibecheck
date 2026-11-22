@@ -5,4 +5,4 @@ explains each one in plain English with a copy-paste fix prompt for your
 AI coding tool (Cursor, Claude Code, Lovable, Bolt, v0, ...).
 """
 
-__version__ = "1.2.0"
+__version__ = "1.2.1"
