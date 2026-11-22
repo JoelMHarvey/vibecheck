@@ -186,6 +186,14 @@ class SignedReportTest(unittest.TestCase):
         self.assertIn("Verified", viewer.inner_text(".vr-prov"))
         self.assertIn("gold badge", viewer.inner_text("#report"))
 
+    def test_a_shared_report_says_which_scanner_made_it(self):
+        from vibecheck.build import full_version
+        _page, hash_ = self.open_shared("/visibility", self.signed_results()[1:])
+        viewer = self.page()
+        viewer.goto(BASE + "/report" + hash_, wait_until="domcontentloaded")
+        viewer.wait_for_selector(".vr-prov.ok")
+        self.assertIn(f"vibecheck {full_version()}", viewer.inner_text("#report"))
+
     def test_an_edited_link_says_tampered(self):
         from vibecheck.core import badge
         result = self.signed_results()[1]

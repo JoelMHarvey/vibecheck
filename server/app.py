@@ -379,8 +379,10 @@ class Site:
         if path == HEALTH_PATH:
             return 200, [("Content-Type", "application/json"), ("Cache-Control", "no-store")], b'{"ok":true}\n'
         if path == READY_PATH:
+            from vibecheck.build import full_version
             signing = signing_ready()
-            body = json.dumps({"ok": signing, "signing": signing}).encode("ascii") + b"\n"
+            body = json.dumps({"ok": signing, "signing": signing,
+                               "scanner": full_version()}).encode("ascii") + b"\n"
             return (200 if signing else 503), [("Content-Type", "application/json"),
                                                ("Cache-Control", "no-store")], body
 

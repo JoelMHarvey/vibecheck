@@ -303,6 +303,18 @@ class EndpointTest(unittest.TestCase):
         self.assertEqual(signing.verify_envelope(payload["signed"]["badge"], signing.BADGE, KEYS), signing.VERIFIED)
         self.assertEqual(payload["level"], "gold")
 
+    def test_hosted_results_say_which_scanner_made_them(self):
+        from vibecheck.build import full_version
+        original = results()[1]
+        payload = with_signatures(original)
+        self.assertEqual(payload["meta"]["scanner"], full_version())
+        # Inside the signed claim too, so a shared link carries it and it
+        # cannot be changed without breaking the signature.
+        claim = json.loads(payload["signed"]["report"]["p"])
+        self.assertEqual(claim["meta"]["scanner"], full_version())
+        # The caller's result is left as it was.
+        self.assertNotIn("scanner", original.meta)
+
     def test_badge_endpoint(self):
         base = self.serve("badge.py")
         env = with_signatures(results()[1])["signed"]["badge"]

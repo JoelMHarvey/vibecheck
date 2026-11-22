@@ -25,6 +25,7 @@ sys.path.insert(0, str(ROOT))
 from vis_fakes import NOW, healthy_site  # noqa: E402
 
 from server import app as server  # noqa: E402
+from vibecheck.build import full_version  # noqa: E402
 from vibecheck.checks.visibility import scan_visibility  # noqa: E402
 from vibecheck.core import netguard  # noqa: E402
 from vibecheck.core.cache import MemoryCache, ResultCache  # noqa: E402
@@ -214,7 +215,7 @@ class HealthTest(ServerTestCase):
         with mock.patch.dict(os.environ, {"VIBECHECK_SIGNING_KEY": b64url(SEED)}):
             status, headers, body = self.client.get(server.READY_PATH)
         self.assertEqual(status, 200)
-        self.assertEqual(json.loads(body), {"ok": True, "signing": True})
+        self.assertEqual(json.loads(body), {"ok": True, "signing": True, "scanner": full_version()})
         self.assertEqual(headers["cache-control"], "no-store")
 
     def test_health_is_503_without_a_signing_key(self):
@@ -222,7 +223,7 @@ class HealthTest(ServerTestCase):
             with self.subTest(value=value), mock.patch.dict(os.environ, {"VIBECHECK_SIGNING_KEY": value}):
                 status, _, body = self.client.get(server.READY_PATH)
                 self.assertEqual(status, 503)
-                self.assertEqual(json.loads(body), {"ok": False, "signing": False})
+                self.assertEqual(json.loads(body), {"ok": False, "signing": False, "scanner": full_version()})
 
     def test_health_is_503_when_the_key_is_set_but_is_not_a_key(self):
         for value in ("not-a-key", b64url(SEED[:16]), "%%%"):
