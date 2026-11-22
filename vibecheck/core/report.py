@@ -8,7 +8,7 @@ import json
 import textwrap
 from typing import Optional, Sequence
 
-from .. import __version__
+from ..build import full_version, scanner_info
 from .models import SEVERITY_ORDER, CheckResult
 from .scoring import badge_level
 
@@ -92,7 +92,7 @@ def render_terminal(result: CheckResult, use_color: bool = True) -> str:
         return f"{ANSI[code]}{s}{ANSI['reset']}" if use_color else s
 
     check = _check(result.check_id)
-    lines = ["", c("bold", f"  vibecheck v{__version__} · {check.title} — {describe_target(result)}"),
+    lines = ["", c("bold", f"  vibecheck v{full_version()} · {check.title} — {describe_target(result)}"),
              c("dim", f"  {meta_line(result)}"), ""]
     if result.total is None:
         lines.append("  " + c("bold", f"{check.title.upper()}: ") + c("critical", "not checked"))
@@ -153,7 +153,8 @@ def render_markdown(result: CheckResult, heading_level: int = 1) -> str:
     check = _check(result.check_id)
     h = "#" * heading_level
     lines = [f"{h} vibecheck {check.title.lower()} report", "",
-             f"**Target:** {describe_target(result)} · {meta_line(result)}", ""]
+             f"**Target:** {describe_target(result)} · {meta_line(result)}", "",
+             f"**Scanner:** vibecheck {full_version()}", ""]
     if result.total is None:
         lines += [f"{h}# {check.title}: not checked", ""]
     else:
@@ -231,8 +232,13 @@ def to_json(results: Sequence[CheckResult]) -> dict:
     return {"target": results[0].target.to_dict(), "results": [r.to_dict() for r in results]}
 
 
-def render_json(results: Sequence[CheckResult]) -> str:
-    return json.dumps(to_json(results), indent=2, ensure_ascii=False) + "\n"
+def render_json(results: Sequence[CheckResult], stamp: bool = True) -> str:
+    """The JSON report. `stamp` adds which scanner made it; a snapshot that is
+    compared across commits leaves it out, since the commit differs each time."""
+    body = to_json(results)
+    if stamp:
+        body = {"scanner": scanner_info(), **body}
+    return json.dumps(body, indent=2, ensure_ascii=False) + "\n"
 
 
 def fails(results: Sequence[CheckResult], threshold: str = "high") -> bool:

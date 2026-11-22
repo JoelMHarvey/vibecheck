@@ -24,6 +24,7 @@ import urllib.request
 from pathlib import Path
 
 from . import __version__
+from .build import full_version
 from .report import (
     CI_COMMENT_MARKER,
     render_ci_markdown,
@@ -240,7 +241,7 @@ def main(argv=None, env=None, out=None) -> int:
 
     if sarif_file:
         Path(sarif_file).parent.mkdir(parents=True, exist_ok=True)
-        Path(sarif_file).write_text(render_sarif(result, __version__, prefix), encoding="utf-8")
+        Path(sarif_file).write_text(render_sarif(result, full_version(), prefix), encoding="utf-8")
         print(f"  SARIF written to {sarif_file}", file=out)
 
     json_file = (env.get("INPUT_JSON_FILE") or "").strip()
