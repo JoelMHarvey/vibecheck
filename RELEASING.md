@@ -1,0 +1,132 @@
+# Releasing vibecheck
+
+One repository ships three things, and they are released differently.
+
+| What | How people get it | When a change reaches them |
+|---|---|---|
+| The hosted site, psychosecurity.io | they visit it | on every merge to `main` that changes anything other than Markdown or `docs/` (see [`RUNBOOK.md`](RUNBOOK.md)) |
+| The GitHub Action | `uses: JoelMHarvey/vibecheck@v1` in their workflow | only when the `v1` tag is moved |
+| The scanner as a package | `pip install git+https://github.com/JoelMHarvey/vibecheck@<ref>` | when the ref they pinned moves: a tag, or `main` if they follow it |
+
+So merging to `main` releases the site and nothing else. The Action and the
+package reach people only through tags, and a tag moves only when someone
+moves it by hand. Nothing in CI cuts a release.
+
+## Where things stand (22 November 2026)
+
+- Tags: `v1.0.0` and `v1`, both made on 16 August 2026. There is one GitHub
+  release, v1.0.0.
+- `v1` has not moved since. `main` is 81 commits ahead of it, so the Action
+  at `@v1` and anything installed from `@v1` run August's code.
+- The version in the code is out of step with the tags: `pyproject.toml` and
+  `vibecheck/__init__.py` both say `0.1.0`, and that is what `--version` and
+  every report print. The next release puts this right (step 2 below).
+- Whether to move `v1` to today's `main` is the maintainer's decision and has
+  not been made. It hands every user of `@v1` three months of changes at once.
+
+## The tags
+
+- `vMAJOR.MINOR.PATCH` (for example `v1.1.0`) names one commit and never
+  moves. Pin this for a result that can be reproduced.
+- `v1` is the moving tag the README tells people to use. It always points at
+  the newest `v1.x.y`. Moving it changes what runs in other people's
+  pipelines on their next job, with no action on their part. Treat it as a
+  deploy to every user.
+
+## When to release
+
+- **A security fix in the Action or the scanner: the same day.** A fix that
+  sits on `main` protects nobody who runs `@v1`. Cut a patch release and move
+  `v1`.
+- **A new or changed rule, a changed score, a new input or output:** a minor
+  release, when the change is one users should have. A rule that changes
+  scores can turn a passing pipeline red, so say so in the release notes.
+- **Site-only changes** (pages, guides, `api/`, `server/`): no release. The
+  merge is the release.
+- **A breaking change** (an input removed or renamed, an output that changes
+  meaning, a higher minimum Python): a new major. Tag `v2.0.0`, create `v2`,
+  and leave `v1` where it is.
+
+## How to release
+
+Only the maintainer does this. Tags are pushed from a clean checkout of
+`main`.
+
+1. **Check `main` is green.** The `ci` workflow must have passed on the commit
+   you are about to tag: the tests on three operating systems, the run with
+   Chromium, and the self-scan.
+
+   ```bash
+   git checkout main && git pull
+   python3 -m unittest discover -s tests
+   python3 -m vibecheck .
+   ```
+
+2. **Set the version** to the one you are about to tag, in both places, in a
+   pull request of its own:
+
+   - `pyproject.toml`: `version = "1.1.0"`
+   - `vibecheck/__init__.py`: `__version__ = "1.1.0"`
+
+   Merge it and wait for `ci`. This merge also deploys the site, which then
+   prints the new version in its reports.
+
+3. **Tag that commit** and push the tag:
+
+   ```bash
+   git pull
+   git tag -a v1.1.0 -m "v1.1.0"
+   git push origin v1.1.0
+   ```
+
+4. **Try the tag before moving `v1`.** In a scratch repository, run the Action
+   at the exact tag (`uses: JoelMHarvey/vibecheck@v1.1.0`) on a pull request,
+   and install the package from it:
+
+   ```bash
+   pip install "git+https://github.com/JoelMHarvey/vibecheck@v1.1.0"
+   vibecheck --version
+   ```
+
+   CI tests the Action from the working tree (`uses: ./`), never from a tag,
+   so this is the only test of what users will run.
+
+5. **Move `v1`:**
+
+   ```bash
+   git tag -f -a v1 -m "v1 -> v1.1.0" v1.1.0
+   git push --force origin v1
+   ```
+
+   This is the one forced push the repository allows. Never force any other
+   tag.
+
+6. **Publish a GitHub release** for `v1.1.0` with notes: what changed for
+   users, any rule whose findings or scores change, and any security fix by
+   name. Do not describe how to exploit a fixed flaw.
+
+7. **Tell whoever pins a ref.** Anyone following `@v1` has the change already.
+   Anyone pinned to an exact tag or commit has not: the release notes are how
+   they find out. If you maintain other projects that install the scanner,
+   move their pins in the same sitting, so that scores in different places
+   come from the same scanner.
+
+## Taking a release back
+
+If a release breaks people's pipelines, move `v1` back to the last good tag.
+That is step 5 with the older version:
+
+```bash
+git tag -f -a v1 -m "v1 -> v1.0.0" v1.0.0
+git push --force origin v1
+```
+
+Leave the bad `v1.x.y` tag in place, mark its GitHub release as a
+pre-release with a line saying why, and fix forward with the next patch.
+Deleting a tag people have pinned breaks their builds a second time.
+
+## What is not in place
+
+- Nothing fails when `v1` falls behind `main`.
+- No scheduled job runs the Action from the published tag.
+- A report does not carry the commit it was made by, only the version string.
