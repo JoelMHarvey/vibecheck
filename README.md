@@ -574,6 +574,9 @@ python3 scripts/generate_rules_manifest.py # after editing rules.py
 The browser tests need Playwright (`pip install playwright`); they use
 the Chromium already on the image and skip themselves if none is found.
 
+How a release is cut, and when the `v1` tag that the Action's users follow
+moves, is in [`RELEASING.md`](RELEASING.md).
+
 **If you change `rules.py`, regenerate `rules.json`** — a test fails if
 the two drift, because shared links read their descriptions from it.
 
