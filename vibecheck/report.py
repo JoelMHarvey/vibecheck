@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import textwrap
 
-from . import __version__
+from .build import full_version, scanner_info
 from .rules import SEVERITY_ORDER
 from .scanner import ScanResult
 
@@ -58,7 +58,7 @@ def render_terminal(result: ScanResult, use_color: bool = True) -> str:
 
     lines = []
     lines.append("")
-    lines.append(c("bold", f"  vibecheck v{__version__} — {result.root}"))
+    lines.append(c("bold", f"  vibecheck v{full_version()} — {result.root}"))
     lines.append(c("dim", f"  {result.files_scanned} files scanned"))
     lines.append("")
 
@@ -105,6 +105,8 @@ def render_markdown(result: ScanResult) -> str:
     lines.append("# vibecheck security report")
     lines.append("")
     lines.append(f"**Scanned:** `{result.root}` ({result.files_scanned} files)")
+    lines.append("")
+    lines.append(f"**Scanner:** vibecheck {full_version()}")
     lines.append("")
     lines.append(f"## Vibe Score: {result.score}/100 (grade {result.grade})")
     lines.append("")
@@ -287,4 +289,6 @@ def to_json_dict(result: ScanResult) -> dict:
 
 
 def render_json(result: ScanResult) -> str:
-    return json.dumps(to_json_dict(result), indent=2) + "\n"
+    # The scanner block is added here, not in to_json_dict: that dict is also
+    # the hosted site's response body, whose shape is its own contract.
+    return json.dumps({"scanner": scanner_info(), **to_json_dict(result)}, indent=2) + "\n"

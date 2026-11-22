@@ -14,7 +14,7 @@ import re
 import sys
 from pathlib import Path
 
-from . import __version__
+from .build import full_version
 from .report import render_json, render_markdown, render_terminal
 from .rules import SEVERITY_ORDER
 from .scanner import scan
@@ -95,7 +95,7 @@ def main(argv=None) -> int:
         help="skip paths matching this glob (repeatable). Patterns in a .vibecheckignore file at the project root are applied too.",
     )
     parser.add_argument("--no-color", action="store_true", help="disable colored output")
-    parser.add_argument("--version", action="version", version=f"vibecheck {__version__}")
+    parser.add_argument("--version", action="version", version=f"vibecheck {full_version()}")
     args = parser.parse_args(argv)
 
     if args.visibility or args.checks or args.badge or args.positioning or args.brand or args.architecture or _looks_like_url(args.path):

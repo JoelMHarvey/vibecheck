@@ -112,7 +112,7 @@ def main(argv=None) -> int:
         # Snapshot from the replay, not the live run, so the snapshot is
         # exactly what the test will reproduce.
         result = replay(fixture)
-    (FIXTURES / f"{args.name}.expected.json").write_text(render_json([result]), encoding="utf-8")
+    (FIXTURES / f"{args.name}.expected.json").write_text(render_json([result], stamp=False), encoding="utf-8")
     print(f"{args.name}: {len(fixture['responses'])} responses, score {result.total}, "
           f"{len(result.problems)} findings, {len(result.passes)} passes")
     return 0

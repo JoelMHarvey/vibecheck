@@ -34,7 +34,7 @@ class RobinOfLoxleyTest(unittest.TestCase):
 
     def test_matches_the_snapshot(self):
         expected = (FIXTURES / "robinofloxley.expected.json").read_text(encoding="utf-8")
-        self.assertEqual(render_json([self.result]), expected,
+        self.assertEqual(render_json([self.result], stamp=False), expected,
                          "re-snapshot with: python3 scripts/record_visibility_fixture.py --name robinofloxley --replay")
 
     def test_replay_needs_nothing_unrecorded(self):
