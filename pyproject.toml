@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vibecheck-scanner"
-version = "0.1.0"
+version = "1.1.0"
 description = "Security scanner for AI-built apps — plain-English findings with copy-paste fix prompts for your AI coding tool"
 readme = "README.md"
 requires-python = ">=3.9"
