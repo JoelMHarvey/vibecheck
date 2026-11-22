@@ -74,3 +74,72 @@ jobs:
       contents: read
       pull-requests: write
       security-events: write
+
+  # Everything above tests the working tree. People run the published tag,
+  # and nothing above would notice if it broke or fell behind. These two jobs
+  # look at the tag itself, once a week and when run by hand; they stay out
+  # of pushes and pull requests so that a merge to main is never red merely
+  # because the release has not been cut yet (RELEASING.md).
+
+  # The Action exactly as the README tells people to use it.
+  published-tag:
+    name: the Action from the published v1 tag
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # This repository scores 100 at the tag's rules too, or the job fails
+      # on the default fail-on: high.
+      - uses: JoelMHarvey/vibecheck@v1
+        with:
+          comment: 'false'
+      # The planted sample app: the published scanner must still find it.
+      - id: sample
+        uses: JoelMHarvey/vibecheck@v1
+        with:
+          path: vibecheck/checks/security/fixtures/sample-app
+          fail-on: never
+          comment: 'false'
+          summary: 'false'
+      - name: the sample app's planted criticals are found
+        env:
+          CRITICAL: ${{ steps.sample.outputs.critical }}
+        run: |
+          echo "critical findings in the sample app: ${CRITICAL:-none reported}"
+          if [ -z "$CRITICAL" ] || [ "$CRITICAL" -lt 1 ]; then
+            echo "::error::the published v1 found no critical finding in the planted sample app"
+            exit 1
+          fi
+
+  # Is v1 behind main by something users would run? Site-only merges
+  # (pages, api/, server/) do not count; the scanner and the Action do.
+  tag-drift:
+    name: v1 is level with main for the scanner and the Action
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: v1 points at the newest v1.x.y, and main has nothing unreleased
+        run: |
+          newest=$(git tag -l 'v1.*.*' --sort=-v:refname | head -n 1)
+          v1_commit=$(git rev-parse 'v1^{commit}')
+          newest_commit=$(git rev-parse "${newest}^{commit}")
+          echo "v1 -> ${v1_commit}"
+          echo "${newest} -> ${newest_commit}"
+          fail=0
+          if [ "$v1_commit" != "$newest_commit" ]; then
+            echo "::error::v1 does not point at ${newest}, the newest v1 release (RELEASING.md, step 5)"
+            fail=1
+          fi
+          unreleased=$(git log --oneline "v1..HEAD" -- vibecheck action.yml action_entry.py)
+          if [ -n "$unreleased" ]; then
+            echo "::error::main has scanner or Action changes that v1 does not: cut a release (RELEASING.md)"
+            echo "$unreleased"
+            fail=1
+          else
+            echo "nothing in vibecheck/, action.yml or action_entry.py is ahead of v1"
+          fi
+          exit "$fail"
