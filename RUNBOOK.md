@@ -15,7 +15,7 @@ only be known there, it says "not verified".
 | Front door | the server's one Caddy, `/srv/edge`. It holds the certificate and passes requests to `psychosecurity:8000`. The site file's name, expected to be `sites/psychosecurity.caddy`: not verified |
 | Deploys | `.github/workflows/deploy.yml`, on a push to `main` that changes anything other than Markdown or `docs/`. It runs on GitHub's runners and sends the commit's files to `deploy-app` on the server |
 | Logs | the container's own (`docker compose logs`), kept to five files of 10 MB; deploys also in `/var/log/deploy.log` |
-| Health path | `/api/health/live`. It answers 200 before anything else runs, so it says the process is up and nothing more. It does not check the signing key |
+| Health paths | `/api/health/live` answers 200 before anything else runs, so it says the process is up and nothing more; the container's own check uses it. `/api/health` answers 200 only when the signing key loads and 503 when it is missing or malformed. It says yes or no and nothing about the key |
 | Database | none. Nothing is stored |
 | DNS | GoDaddy, `psychosecurity.io` and `www` |
 

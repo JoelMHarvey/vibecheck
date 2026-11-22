@@ -205,6 +205,38 @@ class HealthTest(ServerTestCase):
         self.assertEqual(json.loads(body), {"ok": True})
         self.assertEqual(headers["cache-control"], "no-store")
 
+    def test_live_does_not_ask_for_the_signing_key(self):
+        with mock.patch.dict(os.environ, {"VIBECHECK_SIGNING_KEY": ""}):
+            status, _, _ = self.client.get(server.HEALTH_PATH)
+        self.assertEqual(status, 200)
+
+    def test_health_is_ok_when_the_signing_key_loads(self):
+        with mock.patch.dict(os.environ, {"VIBECHECK_SIGNING_KEY": b64url(SEED)}):
+            status, headers, body = self.client.get(server.READY_PATH)
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body), {"ok": True, "signing": True})
+        self.assertEqual(headers["cache-control"], "no-store")
+
+    def test_health_is_503_without_a_signing_key(self):
+        for value in ("", "   "):
+            with self.subTest(value=value), mock.patch.dict(os.environ, {"VIBECHECK_SIGNING_KEY": value}):
+                status, _, body = self.client.get(server.READY_PATH)
+                self.assertEqual(status, 503)
+                self.assertEqual(json.loads(body), {"ok": False, "signing": False})
+
+    def test_health_is_503_when_the_key_is_set_but_is_not_a_key(self):
+        for value in ("not-a-key", b64url(SEED[:16]), "%%%"):
+            with self.subTest(value=value), mock.patch.dict(os.environ, {"VIBECHECK_SIGNING_KEY": value}):
+                status, _, body = self.client.get(server.READY_PATH)
+                self.assertEqual(status, 503)
+                self.assertNotIn(value.encode(), body)
+
+    def test_health_follows_a_changed_key(self):
+        with mock.patch.dict(os.environ, {"VIBECHECK_SIGNING_KEY": ""}):
+            self.assertEqual(self.client.get(server.READY_PATH)[0], 503)
+        with mock.patch.dict(os.environ, {"VIBECHECK_SIGNING_KEY": b64url(SEED)}):
+            self.assertEqual(self.client.get(server.READY_PATH)[0], 200)
+
 
 class RewritesTest(ServerTestCase):
     def test_badge_svg(self):
