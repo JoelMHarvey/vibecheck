@@ -9,4 +9,4 @@ cryptography>=42
 # The positioning review (vibecheck/checks/visibility/positioning.py) calls
 # Claude from /api/visibility when ANTHROPIC_API_KEY is set. Imported lazily,
 # so nothing else needs it.
-anthropic>=2.3,<3
+anthropic>=2.10.0,<3
