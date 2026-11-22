@@ -30,6 +30,13 @@
     return manifests[checkId];
   }
 
+  // Which scanner made the report, e.g. "vibecheck 1.2.0+0111204". A shared
+  // link can carry anything here, so only a version-shaped value is shown.
+  function scannerLabel(r) {
+    const s = r && r.meta && r.meta.scanner;
+    return typeof s === "string" && /^[0-9A-Za-z.+-]{1,40}$/.test(s) ? `vibecheck ${s}` : "";
+  }
+
   function el(tag, cls, text) {
     const n = document.createElement(tag);
     if (cls) n.className = cls;
@@ -197,6 +204,7 @@
     const ai = probeSkipped(r);
     if (ai) bits.push(`AI answers not checked: ${ai}`);
     bits.push(when(r.scanned_at));
+    if (scannerLabel(r)) bits.push(`${scannerLabel(r)}`);
     meta.append(el("p", "", bits.filter(Boolean).join(" · ")));
     const pills = el("div", "vr-pills");
     const c = counts(r);
@@ -435,6 +443,7 @@
     results.forEach((r, i) => {
       const m = ms[i]; const h = results.length > 1 ? "##" : "#";
       md += `${h} vibecheck ${m.title.toLowerCase()} report\n\n**Target:** ${describeTarget(r.target)} · ${r.scanned_at}\n\n`;
+      if (scannerLabel(r)) md += `**Scanner:** ${scannerLabel(r)}\n\n`;
       md += r.total === null || r.total === undefined ? `${h}# ${m.title}: not checked\n\n`
         : `${h}# ${m.title}: ${r.total}/100 (grade ${gradeFor(r.total)})\n\n`;
       md += "| Category | Score |\n|---|---|\n";

@@ -3,8 +3,10 @@ report and badge (unsigned, and marked so, when no key is configured)."""
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Optional
 
+from ..build import full_version
 from . import badge, signing
 from .models import CheckResult
 from .report import level
@@ -12,6 +14,10 @@ from .report import level
 
 def with_signatures(result: CheckResult, signer: Optional[signing.Signer] = None,
                     sign_badge: bool = True) -> dict:
+    # Which scanner made this report: the version and, when known, its commit.
+    # It goes in meta so that it is inside the signed claim, travels in a
+    # shared link, and is drawn by the report page.
+    result = replace(result, meta={**result.meta, "scanner": full_version()})
     payload = result.to_dict()
     payload["level"] = level(result)
     signer = signer if signer is not None else signing.load_signer()
