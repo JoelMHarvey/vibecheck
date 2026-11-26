@@ -1,12 +1,16 @@
 # Server only. The CLI and the GitHub Action need nothing beyond Python itself.
 #
+# Exact versions, so a rebuild of the image installs what the tests ran
+# against. Dependabot (.github/dependabot.yml, pip) raises them by pull
+# request. What these two pull in themselves is not pinned here.
+#
 # The hosted functions sign reports and badges with Ed25519. vibecheck has
 # its own standard-library Ed25519 (vibecheck/core/ed25519.py), which is
 # correct but not constant-time; on the server, signing uses this audited,
 # constant-time implementation instead. Verification needs neither.
-cryptography>=42
+cryptography==50.0.2
 
 # The positioning review (vibecheck/checks/visibility/positioning.py) calls
 # Claude from /api/visibility when ANTHROPIC_API_KEY is set. Imported lazily,
 # so nothing else needs it.
-anthropic>=2.10.0,<3
+anthropic==2.14.0
