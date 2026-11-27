@@ -64,8 +64,8 @@
 
   <h2>Rate limits</h2>
   <p>To stop the scanners being used to hammer other people's sites, each request is counted against your IP
-  address. The counters hold the address for at most an hour, then expire. They live in memory or in our
-  rate-limit store (Upstash, through Vercel), and are used for nothing else.</p>
+  address. The counters hold the address for at most an hour, then expire. They live in our server's memory, or in a rate-limit store at
+  Upstash when one is switched on, and are used for nothing else.</p>
 
   <h2>Shared reports and badges</h2>
   <p>A share link carries the whole report in the part of the address after <code>#</code>, which browsers
@@ -83,17 +83,22 @@
   </ul>
 
   <h2>Our host</h2>
-  <p>The site runs on Vercel, which handles the requests that reach it and keeps its own short-lived
-  operational logs under <a href="https://vercel.com/legal/privacy-policy">Vercel's privacy policy</a>.</p>
+  <p>The site runs on a server we rent from Hetzner, a hosting company, and we run the software on it
+  ourselves. Hetzner provides the machine and the network under
+  <a href="https://www.hetzner.com/legal/privacy-policy/">Hetzner's privacy policy</a>. Like any web server,
+  ours keeps an operational log of the requests that reach it. A line can include the time, the page or
+  function asked for, your IP address and what your browser says it is. The code you send and the address you ask us to check
+  travel in the body of the request, which the log doesn't record. The log is limited in size, and the oldest
+  lines are overwritten as new ones arrive.</p>
 
   <h2>Your rights</h2>
   <p>Under UK data protection law you can ask what we hold about you, and ask us to correct or delete it. In
-  practice, the only personal data we ever hold is an IP address in a rate-limit counter for up to an hour, so
-  by the time you write it will be gone, but write anyway: <a href="mailto:hello@robinofloxley.com">hello@robinofloxley.com</a>.
+  practice, the only personal data we ever hold is an IP address: in a rate-limit counter for up to an hour, and
+  in the server's operational log until its lines are overwritten. Write anyway: <a href="mailto:hello@robinofloxley.com">hello@robinofloxley.com</a>.
   If you're unhappy with our answer you can complain to the <a href="https://ico.org.uk/make-a-complaint/">Information
   Commissioner's Office</a>.</p>
 
-  <p>If this changes, this page changes first. Last updated 28 October 2026 (Serper added).</p>
+  <p>If this changes, this page changes first. Last updated 26 November 2026 (the site moved from Vercel to our own server at Hetzner).</p>
 
   <div class="related">
     <h2>Related</h2>
