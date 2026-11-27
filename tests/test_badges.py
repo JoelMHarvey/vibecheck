@@ -42,8 +42,8 @@ def load_api(name, filename):
     return module
 
 
-def results(site=None):
-    ctx = Context(fetch_override=(site or healthy_site()).fetch, now=NOW)
+def results(site=None, now=NOW):
+    ctx = Context(fetch_override=(site or healthy_site()).fetch, now=now)
     return (SECURITY.run(Target(url="https://groomly.test"), ctx),
             VISIBILITY.run(Target(url="https://groomly.test"), ctx))
 
@@ -267,6 +267,12 @@ class CombinedTest(unittest.TestCase):
 
 
 class EndpointTest(unittest.TestCase):
+    # The badge endpoints read the real clock and a report lasts thirty days,
+    # so reports sent to them are scanned "today", not on the fixed NOW.
+    @staticmethod
+    def fresh_results():
+        return results(now=dt.datetime.now(dt.timezone.utc))
+
     def setUp(self):
         patcher = mock.patch.dict(os.environ, {"VIBECHECK_SIGNING_KEY": signing.b64url(SEED),
                                                "VIBECHECK_RATE_LIMIT_OFF": "1"})
@@ -317,7 +323,7 @@ class EndpointTest(unittest.TestCase):
 
     def test_badge_endpoint(self):
         base = self.serve("badge.py")
-        env = with_signatures(results()[1])["signed"]["badge"]
+        env = with_signatures(self.fresh_results()[1])["signed"]["badge"]
         status, headers, body = self.request(f"{base}/api/badge?check=visibility&r={badge.encode_badge_param(env)}")
         self.assertEqual(status, 200)
         self.assertEqual(headers["Content-Type"], "image/svg+xml; charset=utf-8")
@@ -335,7 +341,7 @@ class EndpointTest(unittest.TestCase):
 
     def test_vibechecked_endpoint(self):
         base = self.serve("vibechecked.py")
-        reports = [with_signatures(r)["signed"]["report"] for r in results()]
+        reports = [with_signatures(r)["signed"]["report"] for r in self.fresh_results()]
         status, _h, body = self.request(base + "/api/vibechecked", {"reports": reports})
         data = json.loads(body)
         self.assertEqual(status, 200, data)
