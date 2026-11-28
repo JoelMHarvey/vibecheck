@@ -9,7 +9,7 @@
 # the same thing from apps.tsv with WSGI server.app:app and health path
 # /api/health/live; this file is for running it without the kit. Same base
 # image, gunicorn and settings as the kit.
-FROM python:3.12.14-slim-bookworm
+FROM python:3.15.2-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
